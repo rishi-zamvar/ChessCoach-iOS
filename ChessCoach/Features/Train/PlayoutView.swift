@@ -50,13 +50,30 @@ struct PlayoutView: View {
           if case .move(let from, let to) = interaction.dragEnded(at: square, session: game, userColor: userColor) { play(from, to) }
         },
         onDragCancelled: { interaction.dragCancelled() })
-      Spacer(minLength: 0)
-      if let outcome {
-        PuzzleButton(title: round + 1 < total ? (outcome ? "Next" : "Try again") : "Finish", systemImage: "arrow.right", prominent: true) {
-          next()
-        }
-        .padding(Spacing.m)
+      if let last = game.lastMove {
+        Text("\(last.color == userColor ? "You" : "Stockfish"): \(Explainer.reason(fen: game.fen(atPly: game.history.count - 1), uci: last.uci) ?? last.san)")
+          .font(.system(size: 14, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+          .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Spacing.m).padding(.top, Spacing.s)
+          .accessibilityIdentifier("playout-caption")
       }
+      Spacer(minLength: 0)
+      HStack(spacing: Spacing.s) {
+        if outcome == false {
+          PuzzleButton(title: "Try again", systemImage: "arrow.counterclockwise", prominent: true) { reset() }
+            .accessibilityIdentifier("playout-retry")
+          PuzzleButton(title: round + 1 < total ? "Skip" : "Finish", systemImage: "arrow.right") { next() }
+        } else if outcome == true {
+          PuzzleButton(title: "Replay", systemImage: "arrow.counterclockwise") { reset() }
+          PuzzleButton(title: round + 1 < total ? "Next" : "Finish", systemImage: "arrow.right", prominent: true) { next() }
+        } else {
+          PuzzleButton(title: "Take back", systemImage: "arrow.uturn.backward") { takeBack() }
+            .disabled(thinking || game.history.isEmpty)
+            .accessibilityIdentifier("playout-takeback")
+          PuzzleButton(title: "Restart", systemImage: "arrow.counterclockwise") { reset() }
+            .disabled(thinking)
+        }
+      }
+      .padding(Spacing.m)
     }
     .onAppear {
       analysis.beginForegroundEngineUse()
@@ -74,7 +91,16 @@ struct PlayoutView: View {
     }
   }
 
+  /// Undoes your last move (and Stockfish's reply to it).
+  private func takeBack() {
+    guard !thinking, let last = game.lastMove else { return }
+    game.undo(last.color == userColor ? 1 : min(2, game.history.count))
+    interaction.reset()
+    message = goalText
+  }
+
   private func reset() {
+    if outcome == true { wins -= 1 }  // replaying a won round doesn't count twice
     game = GameSession(startFEN: startFEN)
     interaction.reset()
     outcome = nil

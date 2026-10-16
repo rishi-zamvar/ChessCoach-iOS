@@ -98,4 +98,26 @@ enum BoardSettings {
   static let piecesKey = "board.pieces"
   static let soundKey = "board.sound"
   static let coordinatesKey = "board.coordinates"
+  static let paceKey = "board.pace"
+}
+
+/// How the opponent's replies are shown in puzzles and lessons.
+enum ReplyPace: String, CaseIterable, Identifiable {
+  case instant, normal, step
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .instant: "Instant"
+    case .normal: "Pause"
+    case .step: "Tap to continue"
+    }
+  }
+  /// Pause before the reply; nil waits for a tap.
+  var delay: Duration? {
+    switch self {
+    case .instant: .milliseconds(150)
+    case .normal: .milliseconds(900)
+    case .step: nil
+    }
+  }
 }

@@ -127,3 +127,36 @@ public enum Explainer {
     return String(stripped.suffix(2))
   }
 }
+
+extension Explainer {
+  /// One short, engine-free sentence on what a move does — used to narrate the
+  /// opponent's replies and to caption any move you step to. Nil if illegal.
+  public static func reason(fen: String, uci: String) -> String? {
+    guard let facts = FactExtractor.moveFacts(fen: fen, uci: uci) else { return nil }
+    var session = GameSession(startFEN: fen)
+    guard case .applied(let played) = session.apply(uci: uci) else { return nil }
+    let san = facts.san
+    let to = played.move.end.notation
+    let m = facts.motifs
+    if m.contains(.mate) { return "\(san) is checkmate." }
+    if m.contains(.fork), facts.targets.count >= 2 { return "\(san) forks the \(list(facts.targets))." }
+    if m.contains(.promotion) { return "\(san) promotes the pawn." }
+    if case .capture(let captured) = played.move.result {
+      let name = FactExtractor.name(of: captured.kind)
+      if m.contains(.winsMaterial) || m.contains(.hangingPiece) { return "\(san) wins the \(name) on \(to)." }
+      return "\(san) trades on \(to)."
+    }
+    if m.contains(.mateThreat) { return "\(san) threatens mate." }
+    for motif in [Motif.pin, .skewer, .discoveredAttack] where m.contains(motif) {
+      return "\(san) sets up a \(motif.displayName.lowercased())."
+    }
+    if m.contains(.check) { return "\(san) gives check." }
+    let mover = played.color
+    let wasHanging = FactExtractor.hangingPieces(fen: fen, of: mover).contains { $0.square == played.move.start }
+    let stillHanging = FactExtractor.hangingPieces(fen: session.position.fen, of: mover).contains { $0.square == played.move.end }
+    if wasHanging, !stillHanging {
+      return "\(san) moves the \(FactExtractor.name(of: played.move.piece.kind)) out of danger."
+    }
+    return "\(san) improves the position."
+  }
+}

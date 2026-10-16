@@ -87,6 +87,8 @@ struct LessonView: View {
         interactive: false)
       Spacer(minLength: 0)
       HStack(spacing: Spacing.s) {
+        StepButton(systemImage: "chevron.left", enabled: workedStep > 0) { unstepWorked() }
+          .accessibilityIdentifier("lesson-back")
         if workedStep < ex.moves.count {
           PuzzleButton(title: workedStep == 0 ? "Play" : "Next move", systemImage: "forward.fill", prominent: true) { stepWorked() }
             .accessibilityIdentifier("lesson-step")
@@ -117,6 +119,13 @@ struct LessonView: View {
     workedGame = GameSession(startFEN: lesson.worked.fen)
     workedStep = 0
     stage = .worked
+  }
+
+  private func unstepWorked() {
+    guard workedStep > 0 else { return }
+    workedGame.undo()
+    workedStep -= 1
+    Haptics.selection()
   }
 
   private func stepWorked() {
@@ -221,10 +230,16 @@ struct LessonView: View {
       Text(passed ? "It'll come back in your reviews so it sticks." : "Try again tomorrow — it'll be in your plan.")
         .font(.system(size: 14, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
       Spacer()
-      PuzzleButton(title: "Continue", systemImage: "checkmark", prominent: true) {
-        onFinished(practiceCorrect, practiceTotal)
+      HStack(spacing: Spacing.s) {
+        if !passed, practiceTotal > 0 {
+          PuzzleButton(title: "Practice again", systemImage: "arrow.counterclockwise") { startPractice() }
+            .accessibilityIdentifier("lesson-retry")
+        }
+        PuzzleButton(title: "Continue", systemImage: "checkmark", prominent: true) {
+          onFinished(practiceCorrect, practiceTotal)
+        }
+        .accessibilityIdentifier("lesson-finish")
       }
-      .accessibilityIdentifier("lesson-finish")
       .padding(Spacing.m)
     }
   }

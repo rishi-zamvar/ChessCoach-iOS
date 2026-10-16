@@ -11,6 +11,7 @@ struct SettingsView: View {
   @AppStorage(BoardSettings.piecesKey) private var pieceSetRaw = PieceSetID.default.rawValue
   @AppStorage(BoardSettings.coordinatesKey) private var showCoordinates = true
   @AppStorage(BoardSettings.soundKey) private var soundOn = true
+  @AppStorage(BoardSettings.paceKey) private var paceRaw = ReplyPace.normal.rawValue
   @State private var username = ""
   @State private var confirmRetake = false
   /// Asks the presenter to reset the profile once this sheet is gone.
@@ -48,6 +49,9 @@ struct SettingsView: View {
           }
           Toggle("Coordinates", isOn: $showCoordinates)
           Toggle("Move sounds", isOn: $soundOn)
+          Picker("Opponent replies", selection: $paceRaw) {
+            ForEach(ReplyPace.allCases) { Text($0.title).tag($0.rawValue) }
+          }
         }
         Section("Coach AI & home PC") {
           LabeledContent("Home PC", value: serverText)

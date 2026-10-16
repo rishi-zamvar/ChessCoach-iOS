@@ -33,6 +33,14 @@ final class TrainUITests: XCTestCase {
       app.buttons["puzzle-solution"].tap()
       XCTAssertTrue(next.waitForExistence(timeout: 3))
       if i == 0 {
+        // The revealed solution steps forward one move at a time, each with a reason.
+        let caption = app.staticTexts["move-caption"]
+        let before = caption.label
+        app.buttons["step-forward"].tap()
+        XCTAssertNotEqual(caption.label, before)
+        XCTAssertTrue(caption.label.contains(":"), caption.label)
+        shot(app, "13b-solution-step")
+        app.buttons["step-back"].tap()
         // Retry replays the finished puzzle from the start.
         app.buttons["puzzle-retry"].tap()
         XCTAssertTrue(hint.waitForExistence(timeout: 5))
