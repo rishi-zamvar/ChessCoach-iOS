@@ -53,6 +53,11 @@ final class CoachSpeaker: NSObject, AVSpeechSynthesizerDelegate {
   /// Quality dominates (a Premium voice of any accent beats a Standard one), then a
   /// male British/American voice for the old-club-coach feel.
   static func naturalVoice() -> AVSpeechSynthesisVoice? {
+    let all = AVSpeechSynthesisVoice.speechVoices()
+    // The coach's chosen voice: Aman, English (India) — best installed quality of it.
+    if let aman = all.filter({ $0.name.hasPrefix("Aman") && $0.language == "en-IN" }).max(by: { $0.quality.rawValue < $1.quality.rawValue }) {
+      return aman
+    }
     let preferred = ["Jamie", "Daniel", "Arthur", "Oliver", "Evan", "Nathan", "Tom", "Aaron"]
     func score(_ v: AVSpeechSynthesisVoice) -> Int {
       var s = v.quality == .premium ? 100 : v.quality == .enhanced ? 50 : 0
@@ -63,7 +68,7 @@ final class CoachSpeaker: NSObject, AVSpeechSynthesizerDelegate {
       if v.voiceTraits.contains(.isNoveltyVoice) { s -= 1000 }
       return s
     }
-    let english = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
+    let english = all.filter { $0.language.hasPrefix("en") }
     return english.max { score($0) < score($1) } ?? AVSpeechSynthesisVoice(language: "en-GB")
   }
 }
