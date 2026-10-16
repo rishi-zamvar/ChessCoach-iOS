@@ -225,9 +225,15 @@ private struct ReviewContent: View {
     guard aiText[ply] == nil, let move = controller.currentMove, move.label.isCritical || move.label.isError,
       let facts = move.facts
     else { return }
-    let result = await env.aiExplainer.explain(
-      sheet: facts, label: move.label, isUser: move.color == controller.analysis.userColor, template: move.explanation)
-    if result.origin != .template { aiText[ply] = result.text }
+    let isUser = move.color == controller.analysis.userColor
+    let result = await env.aiExplainer.explain(sheet: facts, label: move.label, isUser: isUser, template: move.explanation)
+    if result.origin != .template {
+      aiText[ply] = result.text
+    } else if OnDeviceExplainer.isAvailable,
+      let local = await OnDeviceExplainer.explain(sheet: facts, label: move.label, isUser: isUser, template: move.explanation)
+    {
+      aiText[ply] = local  // offline: Apple's on-device model, same grounding check
+    }
   }
 
   private var displayedPly: Int { controller.retryState.map { $0.ply - 1 } ?? controller.ply }

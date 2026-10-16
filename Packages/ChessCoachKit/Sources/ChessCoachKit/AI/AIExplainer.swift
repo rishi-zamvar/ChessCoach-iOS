@@ -15,7 +15,7 @@ public struct AIExplainer: Sendable {
     self.model = model
   }
 
-  static let system = """
+  public static let system = """
     You are a warm, concise chess coach talking to a beginner (about 300–600 rated) in a phone app.
     Rewrite the given explanation of one chess move in 1–2 short sentences of plain English, second person ("you", "your").
     Rules:
@@ -51,7 +51,7 @@ public struct AIExplainer: Sendable {
     return (template, .template)
   }
 
-  static func factsBlock(sheet: FactSheet, label: MoveClass, isUser: Bool, template: String) -> String {
+  public static func factsBlock(sheet: FactSheet, label: MoveClass, isUser: Bool, template: String) -> String {
     var lines: [String] = []
     lines.append("Mover: \(isUser ? "the learner" : "the opponent") (\(sheet.mover))")
     lines.append("Move played: \(sheet.played.san) — classified \(label.displayName)")
