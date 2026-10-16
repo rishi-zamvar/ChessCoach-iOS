@@ -58,6 +58,38 @@ public final class AppDatabase: Sendable {
       }
       try db.create(index: "step_event_step_phase", on: "step_event", columns: ["step", "phase"])
     }
+    migrator.registerMigration("v2-analysis") { db in
+      try db.alter(table: "game") { t in
+        t.add(column: "whiteElo", .integer)
+        t.add(column: "blackElo", .integer)
+        t.add(column: "timeClass", .text)
+        t.add(column: "chessComAccuracy", .double)
+      }
+      try db.create(table: "position_cache") { t in
+        t.primaryKey("fenKey", .text)
+        t.column("depth", .integer).notNull()
+        t.column("lines", .text).notNull()
+      }
+      try db.create(table: "game_analysis") { t in
+        t.primaryKey("gameID", .text)
+        t.column("depth", .integer).notNull()
+        t.column("json", .text).notNull()
+        t.column("createdAt", .datetime).notNull()
+      }
+      try db.create(table: "mistake") { t in
+        t.autoIncrementedPrimaryKey("rowid")
+        t.column("gameID", .text).notNull().indexed()
+        t.column("ply", .integer).notNull()
+        t.column("label", .text).notNull()
+        t.column("mistakeType", .text).notNull()
+        t.column("motifs", .text).notNull()
+        t.column("phase", .text).notNull()
+        t.column("fen", .text).notNull()
+        t.column("bestUCI", .text)
+        t.column("timeTrouble", .boolean).notNull()
+        t.column("endedAt", .datetime).notNull().indexed()
+      }
+    }
     return migrator
   }
 }

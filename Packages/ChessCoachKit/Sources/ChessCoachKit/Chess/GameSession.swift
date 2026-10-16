@@ -64,7 +64,7 @@ public struct GameSession: Sendable {
 
   public let startFEN: String
   public private(set) var board: Board
-  public private(set) var history: [PlayedMove] = []
+  public internal(set) var history: [PlayedMove] = []
   public private(set) var result: GameResult?
 
   public init(startFEN: String = GameSession.standardFEN) {

@@ -38,6 +38,10 @@ final class MoveClassifierTests: XCTestCase {
     XCTAssertEqual(MoveClassifier.classify(eval(best: 0.85, second: 0.45, played: 0.85, isBest: true)), .great)
   }
 
+  func test_givenOnlyMoveThatPunishesABlunder_whenPlayed_thenBestNotGreat() {
+    XCTAssertEqual(MoveClassifier.classify(eval(best: 1.0, second: 0.5, played: 1.0, isBest: true, gift: 0.5)), .best)
+  }
+
   func test_givenBestButAlternativesSimilar_whenPlayed_thenJustBest() {
     XCTAssertEqual(MoveClassifier.classify(eval(best: 0.85, second: 0.80, played: 0.85, isBest: true)), .best)
   }

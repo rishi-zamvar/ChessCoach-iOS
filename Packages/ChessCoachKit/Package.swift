@@ -19,7 +19,8 @@ let package = Package(
         .product(name: "ChessKit", package: "chesskit-swift"),
         .product(name: "ChessKitEngine", package: "chesskit-engine"),
         .product(name: "GRDB", package: "GRDB.swift"),
-      ]
+      ],
+      resources: [.copy("Resources/openings.tsv")]
     ),
     .testTarget(
       name: "ChessCoachKitTests",

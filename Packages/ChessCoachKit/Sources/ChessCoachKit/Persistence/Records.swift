@@ -19,12 +19,21 @@ public struct GameRecord: Codable, Sendable, Equatable, Identifiable, FetchableR
   public var opponentKind: String
   public var startedAt: Date
   public var endedAt: Date
+  public var whiteElo: Int?
+  public var blackElo: Int?
+  public var timeClass: String?
+  public var chessComAccuracy: Double?
 
   public init(
     id: String, source: Source, pgn: String, white: String, black: String, userColor: String,
     result: String, termination: String, timeControl: String, opponentKind: String,
-    startedAt: Date, endedAt: Date
+    startedAt: Date, endedAt: Date, whiteElo: Int? = nil, blackElo: Int? = nil, timeClass: String? = nil,
+    chessComAccuracy: Double? = nil
   ) {
+    self.whiteElo = whiteElo
+    self.blackElo = blackElo
+    self.timeClass = timeClass
+    self.chessComAccuracy = chessComAccuracy
     self.id = id
     self.source = source
     self.pgn = pgn
@@ -80,5 +89,16 @@ struct StepEventRecord: Codable, FetchableRecord, PersistableRecord {
       done: done, total: total, durationMs: durationMs,
       metadata: (try? JSONDecoder().decode([String: JSONValue].self, from: Data(metadata.utf8))) ?? [:],
       error: error, timestamp: timestamp)
+  }
+}
+
+extension GameRecord {
+  /// A chess.com game as a stored record.
+  public init(imported g: ImportedGame) {
+    self.init(
+      id: g.id, source: .chesscom, pgn: g.pgn, white: g.white, black: g.black, userColor: g.userColor,
+      result: g.result, termination: g.termination, timeControl: g.timeControl, opponentKind: "chesscom",
+      startedAt: g.endedAt, endedAt: g.endedAt, whiteElo: g.whiteElo, blackElo: g.blackElo,
+      timeClass: g.timeClass, chessComAccuracy: g.chessComAccuracy)
   }
 }

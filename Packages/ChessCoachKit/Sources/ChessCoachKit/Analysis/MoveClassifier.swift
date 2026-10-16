@@ -97,7 +97,10 @@ public enum MoveClassifier {
     if nearBest, e.isSacrifice, bucket(e.playedEP) != .losing, let p = e.maiaProbability, p < 0.10 {
       return .brilliant
     }
-    if e.playedIsBest, let second = e.secondBestEP, e.bestEP - second >= 0.10, bucket(e.bestEP) != bucket(second) {
+    // "Great" = the only move that holds the result; cashing in on the opponent's
+    // blunder (gift ≥ 0.20) is just "Best", as on chess.com.
+    let punishingBlunder = (e.opponentPreviousLoss ?? 0) >= 0.20
+    if e.playedIsBest, !punishingBlunder, let second = e.secondBestEP, e.bestEP - second >= 0.10, bucket(e.bestEP) != bucket(second) {
       return .great
     }
     if let gift = e.opponentPreviousLoss, gift >= 0.10, loss >= gift / 2, loss > thresholds.good {
