@@ -113,13 +113,16 @@ private struct AnalyzingView: View {
 /// The loaded review.
 private struct ReviewContent: View {
   @Bindable var controller: ReviewController
+  @Environment(AppEnvironment.self) private var env
+  /// AI-rewritten explanations by ply (template text shows until one arrives).
+  @State private var aiText: [Int: String] = [:]
   let flipped: Bool
   let theme: BoardTheme
   let pieceSet: PieceSetID
 
   var body: some View {
     VStack(spacing: 0) {
-      CoachBubble(text: controller.coachText, move: controller.retryState == nil ? controller.currentMove : nil)
+      CoachBubble(text: bubbleText, move: controller.retryState == nil ? controller.currentMove : nil)
         .padding(.horizontal, Spacing.m)
         .padding(.vertical, Spacing.s)
         .animation(.easeOut(duration: 0.2), value: controller.coachText)
@@ -165,9 +168,26 @@ private struct ReviewContent: View {
       }
       controls
     }
+    .task(id: controller.ply) { await loadAIExplanation() }
   }
 
   @State private var dragFrom: Square?
+
+  private var bubbleText: String {
+    if controller.retryState == nil, let ai = aiText[controller.ply] { return ai }
+    return controller.coachText
+  }
+
+  /// Ask the AI to rewrite the current move's explanation (critical moves only; cached).
+  private func loadAIExplanation() async {
+    let ply = controller.ply
+    guard aiText[ply] == nil, let move = controller.currentMove, move.label.isCritical || move.label.isError,
+      let facts = move.facts
+    else { return }
+    let result = await env.aiExplainer.explain(
+      sheet: facts, label: move.label, isUser: move.color == controller.analysis.userColor, template: move.explanation)
+    if result.origin != .template { aiText[ply] = result.text }
+  }
 
   private var displayedPly: Int { controller.retryState.map { $0.ply - 1 } ?? controller.ply }
 

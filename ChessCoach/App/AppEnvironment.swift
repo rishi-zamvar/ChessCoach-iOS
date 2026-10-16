@@ -11,6 +11,12 @@ final class AppEnvironment {
   let gameStore: GameStore
   let analysisStore: AnalysisStore
   let positionCache: PositionCache
+  let aiStore: AIStore
+  let ai: AnthropicClient
+  let aiExplainer: AIExplainer
+  let server: ServerLink
+  /// Learner summary for the teaching bot (set by TrainingService).
+  @ObservationIgnored var learnerBrief: @Sendable () -> String = { "A beginner around 300–500." }
   let telemetry: Telemetry
   let databaseSink: DatabaseSink
   let engineHost: EngineHost?
@@ -35,11 +41,17 @@ final class AppEnvironment {
     gameStore = GameStore(database: database)
     analysisStore = AnalysisStore(database: database)
     positionCache = PositionCache(database: database)
+    let aiStore = AIStore(database: database)
+    self.aiStore = aiStore
     databaseSink = DatabaseSink(database: database)
     telemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
     let engineTelemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
     engineHost = EngineAssets.bundled().map { EngineHost(assets: $0, telemetry: engineTelemetry) }
     sounds = SoundPlayer()
+    let ai = AnthropicClient(keyProvider: { KeyStore.read() }, telemetry: telemetry, ledger: aiStore, monthlyCapUSD: 80)
+    self.ai = ai
+    aiExplainer = AIExplainer(client: ai, store: aiStore)
+    server = ServerLink(telemetry: telemetry)
 
     telemetry.event("app.launch", metadata: ["engines": .bool(engineHost != nil), "degradedDB": .bool(degraded)])
     if let openError { telemetry.event("db.openFailed", metadata: ["error": .string(openError)]) }
@@ -57,6 +69,9 @@ final class AppEnvironment {
       return MaiaBot(host: engineHost, rating: rating, telemetry: telemetry)
     case .stockfish(let level):
       return StockfishBot(host: engineHost, level: .level(level), telemetry: telemetry)
+    case .teaching:
+      let brief = learnerBrief
+      return TeachingBot(host: engineHost, client: ai, telemetry: telemetry, brief: { brief() })
     }
   }
 

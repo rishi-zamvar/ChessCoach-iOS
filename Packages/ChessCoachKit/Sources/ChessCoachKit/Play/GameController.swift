@@ -5,6 +5,8 @@ import Observation
 public enum Opponent: Hashable, Sendable {
   case maia(rating: Int)
   case stockfish(level: Int)
+  /// Claude chooses teaching moves from engine-vetted candidates (Maia-like offline).
+  case teaching
 }
 
 public enum ColorChoice: String, CaseIterable, Sendable {

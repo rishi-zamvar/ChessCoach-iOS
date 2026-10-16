@@ -76,6 +76,14 @@ final class TrainingService {
       ownMistakesAvailable: due.filter { $0.kind == .mistake }.count, weakness: weakness,
       yesterdayFocus: UserDefaults.standard.string(forKey: "plan.yesterdayFocus"), lessonForSkill: lessonForSkill)
     plan = planner.plan(for: state, now: now)
+    let rating = globalRating
+    let style = profile?.style.title ?? "All-rounder"
+    let focus = planner.priorities(state, now: now).prefix(3).compactMap { p in
+      SkillCatalog.skill(p.skillID).map { skill in
+        "\(skill.name)\(weakness.evidence[skill.id].map { " (missed \($0)× in recent games)" } ?? "")"
+      }
+    }.joined(separator: ", ")
+    env.learnerBrief = { "Puzzle rating about \(rating), chess.com rapid ~300, style \(style). Working on: \(focus)." }
     env.telemetry.event(
       "training.plan",
       metadata: ["items": .int(plan.count), "due": .int(due.count), "rating": .int(globalRating),

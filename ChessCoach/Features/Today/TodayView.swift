@@ -21,6 +21,8 @@ struct TodayView: View {
 
           PlanCard()
 
+          AIStatusCard()
+
           if let topMistake {
             Card {
               Eyebrow(text: "Your top mistake")
@@ -84,5 +86,56 @@ struct TodayView: View {
       recent = (try? env.gameStore.recent(limit: 3)) ?? []
       topMistake = analysis.recurringPatterns().first
     }
+  }
+}
+
+/// Home PC + AI status: connection, key, spend this month.
+struct AIStatusCard: View {
+  @Environment(AppEnvironment.self) private var env
+
+  var body: some View {
+    Card {
+      HStack(alignment: .top, spacing: Spacing.m) {
+        Image(systemName: icon).font(.system(size: 20)).foregroundStyle(tint).frame(width: 28)
+        VStack(alignment: .leading, spacing: 3) {
+          Eyebrow(text: "Coach AI & home PC")
+          Text(title).font(Typography.bodyEmph).foregroundStyle(Palette.ink)
+          Text(detail).font(Typography.caption).foregroundStyle(Palette.textSecondary)
+        }
+        Spacer()
+        Button {
+          Task { await env.server.refresh() }
+        } label: {
+          Image(systemName: "arrow.clockwise").foregroundStyle(Palette.primaryDeep)
+        }
+        .accessibilityIdentifier("ai-refresh")
+      }
+    }
+  }
+
+  private var icon: String {
+    switch env.server.status {
+    case .online: "desktopcomputer"
+    case .checking: "antenna.radiowaves.left.and.right"
+    default: env.server.hasKey ? "sparkles" : "wifi.slash"
+    }
+  }
+
+  private var tint: Color { env.server.hasKey ? Palette.primaryDeep : Palette.textMuted }
+
+  private var title: String {
+    switch env.server.status {
+    case .online: env.server.hasKey ? "Connected · AI coaching on" : "Connected · waiting for the key"
+    case .checking: "Looking for your PC…"
+    default: env.server.hasKey ? "AI coaching on (PC offline)" : "Offline coaching"
+    }
+  }
+
+  private var detail: String {
+    let spent = env.aiStore.spentThisMonth()
+    if env.server.hasKey {
+      return String(format: "$%.2f of $80 used this month", spent)
+    }
+    return "Everything works offline. AI explanations and the coach bot turn on once your home PC shares the key over Tailscale."
   }
 }
