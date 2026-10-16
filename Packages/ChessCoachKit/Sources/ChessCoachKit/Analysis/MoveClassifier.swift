@@ -128,7 +128,7 @@ public enum MoveClassifier {
   /// floating point) still lands in the inclusive band.
   static let epsilon = 1e-9
 
-  static func base(loss: Double, isBest: Bool) -> MoveClass {
+  public static func base(loss: Double, isBest: Bool) -> MoveClass {
     if isBest || loss <= 0.0001 { return .best }
     if loss <= thresholds.excellent + epsilon { return .excellent }
     if loss <= thresholds.good + epsilon { return .good }

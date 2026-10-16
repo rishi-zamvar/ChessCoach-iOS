@@ -188,7 +188,7 @@ public enum FactExtractor {
     return ply < 20 ? .opening : .middlegame
   }
 
-  static func name(of kind: Piece.Kind) -> String {
+  public static func name(of kind: Piece.Kind) -> String {
     switch kind {
     case .pawn: "pawn"
     case .knight: "knight"
