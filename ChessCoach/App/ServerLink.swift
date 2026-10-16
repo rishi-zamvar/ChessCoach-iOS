@@ -75,7 +75,7 @@ final class ServerLink {
       for info in sequence(first: first, next: { $0.pointee.ai_next }) {
         var buffer = [CChar](repeating: 0, count: Int(NI_MAXHOST))
         if getnameinfo(info.pointee.ai_addr, info.pointee.ai_addrlen, &buffer, socklen_t(buffer.count), nil, 0, NI_NUMERICHOST) == 0 {
-          out.append(String(cString: buffer).components(separatedBy: "%")[0])
+          out.append(String(decoding: buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self).components(separatedBy: "%")[0])
         }
       }
       return out
