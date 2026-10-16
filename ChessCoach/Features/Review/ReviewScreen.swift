@@ -19,6 +19,23 @@ struct ReviewScreen: View {
     VStack(spacing: 0) {
       header
       if let controller {
+        if analysisService.progress?.gameID == game.id {
+          ProgressView(value: analysisService.progress?.fraction ?? 0) {
+            Text("Deep analysis on your home PC…").font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+          }
+          .tint(ChessChrome.accentGreen)
+          .padding(.horizontal, Spacing.m)
+        } else if env.server.isOnline, !controller.analysis.engine.contains("pc") {
+          Button {
+            Task { await deepen() }
+          } label: {
+            Label("Deeper analysis on your home PC", systemImage: "desktopcomputer")
+              .font(.system(size: 13, weight: .semibold, design: .rounded))
+              .foregroundStyle(ChessChrome.accentGreen)
+          }
+          .padding(.top, Spacing.xs)
+          .accessibilityIdentifier("review-deep")
+        }
         ReviewContent(
           controller: controller, flipped: flipped, theme: BoardTheme.named(themeID),
           pieceSet: PieceSetID(rawValue: pieceSetRaw) ?? .default)
@@ -51,6 +68,13 @@ struct ReviewScreen: View {
     .foregroundStyle(ChessChrome.textSecondary)
     .padding(.horizontal, Spacing.s)
     .background(ChessChrome.bar)
+  }
+
+  private func deepen() async {
+    guard let session = GameSession(pgn: game.pgn) else { return }
+    if let deep = try? await analysisService.deepAnalyze(game) {
+      controller = ReviewController(analysis: deep, session: session, telemetry: env.telemetry)
+    }
   }
 
   private func load() async {

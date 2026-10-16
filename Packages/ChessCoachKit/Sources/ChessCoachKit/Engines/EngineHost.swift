@@ -55,6 +55,13 @@ public struct EngineLine: Sendable, Equatable {
   public var score: EngineScore
   /// Principal variation in UCI notation.
   public var pv: [String]
+
+  public init(multipv: Int, depth: Int, score: EngineScore, pv: [String]) {
+    self.multipv = multipv
+    self.depth = depth
+    self.score = score
+    self.pv = pv
+  }
 }
 
 public struct SearchResult: Sendable, Equatable {

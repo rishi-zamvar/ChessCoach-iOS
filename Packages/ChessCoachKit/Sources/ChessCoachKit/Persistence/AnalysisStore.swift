@@ -33,7 +33,9 @@ public final class PositionCache: @unchecked Sendable {
     }
   }
 
+  /// Saves lines unless a deeper analysis of this position is already cached.
   public func store(fenKey: String, depth: Int, lines: [EngineLine]) {
+    if let existing = try? database.reader.read({ try Row.fetchOne($0, key: fenKey) }), existing.depth > depth { return }
     let stored = lines.map { line -> StoredLine in
       switch line.score {
       case .centipawns(let cp): StoredLine(multipv: line.multipv, depth: line.depth, cp: cp, mate: nil, pv: line.pv)

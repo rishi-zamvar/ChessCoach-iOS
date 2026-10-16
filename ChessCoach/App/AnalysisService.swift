@@ -105,6 +105,27 @@ final class AnalysisService {
     return result
   }
 
+  /// Re-runs a review with the home PC's deep Stockfish lines (depth 22). The PC's lines
+  /// go into the position cache, so the re-analysis reads them instead of the phone engine.
+  func deepAnalyze(_ game: GameRecord) async throws -> GameAnalysis {
+    guard let host = env.engineHost else { throw AnalysisError.unreadablePGN }
+    progress = Progress(gameID: game.id, done: 0, total: 1, etaSeconds: nil)
+    defer { progress = nil }
+    let positions = try await env.server.deepAnalysis(gameID: game.id, pgn: game.pgn, userColor: game.userColor) { [weak self] done, total in
+      Task { @MainActor in self?.progress = Progress(gameID: game.id, done: done, total: total, etaSeconds: nil) }
+    }
+    for p in positions {
+      env.positionCache.store(fenKey: FENTools.key(p.fen), depth: p.lines.map(\.depth).max() ?? 22, lines: p.lines)
+    }
+    env.telemetry.event("analysis.deep", metadata: ["game": .string(game.id), "positions": .int(positions.count)])
+    let analyzer = GameAnalyzer(host: host, telemetry: env.telemetry, depth: 14, maiaRating: 1100, cache: env.positionCache)
+    var result = try await analyzer.analyze(gameID: game.id, pgn: game.pgn, userColor: game.userColor, timeControl: game.timeControl)
+    result.engine = "stockfish-pc (depth \(positions.compactMap { $0.lines.first?.depth }.max() ?? 22))"
+    try env.analysisStore.save(result, endedAt: game.endedAt)
+    revision += 1
+    return result
+  }
+
   func recurringPatterns() -> [MistakePattern] {
     (try? env.analysisStore.recurringPatterns()) ?? []
   }
