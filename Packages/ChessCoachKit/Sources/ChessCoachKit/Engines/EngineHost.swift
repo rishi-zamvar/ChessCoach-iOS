@@ -40,6 +40,8 @@ public enum SearchLimit: Sendable, Equatable {
   case depth(Int)
   case nodes(Int)
   case movetime(milliseconds: Int)
+  /// Stop at `depth` or after `milliseconds`, whichever comes first (fast game review).
+  case depthOrTime(depth: Int, milliseconds: Int)
 }
 
 /// An engine score from the side-to-move's point of view.
@@ -183,6 +185,7 @@ public actor EngineHost {
       case .depth(let d): .go(depth: d)
       case .nodes(let n): .go(nodes: n)
       case .movetime(let ms): .go(movetime: ms)
+      case .depthOrTime(let d, let ms): .go(depth: d, movetime: ms)
       }
     generation += 1
     let gen = generation
@@ -337,7 +340,7 @@ public actor EngineHost {
     switch limit {
     case .depth(let d): .seconds(max(20, d * 4))
     case .nodes: .seconds(20)
-    case .movetime(let ms): .milliseconds(ms + 15_000)
+    case .movetime(let ms), .depthOrTime(_, let ms): .milliseconds(ms + 15_000)
     }
   }
 
@@ -353,6 +356,7 @@ public actor EngineHost {
     case .depth(let d): "depth \(d)"
     case .nodes(let n): "nodes \(n)"
     case .movetime(let ms): "movetime \(ms)"
+    case .depthOrTime(let d, let ms): "depth \(d) / \(ms)ms"
     }
   }
 

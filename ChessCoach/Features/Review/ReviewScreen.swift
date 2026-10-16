@@ -346,15 +346,22 @@ private struct CoachBubble: View {
   }
 
   private func headline(_ move: MoveAnalysis) -> String {
+    let san = move.san
     switch move.label {
-    case .book: "\(move.san) is a book move"
-    case .forced: "\(move.san) is forced"
-    case .best: "\(move.san) is best"
-    case .inaccuracy, .excellent: "\(move.san) is an \(move.label.displayName.lowercased()) move"
-    case .miss: "\(move.san) is a miss"
-    default: "\(move.san) is a \(move.label.displayName.lowercased()) move"
+    case .brilliant: return "\(san) is brilliant!"
+    case .great: return "\(san) is a great move"
+    case .best: return "\(san) is best"
+    case .excellent: return "\(san) is excellent"
+    case .good: return "\(san) is good"
+    case .book: return "\(san) is a book move"
+    case .forced: return "\(san) is forced"
+    case .inaccuracy: return "\(san) is an inaccuracy"
+    case .mistake: return "\(san) is a mistake"
+    case .miss: return "\(san) is a miss"
+    case .blunder: return "\(san) is a blunder"
     }
   }
+
 }
 
 /// Vertical eval bar (white share from the bottom when not flipped).

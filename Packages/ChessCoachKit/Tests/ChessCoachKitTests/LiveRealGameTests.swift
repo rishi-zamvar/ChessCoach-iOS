@@ -10,9 +10,9 @@ final class LiveRealGameTests: XCTestCase {
     let batch = try await importer.importGames(username: "Zammy009", knownURLs: [], monthETags: [:], maxMonths: 1)
     XCTAssertGreaterThan(batch.games.count, 10)
     let index = Int(ProcessInfo.processInfo.environment["GAME"] ?? "0") ?? 0
-    let game = batch.games.sorted { $0.endedAt > $1.endedAt }[index]
+    let game = batch.games.sorted { $0.pgn.count > $1.pgn.count }[index]  // longest game = worst case
     let host = EngineHost(assets: EngineHostTests.assets)
-    let analyzer = GameAnalyzer(host: host, telemetry: telemetry, depth: 12)
+    let analyzer = GameAnalyzer(host: host, telemetry: telemetry)
     var out = ""
     func log(_ line: String) { out += line + "\n" }
     let start = Date()
