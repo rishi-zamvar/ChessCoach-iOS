@@ -1,0 +1,11 @@
+You are the SWE on zee-cloud (this PC). CEO asked for this directly: build and deploy the ChessCoach home server now, autonomously, to done.
+
+The full plan is in this folder: PLAN.md (from github.com/rishi-zamvar/ChessCoach-iOS docs/superpowers/plans/2026-10-16-m5-pc-server.md). Follow it exactly: FastAPI, Python 3.12, TDD with pytest, bind ONLY to 100.91.236.115:8810, tailscale-whois auth on every request (owner login only), structured JSON-line StepEvent logging.
+
+The key: do NOT ask for a new key. Load the Anthropic key the same way the existing ClearHead / WorkoutCoach backends on this PC already load theirs (their secrets.enc / DPAPI bootstrap per SECURITY.md). Prefer ANTHROPIC_API_KEY_CHESSCOACH if present, else the existing shared ANTHROPIC_API_KEY. Never print, log or commit the key; log only key_id (first 8 hex of sha256).
+
+Engines: install a native Windows Stockfish 17+ and lc0 with maia-1100 weights if not present (or Maia-2 on CPU if it installs cleanly).
+
+Deploy: git init the repo here, register in zee-platform services.toml, run it as NSSM service ChessCoach-server (auto-start). Verify the bind address is the Tailscale IP (not 0.0.0.0, not loopback-only) and that GET /health returns 200 from the tailnet.
+
+Finish by writing STATUS.md in this folder with: what was built, test results, service name, how the key is loaded (no key value), and any blockers. Do not stop to ask questions; make sensible decisions and record them in STATUS.md.
