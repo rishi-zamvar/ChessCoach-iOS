@@ -63,6 +63,8 @@ public enum Explainer {
       reason = "\(san) allows \(punish.san) — a \(motif.displayName.lowercased())."
     } else if label == .miss {
       reason = "Your opponent's last move gave you a chance, but \(san) let it go."
+    } else if let best = sheet.best, best.motifs.contains(where: { [.mate, .fork, .winsMaterial, .pin, .skewer, .discoveredAttack].contains($0) }) {
+      reason = "\(san) misses a tactic."
     } else {
       reason = "\(san) weakens \(own) position."
     }

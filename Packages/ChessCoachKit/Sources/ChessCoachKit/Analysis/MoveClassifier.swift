@@ -64,6 +64,10 @@ public struct PlyEval: Sendable, Equatable {
   public var maiaProbability: Double?
   /// Expected points the opponent threw away on the previous move.
   public var opponentPreviousLoss: Double?
+  /// The engine's best move was a concrete tactic (mate, fork, wins material…).
+  public var bestIsTactical = false
+  /// The played move lets the opponent execute a tactic.
+  public var allowsTactic = false
 
   public init(
     legalMoveCount: Int, isBook: Bool, bestEP: Double, secondBestEP: Double?, playedEP: Double,
@@ -103,7 +107,11 @@ public enum MoveClassifier {
     if e.playedIsBest, !punishingBlunder, let second = e.secondBestEP, e.bestEP - second >= 0.10, bucket(e.bestEP) != bucket(second) {
       return .great
     }
-    if let gift = e.opponentPreviousLoss, gift >= 0.10, loss >= gift / 2, loss > thresholds.good {
+    // Miss: the opponent's slip handed you something concrete and you didn't take it —
+    // but if your move itself walks into a tactic, that's a mistake/blunder instead.
+    if let gift = e.opponentPreviousLoss, gift >= 0.10, loss >= gift / 2, loss > thresholds.good,
+      e.bestIsTactical || e.bestEP >= 0.7, !e.allowsTactic
+    {
       return .miss
     }
 

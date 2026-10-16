@@ -4,11 +4,15 @@ import XCTest
 final class MoveClassifierTests: XCTestCase {
   func eval(
     best: Double = 0.55, second: Double? = 0.53, played: Double, isBest: Bool = false, legal: Int = 30,
-    book: Bool = false, sacrifice: Bool = false, maia: Double? = nil, gift: Double? = nil
+    book: Bool = false, sacrifice: Bool = false, maia: Double? = nil, gift: Double? = nil,
+    tacticalBest: Bool = false, allows: Bool = false
   ) -> PlyEval {
-    PlyEval(
+    var e = PlyEval(
       legalMoveCount: legal, isBook: book, bestEP: best, secondBestEP: second, playedEP: played,
       playedIsBest: isBest, isSacrifice: sacrifice, maiaProbability: maia, opponentPreviousLoss: gift)
+    e.bestIsTactical = tacticalBest
+    e.allowsTactic = allows
+    return e
   }
 
   func test_givenOnlyOneLegalMove_whenClassified_thenForced() {
@@ -64,6 +68,14 @@ final class MoveClassifierTests: XCTestCase {
 
   func test_givenOpponentBlunderedAndUserDidNotPunish_whenClassified_thenMiss() {
     XCTAssertEqual(MoveClassifier.classify(eval(best: 0.85, second: 0.6, played: 0.55, gift: 0.35)), .miss)
+  }
+
+  func test_givenOpponentSlipButNothingConcrete_whenNotPunished_thenMistakeNotMiss() {
+    XCTAssertEqual(MoveClassifier.classify(eval(best: 0.55, second: 0.5, played: 0.40, gift: 0.20)), .mistake)
+  }
+
+  func test_givenOpponentBlunderButUserWalksIntoTactic_whenClassified_thenBlunderNotMiss() {
+    XCTAssertEqual(MoveClassifier.classify(eval(best: 0.85, second: 0.6, played: 0.55, gift: 0.35, tacticalBest: true, allows: true)), .blunder)
   }
 
   func test_givenOpponentBlunderedAndUserPunished_whenClassified_thenNotMiss() {

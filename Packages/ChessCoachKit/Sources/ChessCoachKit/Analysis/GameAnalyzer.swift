@@ -132,12 +132,13 @@ public struct GameAnalyzer: Sendable {
         if sacrifice, plyEval.loss <= 0.02, playedEP > 0.4, let rating = maiaRating {
           plyEval.maiaProbability = try? await maiaProbability(fen: fens[index], uci: played.uci, rating: rating)
         }
-        let label = MoveClassifier.classify(plyEval)
-        previousLoss = plyEval.loss
-
         let sheet = FactExtractor.sheet(
           fen: fens[index], played: played.uci, bestLine: before.lines.first?.pv ?? [],
           punishLine: after.lines.first?.pv ?? [], ply: index)
+        plyEval.bestIsTactical = !Self.tactical.isDisjoint(with: sheet?.best?.motifs ?? [])
+        plyEval.allowsTactic = !Self.tactical.isDisjoint(with: sheet?.punish?.motifs ?? []) || !(sheet?.hangingAfter.isEmpty ?? true)
+        let label = MoveClassifier.classify(plyEval)
+        previousLoss = plyEval.loss
         let isUser = (mover == .white ? "white" : "black") == userColor
         let explanation = sheet.map { Explainer.explain($0, as: label, isUser: isUser) } ?? ""
         let timeTrouble = base.map { b in (played.clockAfter ?? b) < b * 0.1 } ?? false
@@ -222,9 +223,10 @@ public struct GameAnalyzer: Sendable {
     return net - gained >= 2
   }
 
+  static let tactical: Set<Motif> = [.mate, .fork, .pin, .skewer, .discoveredAttack, .winsMaterial, .mateThreat]
+
   static func mistakeType(sheet: FactSheet?, bestEP: Double, playedEP: Double) -> MistakeType {
     guard let sheet else { return .positional }
-    let tactical: Set<Motif> = [.mate, .fork, .pin, .skewer, .discoveredAttack, .winsMaterial, .mateThreat]
     if let punish = sheet.punish, !tactical.isDisjoint(with: punish.motifs) { return .allowedTactic }
     if !sheet.hangingAfter.isEmpty { return .hungMaterial }
     if let best = sheet.best, !tactical.isDisjoint(with: best.motifs) { return .missedTactic }
