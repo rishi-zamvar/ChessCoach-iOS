@@ -77,28 +77,51 @@ public enum EngineError: Error, Equatable {
 /// switches between Stockfish and Lc0 (Maia) on demand.
 public actor EngineHost {
   private let assets: EngineAssets
+  private let telemetry: Telemetry
   private var engine: Engine?
   private var running: EngineKind?
   private var currentMultiPV = 0
   private var currentSkill = 20
   private var readerTask: Task<Void, Never>?
 
-  private var pendingReady: CheckedContinuation<Void, Never>?
-  private var pendingSearch: CheckedContinuation<String, Never>?
+  /// Each wait gets a generation number so a stale timeout can't cancel a newer wait.
+  private var generation = 0
+  private var pendingReady: (gen: Int, cont: CheckedContinuation<Bool, Never>)?
+  private var pendingSearch: (gen: Int, cont: CheckedContinuation<String?, Never>)?
   private var lines: [Int: EngineLine] = [:]
   private var policy: [String: Double] = [:]
 
-  public init(assets: EngineAssets) {
+  public init(assets: EngineAssets, telemetry: Telemetry = .logOnly) {
     self.assets = assets
+    self.telemetry = telemetry
   }
 
   /// Runs one search and returns the best move plus lines.
+  ///
+  /// A search that times out restarts the engine and is retried once.
   public func search(
     _ kind: EngineKind,
     fen: String,
     limit: SearchLimit,
     multipv: Int = 1,
     skillLevel: Int? = nil
+  ) async throws -> SearchResult {
+    try await telemetry.step(
+      "engine.search",
+      metadata: ["kind": .string(Self.label(kind)), "limit": .string(Self.label(limit)), "multipv": .int(multipv)]
+    ) { ctx in
+      do {
+        return try await searchOnce(kind, fen: fen, limit: limit, multipv: multipv, skillLevel: skillLevel, ctx: ctx)
+      } catch EngineError.timedOut {
+        ctx.annotate("retried", .bool(true))
+        await shutdown()
+        return try await searchOnce(kind, fen: fen, limit: limit, multipv: multipv, skillLevel: skillLevel, ctx: ctx)
+      }
+    }
+  }
+
+  private func searchOnce(
+    _ kind: EngineKind, fen: String, limit: SearchLimit, multipv: Int, skillLevel: Int?, ctx: StepContext
   ) async throws -> SearchResult {
     try await prepare(kind, multipv: multipv, skillLevel: skillLevel)
     guard let engine else { throw EngineError.noBestMove }
@@ -112,20 +135,36 @@ public actor EngineHost {
       case .nodes(let n): .go(nodes: n)
       case .movetime(let ms): .go(movetime: ms)
       }
-    let best = await withCheckedContinuation { cont in
-      pendingSearch = cont
+    generation += 1
+    let gen = generation
+    let best = await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
+      pendingSearch = (gen, cont)
       Task { await engine.send(command: go) }
+      Task { [timeout = Self.timeout(for: limit)] in
+        try? await Task.sleep(for: timeout)
+        await self.expireSearch(gen)
+      }
+    }
+    guard let best else {
+      await engine.send(command: .stop)
+      throw EngineError.timedOut
     }
     guard best != "(none)", !best.isEmpty else { throw EngineError.noBestMove }
+    // chesskit-engine delivers each output line in its own Task, so the last `info`
+    // lines can land just after `bestmove`. Let them drain.
+    try? await Task.sleep(for: .milliseconds(15))
     let sorted = lines.values.sorted { $0.multipv < $1.multipv }
     let total = policy.values.reduce(0, +)
     let normalized = total > 0 ? policy.mapValues { $0 / total } : [:]
+    ctx.annotate("best", .string(best))
+    ctx.annotate("depth", .int(sorted.first?.depth ?? 0))
     return SearchResult(bestMove: best, lines: sorted, policy: normalized)
   }
 
   /// Stops whichever engine is running.
   public func shutdown() async {
     guard let engine else { return }
+    telemetry.event("engine.shutdown", metadata: ["type": .string(engine.type.name)])
     await engine.stop()
     // chesskit-engine closes the pipes right after `quit`; give the C++ engine thread
     // time to unwind before another engine (or process exit) reuses stdin/stdout.
@@ -134,6 +173,10 @@ public actor EngineHost {
     readerTask = nil
     self.engine = nil
     running = nil
+    pendingReady?.cont.resume(returning: false)
+    pendingReady = nil
+    pendingSearch?.cont.resume(returning: nil)
+    pendingSearch = nil
   }
 
   // MARK: - Lifecycle
@@ -169,43 +212,87 @@ public actor EngineHost {
       await engine?.send(command: .setoption(id: "MultiPV", value: "\(multipv)"))
       currentMultiPV = multipv
     }
-    await waitReady()
+    try await waitReady()
   }
 
   private func boot(_ type: EngineType) async throws {
-    let engine = Engine(type: type)
-    self.engine = engine
-    await engine.start(coreCount: max(2, ProcessInfo.processInfo.activeProcessorCount - 1))
-    // The library sets isRunning after its uci/isready handshake completes.
-    var waited = 0
-    while await !engine.isRunning {
-      try await Task.sleep(for: .milliseconds(20))
-      waited += 20
-      if waited > 15_000 { throw EngineError.timedOut }
-    }
-    guard let stream = await engine.responseStream else { throw EngineError.timedOut }
-    readerTask = Task { [weak self] in
-      for await response in stream {
-        await self?.handle(response)
+    try await telemetry.step("engine.boot", metadata: ["type": .string(type.name)]) { _ in
+      let engine = Engine(type: type)
+      self.engine = engine
+      await engine.start(coreCount: max(2, ProcessInfo.processInfo.activeProcessorCount - 1))
+      // The library sets isRunning after its uci/isready handshake completes.
+      var waited = 0
+      while await !engine.isRunning {
+        try await Task.sleep(for: .milliseconds(20))
+        waited += 20
+        if waited > 15_000 { throw EngineError.timedOut }
+      }
+      guard let stream = await engine.responseStream else { throw EngineError.timedOut }
+      readerTask = Task { [weak self] in
+        for await response in stream {
+          await self?.handle(response)
+        }
       }
     }
   }
 
-  private func waitReady() async {
+  private func waitReady() async throws {
     guard let engine else { return }
-    await withCheckedContinuation { cont in
-      pendingReady = cont
+    generation += 1
+    let gen = generation
+    let ok = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+      pendingReady = (gen, cont)
       Task { await engine.send(command: .isready) }
+      Task {
+        try? await Task.sleep(for: .seconds(20))
+        await self.expireReady(gen)
+      }
+    }
+    if !ok { throw EngineError.timedOut }
+  }
+
+  private func expireReady(_ gen: Int) {
+    guard let pending = pendingReady, pending.gen == gen else { return }
+    pendingReady = nil
+    pending.cont.resume(returning: false)
+  }
+
+  private func expireSearch(_ gen: Int) {
+    guard let pending = pendingSearch, pending.gen == gen else { return }
+    pendingSearch = nil
+    pending.cont.resume(returning: nil)
+  }
+
+  static func timeout(for limit: SearchLimit) -> Duration {
+    switch limit {
+    case .depth(let d): .seconds(max(20, d * 4))
+    case .nodes: .seconds(20)
+    case .movetime(let ms): .milliseconds(ms + 15_000)
+    }
+  }
+
+  static func label(_ kind: EngineKind) -> String {
+    switch kind {
+    case .stockfish: "stockfish"
+    case .maia(let rating): "maia-\(rating)"
+    }
+  }
+
+  static func label(_ limit: SearchLimit) -> String {
+    switch limit {
+    case .depth(let d): "depth \(d)"
+    case .nodes(let n): "nodes \(n)"
+    case .movetime(let ms): "movetime \(ms)"
     }
   }
 
   private func handle(_ response: EngineResponse) {
     switch response {
     case .readyok:
-      pendingReady?.resume()
+      pendingReady?.cont.resume(returning: true)
       pendingReady = nil
     case .bestmove(let move, _):
-      pendingSearch?.resume(returning: move)
+      pendingSearch?.cont.resume(returning: move)
       pendingSearch = nil
     case .info(let info):
       if let text = info.string, let (move, prior) = Self.parsePolicy(text) {

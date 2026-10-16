@@ -55,6 +55,7 @@ public final class Telemetry: Sendable {
     _ name: String,
     parent: StepContext? = nil,
     metadata: [String: JSONValue] = [:],
+    isolation: isolated (any Actor)? = #isolation,
     _ body: (StepContext) async throws -> T
   ) async rethrows -> T {
     let id = UUID()
