@@ -7,6 +7,7 @@ struct TrainView: View {
   @State private var running: Running?
   @State private var showOpenings = false
   @State private var coachGame: GameController?
+  @State private var showRush = false
   @Environment(AppEnvironment.self) private var env
 
   struct Running: Identifiable {
@@ -35,6 +36,23 @@ struct TrainView: View {
               .accessibilityIdentifier("skill-\(skill.id)")
             }
           }
+
+          Button { showRush = true } label: {
+            Card {
+              HStack(spacing: Spacing.m) {
+                Image(systemName: "bolt.fill").font(.system(size: 22)).foregroundStyle(Palette.accentDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                  Text("Puzzle Rush").font(Typography.titleSmall).foregroundStyle(Palette.ink)
+                  Text("3 minutes, 3 strikes. Best: \(UserDefaults.standard.integer(forKey: PuzzleRushView.bestKey))")
+                    .font(Typography.callout).foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Palette.textMuted)
+              }
+            }
+          }
+          .buttonStyle(.plain)
+          .accessibilityIdentifier("open-rush")
 
           SectionHeader(title: "Lessons", subtitle: "Learn the idea, then drill it.")
           VStack(spacing: Spacing.s) {
@@ -90,6 +108,7 @@ struct TrainView: View {
       }
     }
     .sheet(isPresented: $showOpenings) { OpeningsView() }
+    .fullScreenCover(isPresented: $showRush) { PuzzleRushView() }
     .fullScreenCover(item: $coachGame) { game in
       GameScreen(game: game) { coachGame = nil }
     }
