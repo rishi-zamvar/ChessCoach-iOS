@@ -1,3 +1,4 @@
+import ChessKit
 import ChessKitEngine
 import Foundation
 
@@ -90,6 +91,14 @@ public actor EngineHost {
   private var pendingSearch: (gen: Int, cont: CheckedContinuation<String?, Never>)?
   private var lines: [Int: EngineLine] = [:]
   private var policy: [String: Double] = [:]
+  /// Squares holding the side-to-move's pieces in the position being searched; an
+  /// `info` PV whose first move starts elsewhere is stale output from an earlier search.
+  private var validFromSquares: Set<String> = []
+
+  /// FIFO lock: an actor only serializes between awaits, but a search spans many awaits,
+  /// so searches queue here and run strictly one at a time.
+  private var busy = false
+  private var waiters: [CheckedContinuation<Void, Never>] = []
 
   public init(assets: EngineAssets, telemetry: Telemetry = .logOnly) {
     self.assets = assets
@@ -106,7 +115,10 @@ public actor EngineHost {
     multipv: Int = 1,
     skillLevel: Int? = nil
   ) async throws -> SearchResult {
-    try await telemetry.step(
+    await acquire()
+    defer { release() }
+    try Task.checkCancellation()
+    return try await telemetry.step(
       "engine.search",
       metadata: ["kind": .string(Self.label(kind)), "limit": .string(Self.label(limit)), "multipv": .int(multipv)]
     ) { ctx in
@@ -114,10 +126,39 @@ public actor EngineHost {
         return try await searchOnce(kind, fen: fen, limit: limit, multipv: multipv, skillLevel: skillLevel, ctx: ctx)
       } catch EngineError.timedOut {
         ctx.annotate("retried", .bool(true))
-        await shutdown()
+        await stopEngine()
         return try await searchOnce(kind, fen: fen, limit: limit, multipv: multipv, skillLevel: skillLevel, ctx: ctx)
       }
     }
+  }
+
+  static func sideToMoveSquares(fen: String) -> Set<String> {
+    guard let position = Position(fen: fen) else { return [] }
+    let side = position.sideToMove
+    let squares: [String] = position.pieces.filter { $0.color == side }.map { $0.square.notation }
+    return Set(squares)
+  }
+
+  private func acquire() async {
+    if busy {
+      await withCheckedContinuation { waiters.append($0) }
+    } else {
+      busy = true
+    }
+  }
+
+  private func release() {
+    if waiters.isEmpty {
+      busy = false
+    } else {
+      waiters.removeFirst().resume()  // ownership passes straight to the next waiter
+    }
+  }
+
+  private func cancelSearch(_ gen: Int) async {
+    guard let pending = pendingSearch, pending.gen == gen else { return }
+    // The engine answers `stop` with a bestmove, which resumes the waiting search.
+    await engine?.send(command: .stop)
   }
 
   private func searchOnce(
@@ -128,6 +169,7 @@ public actor EngineHost {
 
     lines = [:]
     policy = [:]
+    validFromSquares = Self.sideToMoveSquares(fen: fen)
     await engine.send(command: .position(.fen(fen)))
     let go: EngineCommand =
       switch limit {
@@ -137,14 +179,19 @@ public actor EngineHost {
       }
     generation += 1
     let gen = generation
-    let best = await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
-      pendingSearch = (gen, cont)
-      Task { await engine.send(command: go) }
-      Task { [timeout = Self.timeout(for: limit)] in
-        try? await Task.sleep(for: timeout)
-        await self.expireSearch(gen)
+    let best = await withTaskCancellationHandler {
+      await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
+        pendingSearch = (gen, cont)
+        Task { await engine.send(command: go) }
+        Task { [timeout = Self.timeout(for: limit)] in
+          try? await Task.sleep(for: timeout)
+          await self.expireSearch(gen)
+        }
       }
+    } onCancel: {
+      Task { await self.cancelSearch(gen) }
     }
+    try Task.checkCancellation()
     guard let best else {
       await engine.send(command: .stop)
       throw EngineError.timedOut
@@ -161,10 +208,18 @@ public actor EngineHost {
     return SearchResult(bestMove: best, lines: sorted, policy: normalized)
   }
 
-  /// Stops whichever engine is running.
+  /// Stops whichever engine is running (waits for any search in progress).
   public func shutdown() async {
+    await acquire()
+    defer { release() }
+    await stopEngine()
+  }
+
+  private func stopEngine() async {
     guard let engine else { return }
     telemetry.event("engine.shutdown", metadata: ["type": .string(engine.type.name)])
+    // Don't send an extra `quit` first: an engine that fully exits can't be restarted
+    // in-process (the next boot's handshake hangs ~20 s). Measured 2026-10-16.
     await engine.stop()
     // chesskit-engine closes the pipes right after `quit`; give the C++ engine thread
     // time to unwind before another engine (or process exit) reuses stdin/stdout.
@@ -187,7 +242,7 @@ public actor EngineHost {
     }
     let type: EngineType = kind == .stockfish ? .stockfish : .lc0
     if engine?.type != type {
-      await shutdown()
+      await stopEngine()
       try await boot(type)
     }
     if running != kind {
@@ -218,16 +273,24 @@ public actor EngineHost {
   private func boot(_ type: EngineType) async throws {
     try await telemetry.step("engine.boot", metadata: ["type": .string(type.name)]) { _ in
       let engine = Engine(type: type)
-      self.engine = engine
       await engine.start(coreCount: max(2, ProcessInfo.processInfo.activeProcessorCount - 1))
       // The library sets isRunning after its uci/isready handshake completes.
       var waited = 0
       while await !engine.isRunning {
-        try await Task.sleep(for: .milliseconds(20))
+        try? await Task.sleep(for: .milliseconds(20))
         waited += 20
-        if waited > 15_000 { throw EngineError.timedOut }
+        if waited > 15_000 {
+          // Never leave a half-started engine installed.
+          await engine.send(command: .quit)
+          await engine.stop()
+          throw EngineError.timedOut
+        }
       }
-      guard let stream = await engine.responseStream else { throw EngineError.timedOut }
+      guard let stream = await engine.responseStream else {
+        await engine.stop()
+        throw EngineError.timedOut
+      }
+      self.engine = engine
       readerTask = Task { [weak self] in
         for await response in stream {
           await self?.handle(response)
@@ -298,7 +361,9 @@ public actor EngineHost {
       if let text = info.string, let (move, prior) = Self.parsePolicy(text) {
         policy[move] = prior
       }
-      guard let pv = info.pv, !pv.isEmpty, let score = info.score else { return }
+      guard let pv = info.pv, let first = pv.first, let score = info.score else { return }
+      // Drop stale lines from a previous search (wrong position).
+      guard validFromSquares.contains(String(first.prefix(2))) else { return }
       let engineScore: EngineScore
       if let mate = score.mate {
         engineScore = .mate(mate)
@@ -308,7 +373,10 @@ public actor EngineHost {
         return
       }
       let index = info.multipv ?? 1
-      lines[index] = EngineLine(multipv: index, depth: info.depth ?? 0, score: engineScore, pv: pv)
+      let depth = info.depth ?? 0
+      // Output lines can arrive out of order; never let a shallower line overwrite a deeper one.
+      if let existing = lines[index], existing.depth > depth { return }
+      lines[index] = EngineLine(multipv: index, depth: depth, score: engineScore, pv: pv)
     default:
       break
     }

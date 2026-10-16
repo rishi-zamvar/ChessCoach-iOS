@@ -70,7 +70,21 @@ public struct GameSession: Sendable {
   public init(startFEN: String = GameSession.standardFEN) {
     self.startFEN = startFEN
     board = Board(position: Position(fen: startFEN) ?? .standard)
-    updateResultFromBoard()
+    // chesskit's move-less Board(position:) judges the side NOT to move, so decide
+    // the start position's result ourselves from the side to move.
+    result = Self.initialResult(board.position, board: board)
+  }
+
+  static func initialResult(_ position: Position, board: Board) -> GameResult? {
+    let side = position.sideToMove
+    let hasMove = position.pieces.contains { $0.color == side && !board.legalMoves(forPieceAt: $0.square).isEmpty }
+    if !hasMove {
+      let map = BoardMap(position)
+      let inCheck = map.king(of: side).map { !map.attackers(of: $0, by: side.opposite).isEmpty } ?? false
+      return inCheck ? GameResult(winner: side.opposite, termination: .checkmate) : GameResult(winner: nil, termination: .stalemate)
+    }
+    if position.hasInsufficientMaterial { return GameResult(winner: nil, termination: .insufficientMaterial) }
+    return nil
   }
 
   public var position: Position { board.position }
@@ -187,7 +201,8 @@ public struct GameSession: Sendable {
       allTags["FEN"] = startFEN
     }
     let sortedKeys = order.filter { allTags[$0] != nil } + allTags.keys.filter { !order.contains($0) }.sorted()
-    var lines = sortedKeys.map { "[\($0) \"\(allTags[$0]!)\"]" }
+    func escape(_ v: String) -> String { v.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") }
+    var lines = sortedKeys.map { "[\($0) \"\(escape(allTags[$0]!))\"]" }
     lines.append("")
 
     let startsWithBlack = (Position(fen: startFEN)?.sideToMove ?? .white) == .black

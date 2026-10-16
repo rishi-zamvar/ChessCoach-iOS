@@ -254,6 +254,16 @@ public struct TrainingStore: Sendable {
     }
   }
 
+  /// Adds a review item unless one with this id already exists.
+  @discardableResult
+  public func addReviewIfMissing(id: String, kind: ReviewKind, skillID: String?, fen: String, solution: [String], now: Date) throws -> Bool {
+    try database.writer.write { db in
+      guard try ReviewRow.fetchOne(db, key: id) == nil else { return false }
+      try ReviewRow(scheduler.newItem(id: id, kind: kind, skillID: skillID, fen: fen, solution: solution, now: now)).insert(db)
+      return true
+    }
+  }
+
   // MARK: Lessons
 
   public func lessonProgress() throws -> [String: LessonProgress] {

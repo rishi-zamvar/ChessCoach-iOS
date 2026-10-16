@@ -23,7 +23,7 @@ let package = Package(
         .product(name: "GRDB", package: "GRDB.swift"),
         .product(name: "FSRS", package: "swift-fsrs"),
       ],
-      resources: [.copy("Resources/openings.tsv")]
+      resources: [.copy("Resources/openings.tsv"), .copy("Resources/curriculum.json")]
     ),
     .testTarget(
       name: "ChessCoachKitTests",

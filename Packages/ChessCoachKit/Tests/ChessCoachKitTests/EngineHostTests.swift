@@ -60,3 +60,45 @@ final class EngineHostTests: XCTestCase {
     XCTAssertEqual(parsed?.1 ?? 0, 0.1234, accuracy: 1e-9)
   }
 }
+
+final class EngineHostConcurrencyTests: XCTestCase {
+  func test_givenTwoOverlappingSearches_whenRun_thenEachGetsItsOwnAnswer() async throws {
+    let host = EngineHost(assets: EngineHostTests.assets)
+    async let a = host.search(.stockfish, fen: EngineHostTests.startFEN, limit: .depth(12))
+    try await Task.sleep(for: .milliseconds(50))
+    async let b = host.search(.stockfish, fen: EngineHostTests.mateInOneFEN, limit: .depth(6))
+    let (ra, rb) = try await (a, b)
+    XCTAssertEqual(rb.bestMove, "h5f7")
+    XCTAssertEqual(rb.lines.first?.score, .mate(1))
+    XCTAssertNotEqual(ra.bestMove, "h5f7")
+    var start = GameSession()
+    XCTAssertNotEqual(start.apply(uci: ra.bestMove), .illegal)
+    await host.shutdown()
+  }
+
+  func test_givenStockfishAndMaiaOverlapping_whenRun_thenBothAnswer() async throws {
+    let host = EngineHost(assets: EngineHostTests.assets)
+    async let sf = host.search(.stockfish, fen: EngineHostTests.mateInOneFEN, limit: .depth(8))
+    async let maia = host.search(.maia(rating: 1100), fen: EngineHostTests.startFEN, limit: .nodes(1))
+    let (s, m) = try await (sf, maia)
+    XCTAssertEqual(s.bestMove, "h5f7")
+    XCTAssertFalse(m.policy.isEmpty)
+    await host.shutdown()
+  }
+
+  func test_givenLongSearch_whenTaskCancelled_thenThrowsPromptlyAndHostStillWorks() async throws {
+    let host = EngineHost(assets: EngineHostTests.assets)
+    let task = Task { try await host.search(.stockfish, fen: EngineHostTests.startFEN, limit: .depth(40)) }
+    try await Task.sleep(for: .milliseconds(400))
+    let started = Date()
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("expected cancellation")
+    } catch is CancellationError {}
+    XCTAssertLessThan(Date().timeIntervalSince(started), 3)
+    let next = try await host.search(.stockfish, fen: EngineHostTests.mateInOneFEN, limit: .depth(6))
+    XCTAssertEqual(next.bestMove, "h5f7")
+    await host.shutdown()
+  }
+}

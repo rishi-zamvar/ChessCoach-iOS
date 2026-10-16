@@ -1,0 +1,139 @@
+[Event "Tactician repertoire"]
+[Side "white"]
+[Style "tactician"]
+[Name "Scotch Game & Open Sicilian"]
+[Summary "Blow the centre open on move three so your pieces get active squares and the tactics start early."]
+[Result "*"]
+
+1. e4 { You grab the centre and open lines for your queen and bishop. [%cal Ge2e4] }
+1... e5
+( 1... c5 { The Sicilian. [%dev] }
+  2. Nf3 { Develop and prepare d4. [%cal Bd2d4] }
+  2... d6
+  ( 2... Nc6 { [%dev] Black develops the knight first. }
+    3. d4 { Open the centre. [%cal Gd4c5] }
+    3... cxd4
+    4. Nxd4 { Your knight lands in the centre. [%cal Gd4c6] }
+    4... Nf6
+    5. Nc3 { Defend e4 and develop. Next Be2, castle, and f4 or Be3. [%cal Gc3e4] } )
+  ( 2... e6 { [%dev] Black opens the dark-squared bishop. }
+    3. d4 { Open the centre. [%cal Gd4c5] }
+    3... cxd4
+    4. Nxd4 { Centralise the knight. }
+    4... Nf6
+    5. Nc3 { Defend e4. Watch for ...Bb4 pinning this knight. [%cal Gc3e4] } )
+  3. d4 { The Open Sicilian: trade your d-pawn for Black's c-pawn and race to develop. [%cal Gd4c5] }
+  3... cxd4
+  4. Nxd4 { Your knight is a monster on d4. [%cal Gd4c6,Gd4e6] }
+  4... Nf6 { Black hits your e4 pawn. [%cal Rf6e4] }
+  5. Nc3 { Defend e4 with a developing move. [%cal Gc3e4] }
+  5... a6
+  6. Be3 { The English Attack: next f3, Qd2, castle queenside and push your kingside pawns. [%cal Bf2f3,Bd1d2,Bg2g4] }
+  6... e5
+  7. Nb3 { Retreat the knight to safety; it still controls d4 and c5. [%cal Gb3d4] }
+  7... Be6
+  8. f3 { Guard e4 and get ready for Qd2, castle long and g4. [%cal Gf3e4,Bg2g4] } )
+( 1... e6 { The French. [%dev] }
+  2. d4 { Take the full centre. [%cal Gd4d5] }
+  2... d5
+  3. Nc3 { Defend e4 with a developing move. [%cal Gc3e4] }
+  3... Nf6
+  4. Bg5 { Pin the knight so it cannot hit e4 so easily. [%cal Gg5d8] }
+  4... Be7
+  5. e5 { Kick the knight and grab space. [%cal Ge5f6] }
+  5... Nfd7
+  6. Bxe7 { Trade off Black's good bishop. [%cal Gg5e7] }
+  6... Qxe7
+  7. f4 { Build the big pawn wedge; Nf3, Qd2 and castle long next. [%cal Gf4f5] } )
+( 1... c6 { The Caro-Kann. [%dev] }
+  2. d4 { Take the centre. }
+  2... d5
+  3. Nc3 { Defend e4. [%cal Gc3e4] }
+  3... dxe4
+  4. Nxe4 { Recapture and centralise the knight. }
+  4... Bf5 { The main move. [%cal Rf5e4] }
+  ( 4... Nd7 { [%dev] A solid move, but watch the f6 square. }
+    5. Qe2 { A sneaky queen move that sets a famous trap. [%cal Ge2e7] }
+    5... Ngf6??
+    6. Nd6# { Smothered mate! The e7 pawn is pinned by your queen, so it cannot take the knight. [%trap Smothered Mate] [%csl Re8] } )
+  5. Ng3 { Kick the bishop with tempo. [%cal Gg3f5] }
+  5... Bg6
+  6. h4 { Threaten h5 to trap the bishop and win space. [%cal Gh4h5] }
+  6... h6
+  7. Nf3 { Develop. Next h5, Bd3 and castle long. [%cal Gh4h5,Bf1d3] } )
+( 1... d5 { The Scandinavian. [%dev] }
+  2. exd5 { Take the pawn. }
+  2... Qxd5
+  3. Nc3 { Develop with tempo by hitting the queen. [%cal Gc3d5] }
+  3... Qa5
+  4. d4 { Grab the centre. }
+  4... Nf6
+  5. Nf3 { Develop; then Bc4 and Bd2 to annoy the queen. [%cal Bf1c4,Bc1d2] } )
+( 1... Nf6 { The Alekhine. [%dev] }
+  2. e5 { Kick the knight with tempo. [%cal Ge5f6] }
+  2... Nd5
+  3. d4 { Build the centre. }
+  3... d6
+  4. Nf3 { Develop simply: Be2, castle, c4 later. [%cal Bf1e2] } )
+( 1... g6 { The Modern or Pirc. [%dev] }
+  2. d4 { Take the whole centre. }
+  2... Bg7
+  3. Nc3 { Defend e4. }
+  3... d6
+  4. Be3 { Plan Qd2 and Bh6 to swap off Black's best bishop. [%cal Gd1d2,Be3h6] } )
+2. Nf3 { Develop with a threat on e5. [%cal Gf3e5] }
+2... Nc6
+( 2... d6 { The Philidor. [%dev] }
+  3. d4 { Strike the centre at once. [%cal Gd4e5] }
+  3... Bg4? { Pinning looks natural, but walks into a trap. [%cal Rg4d1] }
+  ( 3... exd4 { [%dev] The solid move. }
+    4. Nxd4 { Centralise. [%cal Gd4c6] }
+    4... Nf6
+    5. Nc3 { Develop, then Be2 and castle. You have more space. [%cal Gc3e4] } )
+  4. dxe5 { Open the d-file toward Black's queen. [%cal Gd1d8] }
+  4... Bxf3
+  5. Qxf3 { Recapture with the queen; she now eyes f7 and b7. [%cal Gf3f7,Gf3b7] }
+  5... dxe5
+  6. Bc4 { Aim at f7. [%cal Gc4f7] }
+  6... Nf6
+  7. Qb3 { Double attack on b7 and f7! Black cannot hold both. [%trap Philidor Double Attack] [%cal Gb3b7,Gb3f7] }
+  7... Qe7
+  8. Qxb7 { Win the pawn and keep hitting the a8 rook. [%cal Gb7a8] } )
+( 2... Nf6 { The Petrov: Black copies you. [%dev] }
+  3. Nxe5 { Take the pawn; Black must not copy you again. [%cal Gf3e5] }
+  3... d6 { Correct: kick the knight first. [%cal Rd6e5] }
+  ( 3... Nxe4? { Copying is a mistake. [%dev] }
+    4. Qe2 { Pin the knight on the e-file. [%cal Ge2e4] }
+    4... Nf6?
+    5. Nc6+ { Discovered check, and your knight hits the queen. You win the queen. [%trap Petrov Copycat] [%cal Ge2e8,Gc6d8] } )
+  4. Nf3 { Retreat to safety. [%cal Ge5f3] }
+  4... Nxe4
+  5. d4 { Take the centre; Bd3 and castle next. [%cal Bf1d3] } )
+3. d4 { The Scotch: open the centre before Black is ready. [%cal Gd4e5] }
+3... exd4
+( 3... Nxd4 { [%dev] Black trades knights first. }
+  4. Nxd4 { Trade back. }
+  4... exd4
+  5. Qxd4 { Your queen sits in the centre and Black's knight is gone, so nothing can kick her. [%cal Gd4g7] } )
+4. Nxd4 { Recapture and centralise. [%cal Gd4c6] }
+4... Nf6 { Black hits e4. [%cal Rf6e4] }
+( 4... Bc5 { [%dev] The bishop hits your d4 knight. [%cal Rc5d4] }
+  5. Be3 { Defend the knight with a developing move. [%cal Ge3d4] }
+  5... Qf6
+  6. c3 { Defend d4 again with a pawn, so the knight is rock solid. [%cal Gc3d4] }
+  6... Nge7
+  7. Bc4 { Develop and aim at f7. Castle next. [%cal Gc4f7] } )
+( 4... Qh4 { [%dev] A greedy queen sortie attacking e4. [%cal Rh4e4] }
+  5. Nc3 { Defend e4 and develop. [%cal Gc3e4] }
+  5... Bb4
+  6. Qd3 { Defend e4 again and your knight on d4. [%cal Gd3e4,Gd3d4] }
+  6... Nf6
+  7. Bd2 { Unpin the knight; next castle long and your lead in development tells. [%cal Gd2b4] } )
+5. Nxc6 { Trade knights so Black's pawns get doubled. [%cal Gd4c6] }
+5... bxc6
+6. Bd3 { Develop and defend e4. [%cal Gd3e4] }
+6... d5
+7. exd5 { Trade pawns to open lines. }
+7... cxd5
+8. O-O { Castle. Plan Nc3 and Bg5 to pressure d5. [%cal Bb1c3,Bc1g5] }
+*

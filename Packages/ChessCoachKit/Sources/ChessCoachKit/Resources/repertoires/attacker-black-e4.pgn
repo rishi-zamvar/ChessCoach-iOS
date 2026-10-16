@@ -1,0 +1,150 @@
+[Event "Attacker repertoire"]
+[Side "black"]
+[Style "attacker"]
+[Name "Open Game: 1...e5 with the Two Knights"]
+[Summary "Answer 1.e4 with 1...e5 and hit back fast: knights out, counter-attack e4 and f2 instead of sitting still."]
+[Result "*"]
+
+1. e4
+1... e5 { You claim your share of the centre and free your queen and dark-squared bishop. [%cal Ge7e5,Bf8c5] }
+2. Nf3 { White attacks your e5 pawn. [%cal Rf3e5] }
+( 2. Qh5 { The Scholar's Mate attempt: the queen eyes f7 and e5. [%dev] [%cal Rh5f7,Rh5e5] }
+  2... Nc6 { Defend e5 with a developing move. [%cal Gc6e5] }
+  3. Bc4 { Now White threatens Qxf7 mate. [%cal Rc4f7,Rh5f7] [%csl Rf7] }
+  3... g6 { Block the queen's path to f7 and kick her next turn. [%cal Gg6h5] }
+  ( 3... Nf6?? { Trap: this natural move loses at once. [%trap Scholar's Mate] [%cal Rh5f7] }
+    4. Qxf7# { Checkmate. Always check for Qxf7 when the queen and bishop both aim there. [%csl Rf7] } )
+  4. Qf3 { The queen tries again at f7. [%cal Rf3f7] }
+  4... Nf6 { The knight blocks the f-file and develops. f7 is safe. [%cal Gf6f7] }
+  5. Qb3 { One more try at f7 from the other side. [%cal Rb3f7] }
+  5... Qe7 { Guard f7 a second time. White's queen has wasted four moves. [%cal Ge7f7] }
+  6. Nc3
+  6... Nd4 { Jump in with tempo, hitting the queen and c2. [%cal Gd4b3,Gd4c2] }
+  7. Qa4
+  7... c6 { Take b5 from White's bishop and threaten ...b5 to trap the queen. [%cal Gb7b5] } )
+( 2. Bc4 { The bishop aims at f7 straight away. [%dev] [%cal Rc4f7] }
+  2... Nf6 { Develop and attack e4. A queen on f3 or h5 can no longer reach f7 easily. [%cal Gf6e4] }
+  3. d3
+  3... Bc5 { Your bishop mirrors White's and eyes f2. [%cal Gc5f2] }
+  4. Nf3
+  4... d6 { Guard e5 and open your light-squared bishop. Castle next. [%cal Gd6e5] } )
+( 2. Nc3 { The Vienna. [%dev] }
+  2... Nf6 { Develop and hit e4. [%cal Gf6e4] }
+  3. f4
+  3... d5 { Strike in the centre: the best answer to an early f4. [%cal Gd5e4] }
+  4. fxe5
+  4... Nxe4 { Your knight lands in the centre. [%cal Ge4c3] }
+  5. Nf3
+  5... Be7 { Develop and castle next; your knight on e4 is a monster. [%cal Ge8g8] } )
+( 2. d4 { The Centre Game. [%dev] }
+  2... exd4 { Take the pawn. }
+  3. Qxd4
+  3... Nc6 { Develop with tempo by hitting the queen. [%cal Gc6d4] }
+  4. Qe3
+  4... Nf6 { Develop and attack e4. [%cal Gf6e4] }
+  5. Nc3
+  5... Bb4 { Pin the knight that guards e4. Castle next. [%cal Gb4c3] } )
+( 2. f4 { The King's Gambit. [%dev] }
+  2... exf4 { Take the pawn; it cuts across White's development. [%cal Gf4e3] }
+  3. Nf3
+  3... d5 { Hit back in the centre right away. [%cal Gd5e4] }
+  4. exd5
+  4... Nf6 { Develop and get ready to win back d5. [%cal Gf6d5] }
+  5. Bc4
+  5... Nxd5 { You are a pawn up with a fine knight. Castle soon. [%cal Gd5f4] } )
+2... Nc6 { Defend e5 with a developing move. [%cal Gc6e5] }
+3. Bc4 { White's bishop eyes f7. [%cal Rc4f7] }
+( 3. Bb5 { The Ruy Lopez. [%dev] [%cal Rb5c6] }
+  3... Nf6 { Counter-attack e4 instead of defending. [%cal Gf6e4] }
+  4. O-O
+  ( 4. Bxc6 { [%dev] White swaps off your knight. }
+    4... dxc6 { Take toward the centre to free your queen and bishop. [%cal Gd8d4] }
+    5. Nxe5
+    5... Qd4 { Fork! Your queen hits the knight and the e4 pawn. [%cal Gd4e5,Gd4e4] }
+    6. Nf3
+    6... Qxe4+ { Win the pawn back with check. [%cal Ge4e1] }
+    7. Qe2
+    7... Qxe2+
+    8. Kxe2 { White's king has lost castling. Develop with ...Bd6 and ...Bf5. } )
+  4... Bc5 { Your bishop takes its best diagonal and aims at f2. [%cal Gc5f2] }
+  ( 4... Ng4 { The Fishing Pole: a risky trick for blitz. The knight is bait on g4. Strong players ignore it, so 4...Bc5 is your real move. [%trap Fishing Pole] [%cal Gg4f2] }
+    5. h3
+    5... h5 { Leave the knight hanging. If White takes it, the h-file opens toward the king. [%cal Gh8h1] }
+    6. hxg4
+    6... hxg4 { The rook now stares down the open h-file. [%cal Gh8h2] }
+    7. Nxe5
+    7... Qh4 { The queen joins the rook. Mate on h2 is coming and White can barely stop it. [%cal Gh4h2,Gh8h2] [%csl Gh2] }
+    8. Nxc6
+    8... Qh2# { Checkmate: the rook backs up the queen on the open h-file. [%csl Rg1] } )
+  5. c3
+  5... O-O { Castle and get your king safe before the centre opens. [%cal Gf8e8] }
+  6. d4
+  6... Bb6 { Keep the bishop on its diagonal, still looking at f2. [%cal Gb6f2] } )
+( 3. d4 { The Scotch. [%dev] }
+  3... exd4 { Take the pawn. }
+  4. Nxd4
+  4... Nf6 { Develop and attack e4. [%cal Gf6e4] }
+  5. Nc3
+  5... Bb4 { Pin the knight that guards e4. [%cal Gb4c3,Gf6e4] }
+  6. Nxc6
+  6... bxc6 { Take toward the centre; your next move ...d5 grabs the middle. [%cal Gd7d5] }
+  7. Bd3
+  7... d5 { Strike the centre and free your light-squared bishop. Castle next. [%cal Gd5e4] } )
+( 3. Nc3 { The Four Knights. [%dev] }
+  3... Nf6 { Develop and attack e4. [%cal Gf6e4] }
+  4. Bb5
+  4... Bb4 { Copy White's idea and pin the c3 knight. [%cal Gb4c3] }
+  5. O-O
+  5... O-O { Castle. }
+  6. d3
+  6... d6 { Solid and simple; aim for ...Bg4 to pin the f3 knight next. [%cal Bc8g4] } )
+3... Nf6 { The Two Knights: hit e4 instead of waiting. [%cal Gf6e4] }
+4. Ng5 { White's knight joins the bishop against f7. [%cal Rg5f7,Rc4f7] [%csl Rf7] }
+( 4. d3 { The quiet main line at club level. [%dev] }
+  4... Bc5 { Develop to the best square, aiming at f2. [%cal Gc5f2] }
+  5. O-O
+  5... d6 { Guard e5. Next castle, then ...Na5 or ...Bg4 for play. [%cal Bc8g4] }
+  6. c3
+  6... O-O { Castle and your king is safe. }
+  7. Bb3
+  7... a6 { Give your bishop a retreat square on a7 so d4 never traps it. [%cal Gc5a7] } )
+( 4. Nc3 { [%dev] White defends e4 with the knight. }
+  4... Nxe4 { The fork trick: temporarily sacrifice the knight. [%cal Gf6e4] }
+  5. Nxe4
+  5... d5 { Fork! The pawn hits the bishop and the knight, so you win the piece back. [%cal Gd5c4,Gd5e4] }
+  6. Bd3
+  6... dxe4
+  7. Bxe4
+  7... Bd6 { Material is level and you have the bishop pair and the centre. Castle next. [%cal Ge8g8] } )
+( 4. d4 { White opens the centre. [%dev] }
+  4... exd4 { Take the pawn. }
+  5. O-O
+  5... Nxe4 { Grab another pawn; your knight is safe for now. [%cal Ge4c3] }
+  6. Re1
+  6... d5 { Defend the pinned knight with a pawn and hit the bishop. [%cal Gd5c4] }
+  7. Bxd5
+  7... Qxd5 { Take the bishop. Your queen is strong in the centre. }
+  8. Nc3
+  8... Qa5 { Step off the attack and keep the extra pawn. [%cal Ga5e1] }
+  9. Nxe4
+  9... Be6 { Develop and get ready to castle queenside. You are a pawn up. [%cal Ge8c8] } )
+4... d5 { Block the bishop. This is the only good defence of f7. [%cal Gd5c4] }
+5. exd5
+5... Na5 { Hit the bishop instead of recapturing. This is the key move. [%cal Ga5c4] }
+( 5... Nxd5? { Trap: this natural recapture walks into the Fried Liver. [%trap Fried Liver] [%cal Rg5f7] }
+  6. Nxf7 { White sacrifices on f7 and forks your queen and rook. [%cal Rf7d8,Rf7h8] }
+  6... Kxf7
+  7. Qf3+ { Your king is dragged out and the d5 knight is pinned. Don't recapture on d5 with the knight! }
+  7... Ke6
+  8. Nc3 { White piles up on d5 with a crushing attack. Remember: play 5...Na5 instead. [%cal Rc3d5,Rc4d5,Rf3d5] } )
+6. Bb5+
+6... c6 { Block and attack the bishop. [%cal Gc6b5] }
+7. dxc6
+7... bxc6 { You are a pawn down, but this is a gambit: your pieces come out fast. [%cal Ga5c4] }
+8. Be2
+8... h6 { Kick the knight back. [%cal Gh6g5] }
+9. Nf3
+9... e4 { Gain space with tempo, hitting the knight again. [%cal Ge4f3] }
+10. Ne5
+10... Bd6 { Develop toward White's king. Castle next and attack: your activity is worth the pawn. [%cal Gd6h2] }
+*

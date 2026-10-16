@@ -1,0 +1,72 @@
+[Event "Attacker repertoire"]
+[Side "black"]
+[Style "attacker"]
+[Name "Albin Countergambit & active 1...d5"]
+[Summary "Meet 1.d4 with 1...d5 and, if White plays c4, hit back with ...e5 to start a fight from move two."]
+[Result "*"]
+
+1. d4
+( 1. c4 { The English. [%dev] }
+  1... e5 { Take the centre like a reversed Sicilian. [%cal Ge7e5] }
+  2. Nc3
+  2... Nf6 { Develop toward the centre. [%cal Gf6d5] }
+  3. Nf3
+  3... Nc6 { Defend e5 and develop. [%cal Gc6e5] }
+  4. g3
+  4... d5 { Strike in the centre before White gets comfortable. [%cal Gd5c4] }
+  5. cxd5
+  5... Nxd5 { Your knight is centralised. Develop with ...Be7 and castle next. [%cal Gd5c3] } )
+( 1. Nf3 { [%dev] A flexible knight move. }
+  1... d5 { Take the centre. }
+  2. g3
+  2... Nf6 { Develop. [%cal Gf6e4] }
+  3. Bg2
+  3... Bf5 { Your bishop gets out before ...e6 locks it in. [%cal Gf5c2] }
+  4. O-O
+  4... e6 { Solid centre. Next ...Be7, castle, then ...c5. [%cal Bc7c5] } )
+1... d5 { You put a pawn in the centre and stop e4. [%cal Gd7d5,Rd5e4] }
+2. c4 { The Queen's Gambit: White offers a pawn to pull your d5 pawn away. [%cal Rc4d5] }
+( 2. Bf4 { The London System. [%dev] }
+  2... Nf6 { Develop. }
+  3. e3
+  3... c5 { Hit d4 at once; the London hates early ...c5. [%cal Gc5d4] }
+  4. c3
+  4... Nc6 { Pile up on d4. [%cal Gc6d4] }
+  5. Nf3
+  5... Qb6 { Your queen hits b2, which the dark-squared bishop left behind. [%cal Gb6b2] [%csl Gb2] }
+  6. Qb3
+  6... c4 { Kick the queen with a pawn and grab queenside space. [%cal Gc4b3] }
+  7. Qc2
+  7... Bg4 { Develop and pin the f3 knight. Next ...e6, ...Bd6 and castle; your queenside space is a long-term plus. [%cal Gg4f3] } )
+( 2. Nf3 { [%dev] A quiet developing move. }
+  2... Nf6 { Develop. }
+  3. Bf4
+  3... c5 { Again hit d4 at once. [%cal Gc5d4] }
+  4. e3
+  4... Nc6 { Pile up on d4; ...Qb6 next targets b2. [%cal Gc6d4,Bd8b6] } )
+2... e5 { The Albin Countergambit: give a pawn back to grab the initiative. [%cal Ge5d4] }
+3. dxe5
+( 3. e3 { [%dev] White declines. }
+  3... exd4 { Take back and open lines for your pieces. }
+  4. exd4
+  4... Nf6 { Develop. You have easy play: ...Be7, castle, ...c6. [%cal Gf6e4] } )
+3... d4 { Your pawn gains a lot of space and cramps White's knights. [%cal Gd4c3,Gd4e3] [%csl Gd4] }
+4. Nf3
+( 4. e3? { White hits your d4 pawn and walks into the Lasker Trap. [%dev] [%cal Re3d4] }
+  4... Bb4+ { Check first, so that the bishop gets in front. [%cal Gb4e1] }
+  5. Bd2
+  5... dxe3 { Your pawn attacks f2. [%cal Ge3f2] }
+  6. Bxb4? { White grabs the bishop and forgets about f2. [%cal Rd2b4] }
+  6... exf2+ { Check! The pawn heads for g1 with a fork in mind. [%cal Gf2g1] }
+  7. Ke2
+  7... fxg1=N+ { Underpromote to a knight with check! A queen would just be taken. [%trap Lasker Trap] [%csl Gg1] }
+  8. Ke1
+  8... Qh4+ { Your queen joins with check; White's king is stuck in the centre and you are winning. [%cal Gh4e1] } )
+4... Nc6 { Develop and defend the d4 pawn. [%cal Gc6d4] }
+5. g3
+5... Be6 { Develop and hit the c4 pawn. [%cal Ge6c4] }
+6. Nbd2
+6... Qd7 { Get ready to castle queenside and push your kingside pawns at White's king. [%cal Ge8c8,Bh7h5] }
+7. Bg2
+7... O-O-O { Castle long. You are a pawn down, but this gambit gives you a big centre pawn and a ready-made attack with ...Bh3 and ...h5. [%cal Be6h3,Bh7h5] }
+*

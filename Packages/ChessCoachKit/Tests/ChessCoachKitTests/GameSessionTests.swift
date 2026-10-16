@@ -122,3 +122,30 @@ final class GameSessionTests: XCTestCase {
     XCTAssertEqual(session.fen(atPly: 3), session.position.fen)
   }
 }
+
+final class GameSessionRegressionTests: XCTestCase {
+  func test_givenOpponentBoxedInButSideToMoveHasMoves_whenLoaded_thenNotOver() {
+    // White to mate in one; Black (not to move) has no legal moves. Not a stalemate.
+    var session = GameSession(startFEN: "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1")
+    XCTAssertNil(session.result)
+    XCTAssertFalse(session.legalTargets(from: Square("f7")).isEmpty)
+    guard case .applied(let played) = session.apply(uci: "f7g7") else { return XCTFail() }
+    XCTAssertEqual(played.san, "Qg7#")
+    XCTAssertEqual(session.result?.termination, .checkmate)
+  }
+
+  func test_givenCheckmatedSideToMove_whenLoaded_thenCheckmate() {
+    let session = GameSession(startFEN: "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1")
+    XCTAssertEqual(session.result, GameResult(winner: .white, termination: .checkmate))
+  }
+
+  func test_givenStalematedSideToMove_whenLoaded_thenStalemate() {
+    let session = GameSession(startFEN: "k7/2Q5/1K6/8/8/8/8/8 b - - 0 1")
+    XCTAssertEqual(session.result?.termination, .stalemate)
+  }
+
+  func test_givenQuoteInPlayerName_whenPGNExported_thenEscaped() {
+    let pgn = GameSession().pgn(tags: ["White": "A \"B\" C"])
+    XCTAssertTrue(pgn.contains(#"[White "A \"B\" C"]"#), pgn)
+  }
+}

@@ -1,0 +1,711 @@
+{
+  "version": 1,
+  "lessons": [
+    {
+      "id": "A1",
+      "skill": "A1",
+      "title": "Seeing the board",
+      "band": [0, 700],
+      "prerequisites": [],
+      "idea": "Every square has a name. The letter is the column (a to h, left to right from White's side). The number is the row (1 to 8, from White's side up). So e4 means column e, row 4.\n\nWhy bother? Because every move, every hint and every explanation in this app uses square names. When you can find e4 or f7 without counting, you can think about the position instead of hunting for squares.\n\nA quick trick: White's king starts on e1 and Black's king on e8. The queen starts on her own colour: the white queen on d1 (a light square), the black queen on d8 (a dark square).",
+      "keyPoints": [
+        "Letter first (column a–h), then number (row 1–8).",
+        "Row 1 is White's back row; row 8 is Black's.",
+        "Kings start on e1 and e8; queens on d1 and d8."
+      ],
+      "worked": {
+        "intro": "Watch the first four moves of a normal game and say each square out loud.",
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "moves": ["e2e4", "e7e5", "g1f3", "b8c6"],
+        "narration": [
+          "White pushes the pawn from e2 to e4: column e, two rows up.",
+          "Black answers from e7 to e5. The two pawns now face each other on the e-column.",
+          "White's knight jumps from g1 to f3, where it attacks the pawn on e5.",
+          "Black's knight goes from b8 to c6 and defends e5."
+        ],
+        "arrows": [
+          [{"from": "e2", "to": "e4", "color": "green"}],
+          [{"from": "e7", "to": "e5", "color": "green"}],
+          [{"from": "g1", "to": "f3", "color": "green"}, {"from": "f3", "to": "e5", "color": "red"}],
+          [{"from": "b8", "to": "c6", "color": "green"}, {"from": "c6", "to": "e5", "color": "blue"}]
+        ]
+      },
+      "faded": {
+        "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        "solution": ["g1f3"],
+        "prompt": "Move the knight from g1 to f3.",
+        "hint": "g1 is the second square from the right on your back row. f3 is one column left and two rows up.",
+        "explanation": "Knight g1 to f3. It now attacks e5 and helps control the centre. You read the squares right."
+      },
+      "practice": {"kind": "coordinates", "count": 10},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "A3",
+      "skill": "A3",
+      "title": "What's attacked? What's hanging?",
+      "band": [0, 800],
+      "prerequisites": ["A1"],
+      "idea": "A piece is attacked when an enemy piece could capture it next move. A piece is hanging when it is attacked and nothing of yours defends it. Hanging pieces get taken for free.\n\nMost games at your level are decided by one thing: somebody left a piece hanging and the other player noticed. You want to be the one who notices.\n\nBuild a habit. After every move your opponent makes, ask: what does that piece attack now? Then look at your own pieces and ask: is anything of mine attacked and undefended?",
+      "keyPoints": [
+        "Attacked = an enemy piece can capture it.",
+        "Hanging = attacked and not defended. It can be taken for free.",
+        "After each opponent move, ask: what does it attack now?"
+      ],
+      "worked": {
+        "intro": "Look at the pawn on e5. White's knight attacks it. Does anything defend it?",
+        "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        "moves": ["b8c6", "f1c4", "g8f6", "b1c3"],
+        "narration": [
+          "The e5 pawn was attacked and undefended, so it was hanging. Black defends it with the knight on c6.",
+          "White develops the bishop to c4. It now aims at f7, which only Black's king defends.",
+          "Black's knight goes to f6 and attacks White's e4 pawn. Nothing defends e4, so it is hanging.",
+          "White spots it and defends e4 with the knight on c3. Every piece is safe again."
+        ],
+        "arrows": [
+          [{"from": "f3", "to": "e5", "color": "red"}, {"from": "c6", "to": "e5", "color": "green"}],
+          [{"from": "c4", "to": "f7", "color": "red"}],
+          [{"from": "f6", "to": "e4", "color": "red"}],
+          [{"from": "c3", "to": "e4", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/5pp1/7p/3n4/8/8/5PPP/3R2K1 w - - 0 1",
+        "solution": ["d1d5"],
+        "prompt": "One black piece is hanging. Take it.",
+        "hint": "Look straight up the d-column from your rook.",
+        "explanation": "Rxd5. Your rook attacked the knight on d5 and nothing defended it, so it was free."
+      },
+      "practice": {"kind": "checksCaptures", "count": 10},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "A4",
+      "skill": "A4",
+      "title": "Escaping check",
+      "band": [0, 800],
+      "prerequisites": ["A3"],
+      "idea": "Check means your king is attacked. You must get out of check right away, and there are only three ways: move the king, block the attack with a piece, or capture the piece that is giving check.\n\nCheck all three every time, in this order: can I capture the checking piece? Can I block? Where can my king go? Capturing is often best because it removes the attacker for good.\n\nIf none of the three works, it is checkmate and the game is over.",
+      "keyPoints": [
+        "Three ways out: capture the checker, block, or move the king.",
+        "Look for a capture first; it removes the attacker for good.",
+        "No way out at all means checkmate."
+      ],
+      "worked": {
+        "intro": "Black's rook on e8 is checking your king on e1. Find all three ways out before you watch.",
+        "fen": "4r1k1/5ppp/8/8/8/8/3B1PPP/4K2R w K - 0 1",
+        "moves": ["d2e3", "g7g6", "e1g1"],
+        "narration": [
+          "You can't capture the rook, but you can block. The bishop steps to e3 and the f2 pawn defends it.",
+          "Black makes a quiet move.",
+          "Now you're out of check, so you can castle. Your king tucks away on g1 and the bishop is no longer pinned."
+        ],
+        "arrows": [
+          [{"from": "e8", "to": "e1", "color": "red"}, {"from": "d2", "to": "e3", "color": "green"}],
+          [],
+          [{"from": "e1", "to": "g1", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/5ppp/8/8/8/8/5PPP/2R1q1K1 w - - 0 1",
+        "solution": ["c1e1"],
+        "prompt": "You're in check. Find the way out.",
+        "hint": "Your king has nowhere to go. What about the piece giving check?",
+        "explanation": "Rxe1. Capturing the checking queen was the only way out, and it won Black's queen too."
+      },
+      "practice": {"kind": "checksCaptures", "count": 10},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "A5",
+      "skill": "A5",
+      "title": "Counting attackers and defenders",
+      "band": [300, 900],
+      "prerequisites": ["A3"],
+      "idea": "Sometimes a piece is attacked and defended at the same time. Then you count. If you have more attackers than they have defenders, you can win it.\n\nCapture with your cheapest piece first. When pieces are traded on one square, each side takes in turn. If you start with your queen, the opponent recaptures and you lose the queen. Start with a pawn or knight instead.\n\nThe same counting keeps you safe. Before you put a piece on a square, count who attacks it and who defends it.",
+      "keyPoints": [
+        "More attackers than defenders: you can usually win the piece.",
+        "Capture with your least valuable piece first.",
+        "Count before you move a piece to a square, too."
+      ],
+      "worked": {
+        "intro": "The black knight on d5 is attacked twice (knight c3, bishop b3) and defended once (knight f6). Count it.",
+        "fen": "6k1/5ppp/5n2/3n4/8/1BN5/5PPP/6K1 w - - 0 1",
+        "moves": ["c3d5", "f6d5", "b3d5"],
+        "narration": [
+          "Two attackers against one defender. White takes with the knight first.",
+          "Black uses its only defender to take back.",
+          "White still has one attacker left. The bishop takes, and Black has nothing left to recapture. White is a knight up."
+        ],
+        "arrows": [
+          [{"from": "c3", "to": "d5", "color": "green"}, {"from": "b3", "to": "d5", "color": "green"}, {"from": "f6", "to": "d5", "color": "red"}],
+          [{"from": "f6", "to": "d5", "color": "red"}],
+          [{"from": "b3", "to": "d5", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/5pp1/2p4p/3p4/4n3/2N5/5PPP/4R1K1 w - - 0 1",
+        "solution": ["c3e4", "d5e4", "e1e4"],
+        "prompt": "The knight on e4 is attacked twice and defended once. Win material.",
+        "hint": "Capture with your cheapest attacker first.",
+        "explanation": "Nxe4 dxe4 Rxe4. Two attackers beat one defender. Starting with the knight (3) instead of the rook (5) is what made it work: you won a pawn."
+      },
+      "practice": {"kind": "safeMove", "count": 10},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "A6",
+      "skill": "A6",
+      "title": "Piece values and trades",
+      "band": [300, 900],
+      "prerequisites": ["A5"],
+      "idea": "Pieces have rough point values: pawn 1, knight 3, bishop 3, rook 5, queen 9. The king can't be traded, so it has no number.\n\nUse the values to judge a trade. Give a 3 to get a 5 and you are ahead. Give a 9 to get a 3 and you are far behind. Equal trades (3 for 3) are fine when you are ahead or when they help your position.\n\nBefore you capture, ask: if they take back, what did I give and what did I get?",
+      "keyPoints": [
+        "Pawn 1, knight 3, bishop 3, rook 5, queen 9.",
+        "Add up what you give and what you get before you capture.",
+        "Never give the queen for less, unless it leads to mate."
+      ],
+      "worked": {
+        "intro": "White's bishop on f3 looks all the way down the long diagonal at the rook on a8.",
+        "fen": "r4rk1/5ppp/8/8/8/5B2/5PPP/6K1 w - - 0 1",
+        "moves": ["f3a8", "f8a8"],
+        "narration": [
+          "The bishop (3) takes the rook (5).",
+          "Black's other rook takes back. White gave 3 points and got 5, so White won 2 points. This is called winning the exchange."
+        ],
+        "arrows": [
+          [{"from": "f3", "to": "a8", "color": "green"}],
+          [{"from": "f8", "to": "a8", "color": "red"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/5pp1/4p2p/3n4/2P5/8/5PPP/3Q2K1 w - - 0 1",
+        "solution": ["c4d5"],
+        "prompt": "You can take the knight two ways. Pick the good trade.",
+        "hint": "The e6 pawn defends d5. What do you lose when Black takes back?",
+        "explanation": "cxd5. A pawn (1) for a knight (3). Taking with the queen would lose your 9-point queen for a 3-point knight."
+      },
+      "practice": {"kind": "puzzles", "themes": ["hangingPiece"], "rating": [400, 800], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "B1",
+      "skill": "B1",
+      "title": "Mate in one",
+      "band": [0, 900],
+      "prerequisites": ["A4"],
+      "idea": "Checkmate is a check the king can't escape. It can't move, nothing can block, and nothing can capture the checking piece. Checkmate ends the game, so it beats winning any amount of material.\n\nTo find mate in one, look at every check you have. For each one, ask the three escape questions from the last lesson: can the king move? Can they block? Can they capture? If all three answers are no, it's mate.\n\nThe king is weakest on the edge of the board, and weakest of all when its own pawns block its escape squares.",
+      "keyPoints": [
+        "Mate = check with no escape: no king move, no block, no capture.",
+        "Try every check you have. Checks first!",
+        "A piece next to the king needs a defender, or the king just takes it."
+      ],
+      "worked": {
+        "intro": "Black's king is on the edge. Your king on g6 already covers f7, g7 and h7.",
+        "fen": "6k1/Q7/6K1/8/8/8/8/8 w - - 0 1",
+        "moves": ["a7g7"],
+        "narration": [
+          "Qg7 is checkmate. The queen checks, covers f8 and h8, and Black's king can't take her because your king defends g7."
+        ],
+        "arrows": [
+          [{"from": "a7", "to": "g7", "color": "green"}, {"from": "g6", "to": "g7", "color": "blue"}]
+        ]
+      },
+      "faded": {
+        "fen": "7k/8/6K1/8/8/8/8/R7 w - - 0 1",
+        "solution": ["a1a8"],
+        "prompt": "Mate in one.",
+        "hint": "Your king takes away the seventh row. Which row is left for Black's king?",
+        "explanation": "Ra8#. The rook checks along the back row and covers g8. Your king covers g7 and h7. No escape."
+      },
+      "practice": {"kind": "puzzles", "themes": ["mateIn1"], "rating": [400, 900], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "B2a",
+      "skill": "B2",
+      "title": "Queen + King mate",
+      "band": [0, 900],
+      "prerequisites": ["B1"],
+      "idea": "With a king and queen against a lone king, you should always win. The plan has two steps. First, use your queen to make a box that keeps the enemy king near the edge. Make the box smaller, keeping the queen a knight's jump away from the king.\n\nSecond, once the king is stuck on the edge, bring your own king up to help. Then the queen gives mate next to the enemy king, defended by your king, or on the edge row.\n\nWatch out for stalemate. If the enemy king has no legal move but is not in check, the game is a draw. Before every queen move, make sure the king still has a square to go to.",
+      "keyPoints": [
+        "Queen builds a shrinking box; enemy king ends on the edge.",
+        "Bring your king up before you try to mate.",
+        "Stalemate alarm: always leave the enemy king a move until the mating move."
+      ],
+      "worked": {
+        "intro": "Black's king is already in the corner. Watch the queen trap it, then the king come to help.",
+        "fen": "k7/8/8/2K5/8/8/8/1Q6 w - - 0 1",
+        "moves": ["b1b5", "a8a7", "c5c6", "a7a8", "b5b7"],
+        "narration": [
+          "Qb5 makes a box: the whole b-column is closed. Black's king only has a7.",
+          "Black's king goes to a7.",
+          "Now your king walks up to help. Note that Black still has a move, so it's not stalemate.",
+          "Black's king has to go back to a8.",
+          "Qb7 is mate. The queen checks, covers a7 and b8, and your king on c6 defends her."
+        ],
+        "arrows": [
+          [{"from": "b1", "to": "b5", "color": "green"}],
+          [],
+          [{"from": "c5", "to": "c6", "color": "green"}],
+          [],
+          [{"from": "b5", "to": "b7", "color": "green"}, {"from": "c6", "to": "b7", "color": "blue"}]
+        ]
+      },
+      "faded": {
+        "fen": "k7/8/1K6/8/8/8/8/2Q5 w - - 0 1",
+        "solution": ["c1c8"],
+        "prompt": "Mate in one. Careful: one queen move here is stalemate.",
+        "hint": "Your king already covers a7, b7 and b8... almost. Check along the back row.",
+        "explanation": "Qc8#. The queen checks on the back row and your king covers a7 and b7. Qc7 would have been stalemate: no check, but no legal move for Black."
+      },
+      "practice": {"kind": "playout", "count": 3, "fen": "8/8/8/4k3/8/8/8/3QK3 w - - 0 1", "goal": "mate"},
+      "mastery": {"required": 2, "of": 3}
+    },
+    {
+      "id": "B2b",
+      "skill": "B2",
+      "title": "Rook + King mate (the ladder and the box)",
+      "band": [0, 1000],
+      "prerequisites": ["B2a"],
+      "idea": "With two rooks it is easy: they take turns cutting off one row each and push the king to the edge like climbing a ladder. Keep the rooks far from the enemy king so it can't attack them.\n\nWith one rook you need your king too. The rook cuts the enemy king off on one side (the box). Your king walks up to face the enemy king with one square between them. When the kings stand like that, a rook check along the edge is mate.\n\nThe rook doesn't need to chase. Make the box smaller step by step, and if the rook is attacked, move it to the far side of the board.",
+      "keyPoints": [
+        "Two rooks: alternate checks, one row at a time (the ladder).",
+        "One rook: rook builds the box, your king walks up.",
+        "Kings facing each other with one square between, then rook check on the edge = mate."
+      ],
+      "worked": {
+        "intro": "The rook on a5 already stops Black's king crossing the 5th row. Watch the other rook climb the ladder.",
+        "fen": "8/8/3k4/R7/7R/8/8/7K w - - 0 1",
+        "moves": ["h4h6", "d6d7", "a5a7", "d7e8", "h6h8"],
+        "narration": [
+          "Rh6 check. The king can't go down because a5 guards the 5th row, so it must go up.",
+          "Black's king goes to d7.",
+          "Ra7 check. Now the 7th row is closed too.",
+          "Black's king goes to the back row.",
+          "Rh8 is mate. One rook guards the 7th row, the other checks along the 8th."
+        ],
+        "arrows": [
+          [{"from": "h4", "to": "h6", "color": "green"}, {"from": "a5", "to": "h5", "color": "blue"}],
+          [],
+          [{"from": "a5", "to": "a7", "color": "green"}],
+          [],
+          [{"from": "h6", "to": "h8", "color": "green"}, {"from": "a7", "to": "h7", "color": "blue"}]
+        ]
+      },
+      "faded": {
+        "fen": "3k4/8/3K4/8/8/8/8/7R w - - 0 1",
+        "solution": ["h1h8"],
+        "prompt": "The kings face each other. Finish it.",
+        "hint": "Your king covers the whole 7th row next to Black's king. Check on the back row.",
+        "explanation": "Rh8#. Your king on d6 covers c7, d7 and e7, and the rook covers the whole back row."
+      },
+      "practice": {"kind": "playout", "count": 3, "fen": "8/8/8/4k3/8/8/8/R3K3 w - - 0 1", "goal": "mate"},
+      "mastery": {"required": 2, "of": 3}
+    },
+    {
+      "id": "C1",
+      "skill": "C1",
+      "title": "Free pieces",
+      "band": [300, 1000],
+      "prerequisites": ["A5", "A6"],
+      "idea": "The simplest way to win a game is to take pieces your opponent leaves undefended. At your level this happens in almost every game, often more than once.\n\nBut make sure it is really free. Before you capture, count: is the piece defended? If you take it, can they take back? A piece that looks free is sometimes bait.\n\nWhen you have two captures, take the one that is truly undefended, not the one with a bodyguard.",
+      "keyPoints": [
+        "After every opponent move, look for pieces they left undefended.",
+        "Before capturing, check: who can take back?",
+        "Free material adds up: a knight up is usually a winning game."
+      ],
+      "worked": {
+        "intro": "Black is about to move the knight. Watch where it lands and ask: who attacks that square?",
+        "fen": "6k1/5ppp/5n2/8/8/8/5PPP/3Q2K1 b - - 0 1",
+        "moves": ["f6d5", "d1d5"],
+        "narration": [
+          "Black puts the knight on d5. Your queen looks straight up the d-column at it, and nothing black defends d5.",
+          "Qxd5. You win a whole knight for free."
+        ],
+        "arrows": [
+          [{"from": "f6", "to": "d5", "color": "blue"}, {"from": "d1", "to": "d5", "color": "red"}],
+          [{"from": "d1", "to": "d5", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/5ppp/8/1p6/n2b4/8/5PPP/3Q2K1 w - - 0 1",
+        "solution": ["d1d4"],
+        "prompt": "Your queen attacks two pieces. Only one is free. Take it.",
+        "hint": "The pawn on b5 is a bodyguard. Which piece doesn't have one?",
+        "explanation": "Qxd4. The bishop had no defender. Qxa4 would have lost your queen to bxa4."
+      },
+      "practice": {"kind": "puzzles", "themes": ["hangingPiece"], "rating": [400, 1000], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "C2",
+      "skill": "C2",
+      "title": "The knight fork",
+      "band": [400, 1100],
+      "prerequisites": ["C1"],
+      "idea": "A fork is one piece attacking two enemy pieces at once. Your opponent can only save one, so you take the other.\n\nKnights are the best forkers. They jump, so nothing blocks them, and they attack bigger pieces without being attacked back. The best fork of all is a royal fork: check the king and attack the queen or a rook at the same time. The king must move, and you collect the other piece.\n\nPawns, queens and bishops fork too. A pawn that attacks two pieces is a great trade for you. To spot forks, look for two enemy pieces a knight's jump apart from the same empty square.",
+      "keyPoints": [
+        "Fork = one piece attacks two targets.",
+        "Fork with check is strongest: the king must move first.",
+        "Look for enemy king, queen and rooks that one knight jump could hit together."
+      ],
+      "worked": {
+        "intro": "Look at c7. A knight there would attack e8 and a8 at the same time.",
+        "fen": "r3k3/5ppp/8/3N4/8/8/5PPP/6K1 w - - 0 1",
+        "moves": ["d5c7", "e8d7", "c7a8"],
+        "narration": [
+          "Nc7 check! The knight attacks the king and the rook on a8 at once.",
+          "Black has to deal with the check, so the king moves.",
+          "Nxa8. The knight takes the rook. You won 5 points with one jump."
+        ],
+        "arrows": [
+          [{"from": "d5", "to": "c7", "color": "green"}, {"from": "c7", "to": "e8", "color": "red"}, {"from": "c7", "to": "a8", "color": "red"}],
+          [],
+          [{"from": "c7", "to": "a8", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "2q3k1/5ppp/8/3N4/8/8/5PPP/6K1 w - - 0 1",
+        "solution": ["d5e7"],
+        "prompt": "Find the fork.",
+        "hint": "Which square is a knight's jump from both the king on g8 and the queen on c8?",
+        "explanation": "Ne7 check forks the king on g8 and the queen on c8. After the king moves, Nxc8 wins the queen."
+      },
+      "practice": {"kind": "puzzles", "themes": ["fork"], "rating": [400, 1000], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "D1",
+      "skill": "D1",
+      "title": "Blunder check: checks, captures, threats",
+      "band": [300, 1600],
+      "prerequisites": ["C1"],
+      "idea": "Most lost games at your level come from moves played on hope: you liked your move and didn't check what it allowed. The fix is a habit that takes ten seconds.\n\nBefore every move, look for checks, captures and threats. Do it twice. First for yourself: do I have a check, a capture or a threat that wins something? Then for your opponent: if I play my move, what checks, captures and threats will they have?\n\nIf your move lets them check, capture something for free, or mate you, pick another move. Checks first, because checks are the most forcing.",
+      "keyPoints": [
+        "Before every move: checks, captures, threats.",
+        "Scan for yourself first, then for your opponent after your move.",
+        "If your move allows a free capture or a mate, find another move."
+      ],
+      "worked": {
+        "intro": "White wants to grab the pawn on a7. Before you watch: what checks would Black have if the rook leaves the back row?",
+        "fen": "3r2k1/p4ppp/8/8/8/8/5PPP/R5K1 w - - 0 1",
+        "moves": ["a1a7", "d8d1"],
+        "narration": [
+          "Rxa7?? wins a pawn, but White skipped the blunder check. The rook has left the back row.",
+          "Rd1 is checkmate. White's own pawns block the king. One look at Black's checks would have stopped this."
+        ],
+        "arrows": [
+          [{"from": "a1", "to": "a7", "color": "red"}, {"from": "d8", "to": "d1", "color": "red"}],
+          [{"from": "d8", "to": "d1", "color": "red"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/6pp/8/7n/8/5P2/6PP/3Q2K1 w - - 0 1",
+        "solution": ["d1d5"],
+        "prompt": "Do your scan for yourself: checks first. One check wins a piece.",
+        "hint": "List every queen check. Which one also attacks the knight on h5?",
+        "explanation": "Qd5 check. The queen checks the king and attacks the undefended knight on h5 along the 5th row. After the king moves, Qxh5 wins it. The scan found it: checks first."
+      },
+      "practice": {"kind": "safeMove", "count": 10},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "C3",
+      "skill": "C3",
+      "title": "Pins",
+      "band": [500, 1200],
+      "prerequisites": ["D1"],
+      "idea": "A pin happens when a piece can't move because a more valuable piece stands behind it on the same line. Bishops, rooks and queens make pins, because they attack along lines.\n\nIf the piece behind is the king, the pinned piece can't legally move at all. Then you can attack the pinned piece again, often with a pawn, and win it.\n\nYou can even pin a queen to its king. The queen can't step away, so you win it for your bishop or rook. Just make sure your pinning piece is defended.",
+      "keyPoints": [
+        "Pin = a piece stuck in front of a bigger piece on a line.",
+        "Pinned to the king: it can't move at all.",
+        "Attack a pinned piece again; it can't run away."
+      ],
+      "worked": {
+        "intro": "Black's queen on d7 and king on e8 sit on the same diagonal. Which square of yours lines up with them?",
+        "fen": "4k3/3q1ppp/8/8/P7/3B4/5PPP/6K1 w - - 0 1",
+        "moves": ["d3b5", "d7b5", "a4b5"],
+        "narration": [
+          "Bb5 pins the queen to the king. She can't step off the diagonal, and the a4 pawn defends the bishop.",
+          "The best Black can do is take the bishop.",
+          "axb5. You gave a bishop (3) and won the queen (9)."
+        ],
+        "arrows": [
+          [{"from": "d3", "to": "b5", "color": "green"}, {"from": "b5", "to": "e8", "color": "red"}],
+          [{"from": "d7", "to": "b5", "color": "blue"}],
+          [{"from": "a4", "to": "b5", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/p4qpp/8/8/8/1P6/5PPP/5BK1 w - - 0 1",
+        "solution": ["f1c4"],
+        "prompt": "Pin the queen.",
+        "hint": "The queen on f7 and the king on g8 are on one diagonal. Find a defended square on it for your bishop.",
+        "explanation": "Bc4 pins the queen to the king, and the b3 pawn defends the bishop. Black loses the queen for a bishop."
+      },
+      "practice": {"kind": "puzzles", "themes": ["pin"], "rating": [500, 1100], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "C4",
+      "skill": "C4",
+      "title": "Skewers",
+      "band": [600, 1200],
+      "prerequisites": ["C3"],
+      "idea": "A skewer is a pin turned around. You attack a valuable piece, it moves out of the way, and you capture the piece that was standing behind it.\n\nThe classic skewer is a check. You check the king along a line, the king must step aside, and you take the queen or rook behind it.\n\nLook for an enemy king and another big piece on the same row, column or diagonal, with nothing in between. That's your skewer line.",
+      "keyPoints": [
+        "Skewer = attack the big piece in front, win the piece behind.",
+        "A check skewer is forced: the king must move.",
+        "Look for the king and a queen or rook on the same line."
+      ],
+      "worked": {
+        "intro": "Black's king on e6 and queen on e8 are both on the e-column. Can your rook get there with check?",
+        "fen": "4q3/pp4pp/4k3/8/8/8/5PPP/R5K1 w - - 0 1",
+        "moves": ["a1e1", "e6d6", "e1e8"],
+        "narration": [
+          "Re1 check. The rook attacks the king, and the queen hides behind it on the same column.",
+          "The king must step off the e-column.",
+          "Rxe8. The skewer wins the queen."
+        ],
+        "arrows": [
+          [{"from": "a1", "to": "e1", "color": "green"}, {"from": "e1", "to": "e8", "color": "red"}],
+          [],
+          [{"from": "e1", "to": "e8", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "7r/pp6/8/4k3/8/8/5PPP/4B1K1 w - - 0 1",
+        "solution": ["e1c3"],
+        "prompt": "Find the skewer.",
+        "hint": "The king on e5 and the rook on h8 share a long diagonal.",
+        "explanation": "Bc3 check. The king must leave the diagonal, and then Bxh8 wins the rook."
+      },
+      "practice": {"kind": "puzzles", "themes": ["skewer"], "rating": [600, 1200], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "C5",
+      "skill": "C5",
+      "title": "Discovered attacks",
+      "band": [600, 1200],
+      "prerequisites": ["C3"],
+      "idea": "A discovered attack happens when one of your pieces moves out of the way and uncovers an attack by another piece behind it. Now you have two attacks in one move: one from the piece that moved, and one from the piece behind.\n\nIt is strongest when the uncovered piece gives check. Your opponent must answer the check, and the piece that moved can do whatever it likes, like attack the queen.\n\nLook for your rook, bishop or queen with one of your own pieces in front of it, aimed at the enemy king or queen.",
+      "keyPoints": [
+        "Move the front piece to uncover the back piece's attack.",
+        "Two attacks at once; they can only answer one.",
+        "Discovered check is the strongest kind."
+      ],
+      "worked": {
+        "intro": "Your rook on e1 aims at Black's king, but your own bishop on e4 is in the way. Where can the bishop go to do damage?",
+        "fen": "4k3/5ppp/8/8/q3B3/8/5PPP/4R1K1 w - - 0 1",
+        "moves": ["e4c2", "e8f8", "c2a4"],
+        "narration": [
+          "Bc2 uncovers check from the rook, and the bishop now attacks the queen on a4.",
+          "Black has to answer the check first.",
+          "Bxa4. The bishop collects the queen."
+        ],
+        "arrows": [
+          [{"from": "e4", "to": "c2", "color": "green"}, {"from": "e1", "to": "e8", "color": "red"}, {"from": "c2", "to": "a4", "color": "red"}],
+          [],
+          [{"from": "c2", "to": "a4", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "3q2k1/5ppp/8/8/8/3B4/5PPP/3R2K1 w - - 0 1",
+        "solution": ["d3h7", "g8h7", "d1d8"],
+        "prompt": "Your bishop blocks your rook. Move it with a bang.",
+        "hint": "Move the bishop with check, and the rook sees the queen.",
+        "explanation": "Bxh7 check uncovers the rook's attack on the queen. Black must answer the check, and Rxd8 wins the queen."
+      },
+      "practice": {"kind": "puzzles", "themes": ["discoveredAttack"], "rating": [600, 1200], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "B3",
+      "skill": "B3",
+      "title": "Back-rank mate",
+      "band": [500, 1200],
+      "prerequisites": ["B1", "D1"],
+      "idea": "After castling, the king often sits behind three pawns on its back row. Those pawns protect it, but they also trap it. A rook or queen checking along the back row can be checkmate.\n\nThis is the most common checkmate at your level, for both sides. When you attack, look for an empty back row behind the enemy pawns. When you defend, give your king air: one pawn move like h3 (or ...h6 as Black) gives it an escape square.\n\nIf the enemy has one defender of the back row and you have two attackers, you can often trade the defender off and then mate.",
+      "keyPoints": [
+        "A king behind its own pawns can be mated on the back row.",
+        "Attack: check on the back row when nothing can block or take.",
+        "Defend: make an escape square (h3 / ...h6) before it's too late."
+      ],
+      "worked": {
+        "intro": "Black's rook is the only guard of the back row. Watch what happens when it leaves.",
+        "fen": "4r1k1/5ppp/8/8/8/8/5PPP/3R2K1 b - - 0 1",
+        "moves": ["e8e2", "d1d8", "e2e8", "d8e8"],
+        "narration": [
+          "Black's rook goes hunting on e2 and leaves the back row empty.",
+          "Rd8 check. The king can't escape: its own pawns block it.",
+          "Black's only defence is to block with the rook.",
+          "Rxe8 is checkmate."
+        ],
+        "arrows": [
+          [{"from": "e8", "to": "e2", "color": "blue"}],
+          [{"from": "d1", "to": "d8", "color": "green"}],
+          [{"from": "e2", "to": "e8", "color": "blue"}],
+          [{"from": "d8", "to": "e8", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "6k1/5ppp/8/8/2n5/8/3Q1PPP/4R1K1 w - - 0 1",
+        "solution": ["e1e8"],
+        "prompt": "Your queen is attacked. But first: checks!",
+        "hint": "Black's king has no escape squares. Can anything reach the back row?",
+        "explanation": "Re8 is checkmate (Qd8 works too). Checks come before saving your queen, because mate ends the game."
+      },
+      "practice": {"kind": "puzzles", "themes": ["backRankMate"], "rating": [500, 1200], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "F1",
+      "skill": "F1",
+      "title": "Opening principles",
+      "band": [0, 1400],
+      "prerequisites": ["A6"],
+      "idea": "You don't need to memorise openings yet. Follow three rules and you'll get a good position almost every game. One: put a pawn in the centre (e4 or d4). Two: develop, which means bring your knights and bishops out, ideally before moving any piece twice. Three: castle early to tuck your king away.\n\nDon't bring your queen out early. It gets chased by smaller pieces, and every time it runs you lose time.\n\nBut do watch for the early queen attack on f7 (Scholar's mate). The f7 square is defended only by the king at the start. Answer threats against it calmly and keep developing.",
+      "keyPoints": [
+        "Centre pawn, then knights and bishops, then castle.",
+        "Don't move the same piece twice early; don't rush the queen out.",
+        "Guard f7 (f2 for White): it's the weak spot at the start."
+      ],
+      "worked": {
+        "intro": "White tries the quick queen attack. Watch how Black defends and develops at the same time.",
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "moves": ["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g7g6", "h5f3", "g8f6"],
+        "narration": [
+          "White takes the centre with e4.",
+          "Black does the same with e5.",
+          "Qh5 brings the queen out early. It attacks e5 and eyes f7.",
+          "Black develops the knight and defends e5.",
+          "Bc4 adds a second attacker on f7. Qxf7 would be mate.",
+          "g6 blocks the queen's path to f7 and attacks the queen.",
+          "The queen tries again from f3, still aiming at f7.",
+          "Nf6 blocks again and develops a piece. Black is now ahead in development and White's queen has moved three times."
+        ],
+        "arrows": [
+          [{"from": "e2", "to": "e4", "color": "green"}],
+          [{"from": "e7", "to": "e5", "color": "green"}],
+          [{"from": "h5", "to": "f7", "color": "red"}],
+          [{"from": "c6", "to": "e5", "color": "green"}],
+          [{"from": "c4", "to": "f7", "color": "red"}],
+          [{"from": "g6", "to": "h5", "color": "green"}],
+          [{"from": "f3", "to": "f7", "color": "red"}],
+          [{"from": "g8", "to": "f6", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+        "solution": ["e1g1"],
+        "prompt": "Your knight and bishop are out. Get your king safe in one move.",
+        "hint": "The squares between your king and the h1 rook are empty.",
+        "explanation": "Castle (O-O). Your king is safe behind its pawns and your rook joins the game."
+      },
+      "practice": {"kind": "puzzles", "themes": ["opening"], "rating": [400, 1000], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "E2",
+      "skill": "E2",
+      "title": "Square of the pawn",
+      "band": [600, 1300],
+      "prerequisites": ["B2b"],
+      "idea": "In the endgame, a passed pawn can run to promote. Can your king catch it? You don't need to count moves. Use the square.\n\nImagine a square with one side going from the pawn to its promotion square. If your king can step inside that square on its move, it catches the pawn. If not, the pawn queens.\n\nKings move diagonally just as fast as straight, so a diagonal step is often the only way in. One exception: a pawn on its starting row can move two squares, so draw the square as if it had already moved once.",
+      "keyPoints": [
+        "Draw the square from the pawn to its promotion square.",
+        "If your king can step into the square, it catches the pawn.",
+        "Diagonal king moves cover distance as fast as straight ones."
+      ],
+      "worked": {
+        "intro": "Black's pawn on a4 wants to run to a1. The square is a1-d1-d4-a4. Is your king on e3 inside it?",
+        "fen": "7k/8/8/8/p7/4K3/8/8 w - - 0 1",
+        "moves": ["e3d3", "a4a3", "d3c2", "a3a2", "c2b2", "h8g7", "b2a2"],
+        "narration": [
+          "Kd3 steps into the square. From now on the king can catch the pawn.",
+          "The pawn runs.",
+          "The king keeps up.",
+          "The pawn is one step from promoting.",
+          "Kb2 guards the promotion square.",
+          "If the pawn moves to a1, the king takes the new queen. Black gives up on it.",
+          "Kxa2. Caught."
+        ],
+        "arrows": [
+          [{"from": "e3", "to": "d3", "color": "green"}],
+          [],
+          [{"from": "d3", "to": "c2", "color": "green"}],
+          [],
+          [{"from": "c2", "to": "b2", "color": "green"}],
+          [],
+          [{"from": "b2", "to": "a2", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "k7/8/6K1/1p6/8/8/8/8 w - - 0 1",
+        "solution": ["g6f5"],
+        "prompt": "Catch the pawn. Only one king move works.",
+        "hint": "The square of the b5 pawn runs from b1 to f5. Which corner can you reach?",
+        "explanation": "Kf5 steps into the square on the diagonal. Now the king reaches b1 in time. Any other move is too slow."
+      },
+      "practice": {"kind": "puzzles", "themes": ["pawnEndgame"], "rating": [600, 1200], "count": 8},
+      "mastery": {"required": 7, "of": 10}
+    },
+    {
+      "id": "E3",
+      "skill": "E3",
+      "title": "Opposition",
+      "band": [700, 1400],
+      "prerequisites": ["E2"],
+      "idea": "When two kings stand on the same line with one square between them, neither can step forward, because kings can't touch. Whoever has to move must give way. Having the opposition means it's your opponent's turn to move in that standoff.\n\nThis decides king and pawn endgames. With a king and one pawn against a king, put your king in front of your pawn, not behind it. Then fight for the opposition. If the defending king has to give way, your king walks forward and the pawn queens.\n\nIt's a tempo game. Sometimes the only winning move is the one that puts your king face to face with theirs.",
+      "keyPoints": [
+        "Kings face to face, one square apart: whoever must move gives way.",
+        "King in front of the pawn, not behind it.",
+        "Take the opposition, then walk around (outflank) when they give way."
+      ],
+      "worked": {
+        "intro": "The kings face each other on e5 and e7, and it's Black's turn. White has the opposition, so Black must give way.",
+        "fen": "8/4k3/8/4K3/4P3/8/8/8 b - - 0 1",
+        "moves": ["e7d7", "e5f6", "d7e8", "e4e5", "e8f8", "e5e6", "f8e8", "e6e7", "e8d7", "f6f7", "d7d6", "e7e8q"],
+        "narration": [
+          "Black has to move and steps aside.",
+          "White's king walks around to f6, onto the 6th row in front of the pawn.",
+          "Black's king goes back to e8.",
+          "Now the pawn can advance safely.",
+          "Black takes the opposition on f8, but White's king is already far enough forward.",
+          "The pawn steps forward again.",
+          "Black's king returns to e8.",
+          "e7: now Black's king must leave the queening square.",
+          "Black steps to d7.",
+          "Kf7 guards e8.",
+          "Black can't stop it.",
+          "e8=Q. The pawn becomes a queen."
+        ],
+        "arrows": [
+          [],
+          [{"from": "e5", "to": "f6", "color": "green"}],
+          [],
+          [{"from": "e4", "to": "e5", "color": "green"}],
+          [],
+          [{"from": "e5", "to": "e6", "color": "green"}],
+          [],
+          [{"from": "e6", "to": "e7", "color": "green"}],
+          [],
+          [{"from": "f6", "to": "f7", "color": "green"}],
+          [],
+          [{"from": "e7", "to": "e8", "color": "green"}]
+        ]
+      },
+      "faded": {
+        "fen": "8/8/4k3/8/3K4/8/4P3/8 w - - 0 1",
+        "solution": ["d4e4"],
+        "prompt": "Only one move keeps the win. Take the opposition.",
+        "hint": "Put your king face to face with Black's king, with one square between them.",
+        "explanation": "Ke4. The kings face each other and Black has to give way. Your king then gets in front of the pawn, and the pawn queens."
+      },
+      "practice": {"kind": "playout", "count": 3, "fen": "8/8/4k3/8/3K4/8/4P3/8 w - - 0 1", "goal": "promote"},
+      "mastery": {"required": 2, "of": 3}
+    }
+  ]
+}
