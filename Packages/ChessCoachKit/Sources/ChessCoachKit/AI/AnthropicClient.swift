@@ -139,7 +139,10 @@ public struct AnthropicClient: Sendable {
     self.monthlyCapUSD = monthlyCapUSD
   }
 
-  public var isAvailable: Bool { keyProvider() != nil && (ledger?.spentThisMonth() ?? 0) < monthlyCapUSD }
+  /// Calls stop a little before the cap so parallel/looping calls can't overshoot it.
+  var effectiveCap: Double { monthlyCapUSD * 0.98 }
+
+  public var isAvailable: Bool { keyProvider() != nil && (ledger?.spentThisMonth() ?? 0) < effectiveCap }
 
   public struct Turn: Sendable {
     /// Assistant content blocks exactly as returned (echoed back when continuing).
@@ -166,7 +169,7 @@ public struct AnthropicClient: Sendable {
   ) async throws -> Turn {
     guard let key = keyProvider() else { throw AIError.noKey }
     let spent = ledger?.spentThisMonth() ?? 0
-    guard spent < monthlyCapUSD else { throw AIError.budgetExceeded(spentUSD: spent) }
+    guard spent < effectiveCap else { throw AIError.budgetExceeded(spentUSD: spent) }
 
     var body: [String: JSON] = [
       "model": .string(model),

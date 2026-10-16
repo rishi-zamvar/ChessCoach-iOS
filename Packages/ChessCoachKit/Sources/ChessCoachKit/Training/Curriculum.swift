@@ -25,6 +25,11 @@ public struct Curriculum: Codable, Sendable, Equatable {
 }
 
 public struct Lesson: Codable, Sendable, Equatable, Identifiable {
+  /// Mastery check used everywhere (no practice → not passed).
+  public func isPassed(score: Int, total: Int) -> Bool {
+    total > 0 && score * mastery.of >= mastery.required * total
+  }
+
   public var id: String
   public var skill: String
   public var title: String

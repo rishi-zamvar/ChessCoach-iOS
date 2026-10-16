@@ -150,6 +150,11 @@ struct LessonView: View {
   @ViewBuilder
   private var practiceStage: some View {
     switch lesson.practice.kind {
+    case .playout:
+      PlayoutView(practice: lesson.practice) { wins, total in
+        practiceCorrect = wins
+        finishPractice(total: total)
+      }
     case .coordinates, .checksCaptures, .safeMove:
       VisionDrillView(kind: drillKind(lesson.practice.kind)) { correct, total in
         practiceCorrect = correct
@@ -197,10 +202,7 @@ struct LessonView: View {
 
   // MARK: - Result
 
-  private var passed: Bool {
-    guard practiceTotal > 0 else { return fadedDone }
-    return practiceCorrect * lesson.mastery.of >= lesson.mastery.required * practiceTotal
-  }
+  private var passed: Bool { lesson.isPassed(score: practiceCorrect, total: practiceTotal) }
 
   private var result: some View {
     VStack(spacing: Spacing.l) {
@@ -209,16 +211,18 @@ struct LessonView: View {
         .font(.system(size: 56)).foregroundStyle(passed ? ChessChrome.accentGreen : MoveClass.inaccuracy.color)
       Text(passed ? "Lesson mastered" : "Almost there")
         .font(.system(size: 26, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
-      if practiceTotal > 0 {
-        Text("\(practiceCorrect) of \(practiceTotal) clean · need \(lesson.mastery.required) of \(lesson.mastery.of)")
+      if practiceTotal == 0 {
+        Text("No practice positions were available — try again later.")
+          .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+      } else {
+        Text("\(practiceCorrect) of \(practiceTotal) · need \(lesson.mastery.required) of \(lesson.mastery.of)")
           .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
       }
       Text(passed ? "It'll come back in your reviews so it sticks." : "Try again tomorrow — it'll be in your plan.")
         .font(.system(size: 14, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
       Spacer()
       PuzzleButton(title: "Continue", systemImage: "checkmark", prominent: true) {
-        let total = max(practiceTotal, 1)
-        onFinished(practiceTotal > 0 ? practiceCorrect : (fadedDone ? 1 : 0), total)
+        onFinished(practiceCorrect, practiceTotal)
       }
       .accessibilityIdentifier("lesson-finish")
       .padding(Spacing.m)

@@ -58,7 +58,9 @@ public struct PuzzleSession: Sendable {
   public mutating func submit(from: Square, to: Square, promotion: Piece.Kind? = nil) -> Result {
     guard !isSolved, ready, let expected = expectedMove else { return .ignored }
     var trial = game
-    let promo = promotion ?? (trial.isPromotion(from: from, to: to) ? .queen : nil)
+    // Promotion: use the piece the solution expects when the squares match (underpromotions).
+    let expectedPromo = UCIMove(expected).flatMap { $0.from == from && $0.to == to ? $0.promotion : nil }
+    let promo = promotion ?? expectedPromo ?? (trial.isPromotion(from: from, to: to) ? .queen : nil)
     guard case .applied(let played) = trial.apply(from: from, to: to, promotion: promo) else { return .ignored }
     let isLast = index == puzzle.moves.count - 1
     let matches = played.uci == expected

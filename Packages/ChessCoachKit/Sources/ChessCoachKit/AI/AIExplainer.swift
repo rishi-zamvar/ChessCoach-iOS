@@ -26,7 +26,7 @@ public struct AIExplainer: Sendable {
     """
 
   public func explain(sheet: FactSheet, label: MoveClass, isUser: Bool, template: String, styleNote: String = "") async -> (text: String, origin: Origin) {
-    let key = "\(model)|\(sheet.played.uci)|\(label.rawValue)|\(isUser)|\(template)"
+    let key = "\(model)|\(sheet.played.uci)|\(label.rawValue)|\(isUser)|\(sheet.vocabulary.sorted().joined(separator: ","))|\(template)"
     if let cached = store?.cachedExplanation(key: key) { return (cached, .cache) }
     guard client.isAvailable else { return (template, .template) }
 

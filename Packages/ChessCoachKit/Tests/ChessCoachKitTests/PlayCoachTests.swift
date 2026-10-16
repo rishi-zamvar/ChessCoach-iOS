@@ -96,3 +96,34 @@ final class PlayCoachTests: XCTestCase {
     XCTAssertNotNil(c.nudge)
   }
 }
+
+@MainActor
+final class PlayCoachRegressionTests: XCTestCase {
+  func test_givenCoachPause_whenUserResigns_thenTakeBackCannotReviveGame() async {
+    let coach = FakeCoach()
+    var s = GameSession()
+    s.apply(uci: "f2f3")
+    coach.wins[FENTools.key(s.position.fen)] = 85
+    let c = GameController(
+      config: PlayConfig(opponent: .maia(rating: 1100), userColor: .white, timeControl: .untimed),
+      bot: ScriptedBot(["e7e5"]), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(),
+      minimumBotThink: .zero, coach: coach)
+    c.start()
+    c.tap(Square("f2")); c.tap(Square("f3"))
+    for _ in 0..<200 where c.phase != .coachPaused { try? await Task.sleep(for: .milliseconds(10)) }
+    c.resign()
+    XCTAssertNil(c.coachPause)
+    c.takeBack()
+    XCTAssertTrue(c.isOver)
+    XCTAssertEqual(c.session.history.count, 1)
+  }
+}
+
+final class PuzzleUnderpromotionTests: XCTestCase {
+  func test_givenKnightPromotionSolution_whenUserMovesPawn_thenExpectedPieceUsed() {
+    // White to promote to a knight with check (fork-style); setup move is Black's king step.
+    var s = PuzzleSession(puzzle: makePuzzle(fen: "k7/4P3/8/8/8/8/8/4K3 b - - 0 1", moves: ["a8b7", "e7e8n"], themes: ["underPromotion"]))
+    s.playSetup()
+    XCTAssertEqual(s.submit(uci: "e7e8"), .solved)
+  }
+}

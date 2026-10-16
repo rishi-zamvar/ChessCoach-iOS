@@ -1,6 +1,7 @@
 import ChessCoachKit
 import Foundation
 import Observation
+import CryptoKit
 import Security
 
 /// The Anthropic key, stored only in the Keychain (never typed by the user).
@@ -17,13 +18,19 @@ enum KeyStore {
     return String(data: data, encoding: .utf8)
   }
 
-  static func save(_ key: String) {
+  /// Updates in place (falls back to add); returns false if the Keychain refused.
+  @discardableResult
+  static func save(_ key: String) -> Bool {
     let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service]
-    SecItemDelete(base as CFDictionary)
-    var add = base
-    add[kSecValueData as String] = Data(key.utf8)
-    add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-    SecItemAdd(add as CFDictionary, nil)
+    let attributes: [String: Any] = [
+      kSecValueData as String: Data(key.utf8),
+      // Never leaves this phone (not in backups or iCloud Keychain).
+      kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+    ]
+    let status = SecItemUpdate(base as CFDictionary, attributes as CFDictionary)
+    if status == errSecSuccess { return true }
+    guard status == errSecItemNotFound else { return false }
+    return SecItemAdd(base.merging(attributes) { _, new in new } as CFDictionary, nil) == errSecSuccess
   }
 }
 
@@ -44,8 +51,9 @@ final class ServerLink {
   var isOnline: Bool { if case .online = status { true } else { false } }
   var hasKey: Bool { KeyStore.read() != nil }
 
-  /// MagicDNS name first, then the PC's Tailscale IP.
-  static let hosts = ["zee-cloud", "100.91.236.115"]
+  /// The PC's Tailscale IP only: 100.x addresses route solely through the encrypted
+  /// tunnel, while a bare MagicDNS name could be answered by a hostile Wi-Fi DNS.
+  static let hosts = ["100.91.236.115"]
   static let port = 8810
 
   @ObservationIgnored private let telemetry: Telemetry
@@ -71,13 +79,17 @@ final class ServerLink {
         status = .online(version: health["version"]?.stringValue ?? "?")
         baseURL = base
         ctx.annotate("host", .string(host))
-        if let key = try? await getJSON(base.appendingPathComponent("key")), let secret = key["key"]?.stringValue {
-          let id = key["key_id"]?.stringValue ?? String(secret.suffix(6))
+        if let key = try? await getJSON(base.appendingPathComponent("key")), let secret = key["key"]?.stringValue,
+          secret.hasPrefix("sk-ant-"), secret.count > 30
+        {
+          let id = Self.keyID(secret)
           if id != keyID || !hasKey {
-            KeyStore.save(secret)
-            keyID = id
-            UserDefaults.standard.set(id, forKey: "ai.keyID")
-            telemetry.event("key.handoff", metadata: ["key_id": .string(id)])
+            let saved = KeyStore.save(secret)
+            if saved {
+              keyID = id
+              UserDefaults.standard.set(id, forKey: "ai.keyID")
+            }
+            telemetry.event("key.handoff", metadata: ["key_id": .string(id), "saved": .bool(saved)])
           }
         }
         lastChecked = Date()
@@ -87,6 +99,11 @@ final class ServerLink {
       baseURL = nil
       lastChecked = Date()
     }
+  }
+
+  /// First 8 hex digits of SHA-256(key) — identifies the key without revealing any of it.
+  static func keyID(_ key: String) -> String {
+    SHA256.hash(data: Data(key.utf8)).prefix(4).map { String(format: "%02x", $0) }.joined()
   }
 
   // MARK: - Deep analysis (chesscoach-server /analysis/jobs)

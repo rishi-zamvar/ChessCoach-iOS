@@ -76,7 +76,13 @@ final class AppEnvironment {
   }
 
   func makeGame(_ config: PlayConfig, coached: Bool = false) -> GameController? {
-    guard let bot = bot(for: config.opponent), let engineHost else { return nil }
+    guard let engineHost else { return nil }
+    // In timed games the coach bot plays without Claude (an API wait would burn its clock).
+    let bot: BotPlayer? =
+      config.opponent == .teaching && config.timeControl.isTimed
+      ? TeachingBot(host: engineHost, client: nil, telemetry: telemetry, brief: learnerBrief)
+      : self.bot(for: config.opponent)
+    guard let bot else { return nil }
     return GameController(
       config: config, bot: bot, telemetry: telemetry, store: gameStore, sounds: sounds,
       coach: coached ? StockfishCoach(host: engineHost) : nil)

@@ -80,6 +80,7 @@ public final class GameController {
   @ObservationIgnored private let coach: CoachAdvisor?
   @ObservationIgnored private var movesSinceNudge = 99
   @ObservationIgnored private var hintBest: String?
+  @ObservationIgnored private var hinting = false
 
   public init(
     config: PlayConfig,
@@ -157,14 +158,16 @@ public final class GameController {
 
   // MARK: - Input
 
+  private var coachBusy: Bool { phase == .coachChecking || phase == .coachPaused }
+
   public func tap(_ square: Square) {
-    guard isViewingLatest, !isOver, pendingPromotion == nil else { return }
+    guard isViewingLatest, !isOver, pendingPromotion == nil, !coachBusy else { return }
     handle(interaction.tap(square, session: session, userColor: userColor))
   }
 
   @discardableResult
   public func dragBegan(_ square: Square) -> Bool {
-    guard isViewingLatest, !isOver, pendingPromotion == nil else { return false }
+    guard isViewingLatest, !isOver, pendingPromotion == nil, !coachBusy else { return false }
     return interaction.dragBegan(at: square, session: session, userColor: userColor)
   }
 
@@ -251,8 +254,9 @@ public final class GameController {
 
   /// Undo the mistake and try again.
   public func takeBack() {
-    guard coachPause != nil else { return }
+    guard coachPause != nil, !isOver else { return }
     session.undo()
+    interaction.reset()  // drop anything queued for the position after the mistake
     coachPause = nil
     annotations = AnnotationLayer()
     viewPly = session.history.count
@@ -262,7 +266,7 @@ public final class GameController {
 
   /// Keep the move and let the game go on.
   public func continueGame() {
-    guard coachPause != nil else { return }
+    guard coachPause != nil, !isOver else { return }
     coachPause = nil
     annotations = AnnotationLayer()
     advanceTurn()
@@ -276,10 +280,17 @@ public final class GameController {
 
   /// Hint ladder for the user's turn: piece → highlight → move.
   public func hint() async {
-    guard phase == .userTurn, let coach else { return }
+    guard phase == .userTurn, let coach, !hinting else { return }
+    hinting = true
+    defer { hinting = false }
+    let ply = session.history.count
     if hintBest == nil {
-      hintBest = try? await coach.assess(fen: session.position.fen).bestUCI
+      let best = try? await coach.assess(fen: session.position.fen).bestUCI
+      // The user may have moved while the engine thought; drop a stale answer.
+      guard session.history.count == ply, phase == .userTurn else { return }
+      hintBest = best
     }
+    nudge = nil
     guard let best = hintBest.flatMap(UCIMove.init), let piece = session.position.piece(at: best.from) else { return }
     hintLevel = min(3, hintLevel + 1)
     switch hintLevel {
@@ -436,6 +447,10 @@ public final class GameController {
     if config.timeControl.isTimed { clock.pause(at: now()) }
     interaction.reset()
     pendingPromotion = nil
+    coachPause = nil
+    hintText = nil
+    nudge = nil
+    annotations = AnnotationLayer()
     phase = .over(result)
     viewPly = session.history.count
     sounds.play(.gameEnd)

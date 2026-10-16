@@ -81,8 +81,9 @@ public struct TeachingBot: BotPlayer {
 
   /// Stockfish MultiPV 5 + Maia priors + "what this move gives away".
   func candidates(fen: String) async throws -> [Candidate] {
-    let sf = try await host.search(.stockfish, fen: fen, limit: .depth(10), multipv: 5)
+    // Maia first, then all Stockfish work: one engine switch per move instead of two.
     let maia = (try? await host.search(.maia(rating: 1100), fen: fen, limit: .nodes(1)))?.policy ?? [:]
+    let sf = try await host.search(.stockfish, fen: fen, limit: .depth(10), multipv: 5)
     // Include Maia's top human moves too (they may not be in Stockfish's top 5).
     var ucis = sf.lines.compactMap(\.pv.first)
     for (uci, _) in maia.sorted(by: { $0.value > $1.value }).prefix(4) where !ucis.contains(uci) { ucis.append(uci) }
@@ -135,11 +136,12 @@ public struct TeachingBot: BotPlayer {
         "required": .array([.string("move"), .string("reason")]),
         "additionalProperties": .bool(false),
       ]))
-    let (_, calls) = try await client.runTools(
-      model: AnthropicClient.coachModel, system: Self.system, user: user, tools: [tool], maxTurns: 2, effort: "low",
-      purpose: "teaching-bot"
-    ) { _, _ in ("ok", false) }
-    guard let call = calls.first(where: { $0.name == "play_move" }), let uci = call.input["move"]?.stringValue,
+    // One call: read the play_move tool_use directly (no need to send a tool_result back).
+    let turn = try await client.send(
+      model: AnthropicClient.coachModel, system: Self.system,
+      messages: [.object(["role": .string("user"), "content": .string(user)])], tools: [tool], maxTokens: 400, effort: "low",
+      purpose: "teaching-bot")
+    guard let call = turn.toolUses.first(where: { $0.name == "play_move" }), let uci = call.input["move"]?.stringValue,
       allowed.contains(where: { $0.uci == uci })
     else { throw AIError.badResponse }
     return (uci, call.input["reason"]?.stringValue ?? "")
