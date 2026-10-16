@@ -22,6 +22,11 @@
 	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>ChessCoach talks to your home PC over Tailscale for deep analysis and to receive its AI key.</string>
 	<key>UILaunchScreen</key>
