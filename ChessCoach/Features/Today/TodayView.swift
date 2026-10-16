@@ -4,6 +4,7 @@ import SwiftUI
 struct TodayView: View {
   @Environment(AppEnvironment.self) private var env
   @Environment(AnalysisService.self) private var analysis
+  @Environment(TrainingService.self) private var training
   @State private var recent: [GameRecord] = []
   @State private var topMistake: MistakePattern?
 
@@ -18,13 +19,7 @@ struct TodayView: View {
             .foregroundStyle(Palette.ink)
             .padding(.bottom, Spacing.s)
 
-          Card {
-            Eyebrow(text: "Daily plan")
-            Text("Your daily plan arrives with Training (M3)")
-              .font(Typography.body)
-              .foregroundStyle(Palette.textMuted)
-              .padding(.top, Spacing.s)
-          }
+          PlanCard()
 
           if let topMistake {
             Card {
@@ -33,7 +28,7 @@ struct TodayView: View {
                 .font(Typography.titleSmall)
                 .foregroundStyle(Palette.ink)
                 .padding(.top, Spacing.s)
-              Text("\(topMistake.count) times in your last games. Drills arrive in M3.")
+              Text("\(topMistake.count) times in your last games — today's plan targets it.")
                 .font(Typography.callout)
                 .foregroundStyle(Palette.textSecondary)
                 .padding(.top, Spacing.xs)
@@ -85,6 +80,7 @@ struct TodayView: View {
       }
     }
     .task(id: analysis.revision) {
+      training.refresh()
       recent = (try? env.gameStore.recent(limit: 3)) ?? []
       topMistake = analysis.recurringPatterns().first
     }

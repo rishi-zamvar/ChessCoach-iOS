@@ -1,3 +1,4 @@
+import ChessCoachKit
 import SwiftUI
 import UIKit
 
@@ -5,6 +6,7 @@ import UIKit
 /// draws under the tab bar correctly.
 struct RootView: View {
     @State private var tab: Tab = .today
+    @Environment(TrainingService.self) private var training
 
     enum Tab: Hashable { case today, analyze, train, play }
 
@@ -34,6 +36,18 @@ struct RootView: View {
                 .tag(Tab.play)
         }
         .tint(Palette.primaryDeep)
+        .fullScreenCover(isPresented: .constant(training.needsOnboarding)) {
+            OnboardingView()
+        }
+        .onAppear(perform: skipOnboardingInUITests)
+    }
+
+    /// UI tests start from a fresh in-memory store; skip onboarding unless a test asks for it.
+    private func skipOnboardingInUITests() {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.contains("-uiTesting"), !args.contains("-onboarding"), training.needsOnboarding else { return }
+        training.completeOnboarding(
+            LearnerProfile(username: "Zammy009", style: .allRounder, quizScore: 0, historyScore: nil, placementRating: 700, onboardedAt: Date()))
     }
 }
 

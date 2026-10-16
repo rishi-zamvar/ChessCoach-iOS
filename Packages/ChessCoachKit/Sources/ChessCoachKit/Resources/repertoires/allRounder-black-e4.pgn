@@ -1,0 +1,139 @@
+[Event "All-rounder repertoire"]
+[Side "black"]
+[Style "allRounder"]
+[Name "Open Game: 1...e5 classical"]
+[Summary "Meet 1.e4 with 1...e5, knights before bishops, castle early, and know the basic answer to the Italian, Ruy Lopez and Scotch."]
+[Result "*"]
+
+1. e4
+1... e5 { Take your share of the centre and free your queen and bishop. [%cal Ge7e5,Bf8c5] }
+2. Nf3 { White attacks e5. [%cal Rf3e5] }
+( 2. Qh5 { The Scholar's Mate attempt. [%dev] [%cal Rh5f7,Rh5e5] }
+  2... Nc6 { Defend e5 with a developing move. [%cal Gc6e5] }
+  3. Bc4 { Now Qxf7 is mate unless you stop it. [%cal Rc4f7,Rh5f7] [%csl Rf7] }
+  3... g6 { Block the queen's path to f7. [%cal Gg6h5] }
+  ( 3... Nf6?? { Trap: this natural move loses at once. [%trap Scholar's Mate] [%cal Rh5f7] }
+    4. Qxf7# { Checkmate. Always look for Qxf7 when the queen and bishop both aim there. [%csl Rf7] } )
+  4. Qf3 { The queen tries again at f7. [%cal Rf3f7] }
+  4... Nf6 { Block the f-file and develop. [%cal Gf6f7] }
+  5. Qb3
+  5... Qe7 { Guard f7 a second time. White's queen has wasted four moves. [%cal Ge7f7] }
+  6. Nc3
+  6... Nd4 { Jump in with tempo, hitting the queen and c2. [%cal Gd4b3,Gd4c2] }
+  7. Qa4
+  7... c6 { Threaten ...b5 to trap the queen. [%cal Gb7b5] } )
+( 2. Bc4 { [%dev] The bishop aims at f7. }
+  2... Nf6 { Develop and hit e4. [%cal Gf6e4] }
+  3. d3
+  3... Bc5 { Your bishop mirrors White's. [%cal Gc5f2] }
+  4. Nf3
+  4... d6 { Guard e5. Castle next. } )
+( 2. Nc3 { The Vienna. [%dev] }
+  2... Nf6 { Develop and hit e4. }
+  3. f4
+  3... d5 { Strike the centre: the best answer to f4. [%cal Gd5e4] }
+  4. fxe5
+  4... Nxe4 { Your knight lands in the centre. }
+  5. Nf3
+  5... Be7 { Develop and castle next. [%cal Ge8g8] } )
+( 2. d4 { The Centre Game. [%dev] }
+  2... exd4 { Take the pawn. }
+  3. Qxd4
+  3... Nc6 { Develop with tempo on the queen. [%cal Gc6d4] }
+  4. Qe3
+  4... Nf6 { Develop. Next ...Bb4 and castle. [%cal Bf8b4] } )
+2... Nc6 { Defend e5 and develop. [%cal Gc6e5] }
+3. Bc4 { The Italian: White eyes f7. [%cal Rc4f7] }
+( 3. Bb5 { The Ruy Lopez. [%dev] [%cal Rb5c6] }
+  3... a6 { Ask the bishop right away what it wants. [%cal Ga6b5] }
+  4. Ba4
+  ( 4. Bxc6 { The Exchange. [%dev] }
+    4... dxc6 { Take toward the centre; your bishops get open lines. [%cal Gc8g4] }
+    5. O-O
+    ( 5. Nxe5 { [%dev] White grabs the e5 pawn. }
+      5... Qd4 { Fork! The queen hits the knight and e4. [%cal Gd4e5,Gd4e4] }
+      6. Nf3
+      6... Qxe4+ { Win the pawn back with check. }
+      7. Qe2
+      7... Qxe2+
+      8. Kxe2 { White's king has lost castling. Develop with ...Bd6 and ...Bf5. } )
+    5... f6 { Guard e5 with a pawn, so Nxe5 never works. [%cal Gf6e5] }
+    6. d4
+    6... exd4
+    7. Nxd4
+    7... c5 { Kick the knight. You have the bishop pair for the long game. [%cal Gc5d4] } )
+  4... Nf6 { Develop and hit e4. [%cal Gf6e4] }
+  5. O-O
+  5... Be7 { Develop and prepare to castle. [%cal Ge8g8] }
+  6. Re1
+  6... b5 { Push the bishop back so it stops eyeing your knight. [%cal Gb5a4] }
+  7. Bb3
+  7... d6 { Guard e5 solidly. }
+  8. c3
+  8... O-O { Castle. A classical Ruy Lopez. [%csl Gg8] } )
+( 3. d4 { The Scotch. [%dev] }
+  3... exd4 { Take the pawn. }
+  4. Nxd4
+  4... Bc5 { Develop with an attack on the d4 knight. [%cal Gc5d4] }
+  5. Be3
+  ( 5. Nxc6 { [%dev] White trades knights. }
+    5... Qf6 { Threaten mate on f2 while recapturing next. [%cal Gf6f2] }
+    6. Qd2
+    6... dxc6 { Recapture with open lines for your bishop. }
+    7. Nc3
+    7... Be6 { Develop. Castle queenside next. [%cal Ge8c8] } )
+  5... Qf6 { Add pressure on d4. [%cal Gf6d4] }
+  6. c3
+  6... Nge7 { Develop toward g6 or f5, then castle. [%cal Ge7f5] }
+  7. Bc4
+  7... O-O { Castle. A sound, active position. } )
+( 3. Nc3 { The Four Knights. [%dev] }
+  3... Nf6 { Develop. }
+  4. d4
+  4... exd4 { Take the pawn. }
+  5. Nxd4
+  5... Bb4 { Pin the knight that guards e4. [%cal Gb4c3,Gf6e4] }
+  6. Nxc6
+  6... bxc6 { Take toward the centre. }
+  7. Bd3
+  7... d5 { Strike the centre and free your bishop. Castle next. [%cal Gd5e4] } )
+3... Bc5 { The Giuoco Piano: your bishop aims at f2. [%cal Gc5f2] }
+4. c3 { White prepares d4. [%cal Rd2d4] }
+( 4. O-O { [%dev] White castles first. }
+  4... Nf6 { Develop. }
+  5. d3
+  5... d6 { Guard e5. }
+  6. c3
+  6... O-O { Castle. Same plan: ...a6, ...Ba7 and ...h6. [%cal Ba7a6] } )
+( 4. b4 { The Evans Gambit. [%dev] }
+  4... Bb6 { Decline: keep the bishop on the diagonal. [%cal Gb6f2] }
+  5. a4
+  5... a6 { Give the bishop a home on a7. [%cal Gb6a7] }
+  6. Nc3
+  6... Nf6 { Develop. Castle next. } )
+( 4. Ng5 { [%dev] The knight hits f7. [%cal Rg5f7] }
+  4... Nh6 { Guard f7 a second time. [%cal Gh6f7] }
+  5. d3
+  5... d6 { Open your bishop; it now hits g4 too. [%cal Gc8g4] }
+  6. h3
+  6... O-O { Castle. Your king is safe and f7 is held. } )
+4... Nf6 { Develop and hit e4. [%cal Gf6e4] }
+5. d3
+( 5. d4 { [%dev] White opens the centre. }
+  5... exd4 { Take the pawn. }
+  6. cxd4
+  6... Bb4+ { Check to break up White's development. [%cal Gb4e1] }
+  7. Bd2
+  7... Bxd2+
+  8. Nbxd2
+  8... d5 { Strike the centre right away. [%cal Gd5e4] }
+  9. exd5
+  9... Nxd5 { Centralise. Castle next; you have a free, comfortable game. [%csl Gd5] } )
+5... d6 { Guard e5 and open your light-squared bishop. [%cal Gd6e5] }
+6. O-O
+6... O-O { Castle. }
+7. Re1
+7... a6 { Give your bishop a safe retreat on a7. [%cal Gc5a7] }
+8. Bb3
+8... Ba7 { Retreat early so d4 never comes with tempo. Next ...h6 and ...Re8. [%cal Ga7f2] }
+*

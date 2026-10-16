@@ -70,3 +70,22 @@ final class RepertoireTests: XCTestCase {
     XCTAssertThrowsError(try Repertoire(pgn: "[Side \"white\"]\n\n1. e4 (1. d4 *", fileName: "bad"))
   }
 }
+
+final class BundledRepertoireTests: XCTestCase {
+  func test_givenBundledRepertoires_whenLoaded_thenAllTwelveParseWithLinesAndIdeas() throws {
+    let all = RepertoireLibrary.all()
+    XCTAssertEqual(all.count, 12, "\(all.map(\.fileName))")
+    for rep in all {
+      XCTAssertGreaterThan(rep.nodes.count, 40, rep.fileName)
+      XCTAssertGreaterThan(rep.lines.count, 3, rep.fileName)
+      let userMainLine = rep.lines[0].filter { rep.mover(of: $0) == rep.side }
+      XCTAssertTrue(userMainLine.allSatisfy { !$0.idea.isEmpty }, "\(rep.fileName) main-line user moves need ideas")
+    }
+    XCTAssertGreaterThan(all.reduce(0) { $0 + $1.trapCount }, 15)
+  }
+
+  func test_givenStyle_whenRepertoiresListed_thenWhiteThenE4ThenD4() {
+    XCTAssertEqual(RepertoireLibrary.forStyle("attacker").map(\.fileName), ["attacker-white", "attacker-black-e4", "attacker-black-d4"])
+    XCTAssertEqual(RepertoireLibrary.forStyle("allRounder").count, 3)
+  }
+}

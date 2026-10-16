@@ -176,7 +176,9 @@ final class PlannerTests: XCTestCase {
     let lesson = plan.first { $0.kind == .lesson(id: "C2") }
     XCTAssertNotNil(lesson, "\(plan.map(\.title))")
     XCTAssertTrue(lesson?.reason.contains("3 times") ?? false, lesson?.reason ?? "")
-    XCTAssertTrue(plan.contains { if case .themed(skillID: "C2", _, _) = $0.kind { true } else { false } })
+    XCTAssertFalse(plan.contains { if case .themed(skillID: "C2", _, _) = $0.kind { true } else { false } }, "the lesson's practice replaces the themed block")
+    XCTAssertEqual(plan.filter { if case .lesson = $0.kind { true } else { false } }.count, 1)
+    XCTAssertLessThanOrEqual(plan.reduce(0) { $0 + $1.minutes }, 17)
   }
 
   func test_givenSafetyProblems_whenPlanned_thenBlunderCheckIsTopPriority() {

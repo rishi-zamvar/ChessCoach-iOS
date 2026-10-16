@@ -30,8 +30,9 @@ extension GameRecord {
 
   /// "300+2" → "5 | 2", "600+0" → "10 min", "-" → "No clock" (mirrors `TimeControl.label`).
   var timeControlText: String {
-    let parts = timeControl.split(separator: "+").compactMap { Int($0) }
-    guard parts.count == 2 else { return "No clock" }
+    var parts = timeControl.split(separator: "+").compactMap { Int($0) }
+    if parts.count == 1 { parts.append(0) }  // chess.com sends "600" for 10|0
+    guard parts.count == 2, parts[0] > 0 else { return timeControl.contains("/") ? "Daily" : "No clock" }
     return parts[1] > 0 ? "\(parts[0] / 60) | \(parts[1])" : "\(parts[0] / 60) min"
   }
 }

@@ -23,7 +23,7 @@ struct GameScreen: View {
   private var bottomColor: Piece.Color { topColor.opposite }
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 0.1)) { _ in
+    TimelineView(.periodic(from: .now, by: 0.1)) { context in
       VStack(spacing: 0) {
         header
         MoveStrip(history: game.session.history, currentPly: game.viewPly) { game.jump(toPly: $0) }
@@ -42,8 +42,7 @@ struct GameScreen: View {
         Spacer(minLength: Spacing.s)
         toolbar
       }
-      .onChange(of: game.viewPly) { _, _ in game.tick() }
-      .task(id: Int(Date().timeIntervalSince1970 * 10)) { game.tick() }
+      .onChange(of: context.date) { _, _ in game.tick() }
     }
     .background(ChessChrome.background.ignoresSafeArea())
     .preferredColorScheme(.dark)

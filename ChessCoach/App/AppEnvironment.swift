@@ -15,15 +15,22 @@ final class AppEnvironment {
   let databaseSink: DatabaseSink
   let engineHost: EngineHost?
   let sounds: SoundPlayer
+  /// The on-disk store failed to open and we're running in memory (nothing persists).
+  let isDegraded: Bool
 
   init(inMemory: Bool = false) {
     let database: AppDatabase
+    var degraded = false
+    var openError: String?
     do {
       database = inMemory ? try .inMemory() : try .onDisk()
     } catch {
-      // A broken on-disk store must not brick the app; fall back to memory.
+      // A broken on-disk store must not brick the app; fall back to memory (and say so).
       database = try! .inMemory()
+      degraded = true
+      openError = String(describing: error)
     }
+    isDegraded = degraded
     self.database = database
     gameStore = GameStore(database: database)
     analysisStore = AnalysisStore(database: database)
@@ -34,7 +41,8 @@ final class AppEnvironment {
     engineHost = EngineAssets.bundled().map { EngineHost(assets: $0, telemetry: engineTelemetry) }
     sounds = SoundPlayer()
 
-    telemetry.event("app.launch", metadata: ["engines": .bool(engineHost != nil)])
+    telemetry.event("app.launch", metadata: ["engines": .bool(engineHost != nil), "degradedDB": .bool(degraded)])
+    if let openError { telemetry.event("db.openFailed", metadata: ["error": .string(openError)]) }
     let sink = databaseSink
     Task.detached(priority: .background) {
       try? sink.prune(olderThan: Date().addingTimeInterval(-30 * 86_400))

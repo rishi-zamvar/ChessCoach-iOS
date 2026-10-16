@@ -1,0 +1,153 @@
+[Event "All-rounder repertoire"]
+[Side "white"]
+[Style "allRounder"]
+[Name "Italian Game: Giuoco Pianissimo"]
+[Summary "Develop, castle, and build slowly with c3 and d3: a calm Italian that keeps every trap in your pocket."]
+[Result "*"]
+
+1. e4 { You grab the centre and open lines for your queen and bishop. [%cal Ge2e4] }
+1... e5
+( 1... c5 { The Sicilian. [%dev] }
+  2. c3 { The Alapin: prepare d4 so you can keep a big pawn centre. [%cal Gd2d4] }
+  2... Nf6 { Black hits e4. [%cal Rf6e4] }
+  ( 2... d5 { [%dev] Black hits the centre at once. }
+    3. exd5 { Take the pawn. }
+    3... Qxd5
+    4. d4 { Grab the centre; your c3 pawn stops ...Nc6 tricks on d4. [%cal Gc3d4] }
+    4... Nf6
+    5. Nf3 { Develop. Then Be2 and castle. [%cal Bf1e2] } )
+  3. e5 { Kick the knight with tempo. [%cal Ge5f6] }
+  3... Nd5
+  4. d4 { Build the centre. }
+  4... cxd4
+  5. Nf3 { Develop; you will take back on d4 with the c-pawn. [%cal Gc3d4] }
+  5... Nc6
+  6. cxd4 { Recapture. You have a classic big centre. }
+  6... d6
+  7. Bc4 { Hit the d5 knight and develop. Castle next. [%cal Gc4d5] } )
+( 1... e6 { The French. [%dev] }
+  2. d4 { Take the full centre. }
+  2... d5
+  3. e5 { The Advance: grab space. [%cal Ge5f6] }
+  3... c5
+  4. c3 { Support d4 with a pawn. [%cal Gc3d4] }
+  4... Nc6
+  5. Nf3 { Guard d4 again. [%cal Gf3d4] }
+  5... Qb6
+  6. Be2 { Develop and castle next; your bishop on c1 still guards b2. [%cal Gc1b2] } )
+( 1... c6 { The Caro-Kann. [%dev] }
+  2. d4 { Take the centre. }
+  2... d5
+  3. e5 { Grab space. }
+  3... Bf5
+  4. Nf3 { Develop. }
+  4... e6
+  5. Be2 { Develop calmly, castle, then c4 or Nh4. [%cal Ge1g1] } )
+( 1... d5 { The Scandinavian. [%dev] }
+  2. exd5 { Take the pawn. }
+  2... Qxd5
+  3. Nc3 { Develop with tempo by hitting the queen. [%cal Gc3d5] }
+  3... Qa5
+  4. d4 { Take the centre. }
+  4... Nf6
+  5. Nf3 { Develop. Then Bc4, Bd2 and castle. [%cal Bf1c4] } )
+( 1... Nf6 { The Alekhine. [%dev] }
+  2. e5 { Kick the knight with tempo. }
+  2... Nd5
+  3. d4 { Build the centre. }
+  3... d6
+  4. Nf3 { Develop simply: Be2, castle. [%cal Bf1e2] } )
+( 1... g6 { The Modern. [%dev] }
+  2. d4 { Take the whole centre. }
+  2... Bg7
+  3. Nc3 { Defend e4. }
+  3... d6
+  4. Nf3 { Develop and castle; your big centre gives you an easy game. [%cal Bf1e2] } )
+2. Nf3 { Develop with a threat on e5. [%cal Gf3e5] }
+2... Nc6
+( 2... d6 { The Philidor. [%dev] }
+  3. d4 { Strike the centre at once. [%cal Gd4e5] }
+  3... exd4
+  ( 3... Bg4? { [%dev] Pinning walks into a double attack. }
+    4. dxe5 { Open the d-file. }
+    4... Bxf3
+    5. Qxf3 { Your queen eyes f7 and b7. [%cal Gf3f7,Gf3b7] }
+    5... dxe5
+    6. Bc4 { Aim at f7. [%cal Gc4f7] }
+    6... Nf6
+    7. Qb3 { Double attack on b7 and f7! [%trap Philidor Double Attack] [%cal Gb3b7,Gb3f7] }
+    7... Qe7
+    8. Qxb7 { Win the pawn and keep hitting the a8 rook. [%cal Gb7a8] } )
+  4. Nxd4 { Centralise. [%cal Gd4c6] }
+  4... Nf6
+  5. Nc3 { Develop. Then Bc4 or Be2 and castle. [%cal Gc3e4] } )
+( 2... Nf6 { The Petrov. [%dev] }
+  3. Nxe5 { Take the pawn. }
+  3... d6 { Correct: kick the knight first. [%cal Rd6e5] }
+  ( 3... Nxe4? { Copying is a mistake. [%dev] }
+    4. Qe2 { Pin the knight on the e-file. [%cal Ge2e4] }
+    4... Nf6?
+    5. Nc6+ { Discovered check, and the knight hits the queen. You win the queen. [%trap Petrov Copycat] [%cal Ge2e8,Gc6d8] } )
+  4. Nf3 { Retreat to safety. }
+  4... Nxe4
+  5. d4 { Take the centre; Bd3 and castle next. [%cal Bf1d3] } )
+( 2... f6? { The Damiano Defence: it weakens Black's king badly. [%dev] }
+  3. Nxe5 { Sacrifice the knight! If Black takes, your queen checks on h5. [%trap Damiano Defence] [%cal Gd1h5] }
+  3... fxe5
+  ( 3... Qe7 { [%dev] The best defence. }
+    4. Nf3 { Retreat. Your king is safe and Black's kingside is weak. }
+    4... Qxe4+
+    5. Be2 { Block. You are ahead in development and will castle next. [%cal Ge1g1] } )
+  4. Qh5+ { Check! [%cal Gh5e8] }
+  4... g6
+  ( 4... Ke7 { [%dev] The king runs instead. }
+    5. Qxe5+ { Check again, winning back the piece's worth. }
+    5... Kf7
+    6. Bc4+ { Bring the bishop with check. }
+    6... d5
+    7. Bxd5+ { You have three pawns and a raging attack for the knight. [%cal Gd5f7] } )
+  5. Qxe5+ { Fork! Check, and your queen hits the h8 rook. [%cal Ge5h8] }
+  5... Qe7
+  6. Qxh8 { Win the rook. [%cal Ge5h8] } )
+3. Bc4 { Your bishop aims at f7, the weakest square in Black's camp. [%cal Gc4f7] [%csl Rf7] }
+3... Bc5 { Black develops to the mirror square. [%cal Rc5f2] }
+( 3... Nf6 { The Two Knights. [%dev] }
+  4. d3 { Keep it calm: guard e4 and keep the Pianissimo setup. [%cal Gd3e4] }
+  4... Be7
+  ( 4... Bc5 { [%dev] Back in the main line after c3. }
+    5. c3 { Same plan: c3, castle, Re1. [%cal Gc3d4] } )
+  5. O-O { Castle. }
+  5... O-O
+  6. Re1 { Rook behind the e4 pawn. }
+  6... d6
+  7. c3 { Prepare d4 and give your bishop a retreat on c2. [%cal Gc3d4] } )
+( 3... Nd4 { The Blackburne Shilling trap. [%dev] [%cal Rd4f3] }
+  4. Nxd4 { Just trade knights; do not grab e5. [%cal Gf3d4] }
+  ( 4. Nxe5? { Trap: do not play this! [%trap Blackburne Shilling] [%cal Rd8g5] }
+    4... Qg5
+    5. Nxf7 { The greedy follow-up that loses. }
+    5... Qxg2
+    6. Rf1
+    6... Qxe4+
+    7. Be2
+    7... Nf3# { Smothered mate. Never take e5 while that knight sits on d4. [%csl Re1] } )
+  4... exd4
+  5. O-O { Castle, then c3 to open the centre. [%cal Gc2c3] } )
+( 3... Be7 { [%dev] A passive move. }
+  4. d3 { Keep the same setup. }
+  4... Nf6
+  5. O-O { Castle. }
+  5... O-O
+  6. Re1 { Rook behind e4. Next c3 and a slow build-up. [%cal Gc2c3] } )
+4. c3 { Prepare d4 and give your bishop a retreat square on c2. [%cal Gc3d4] }
+4... Nf6 { Black hits e4. [%cal Rf6e4] }
+5. d3 { The Pianissimo: guard e4 and keep the position calm. [%cal Gd3e4] }
+5... d6
+6. O-O { Castle. Your king is safe. [%csl Gg1] }
+6... O-O
+7. Re1 { Rook to the e-file, behind the e4 pawn. [%cal Ge1e4] }
+7... a6
+8. Bb3 { Tuck the bishop away from ...Na5 or ...d5 hits, still aiming at f7. [%cal Gb3f7] }
+8... Ba7
+9. Nbd2 { Reroute the knight via f1 to g3. Then h3 and d4 when ready. [%cal Gd2f1,Bf1g3] }
+*

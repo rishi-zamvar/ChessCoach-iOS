@@ -1,62 +1,195 @@
+import ChessCoachKit
 import SwiftUI
 
+/// Train hub: puzzle rating, today's plan, skills (themed sets), lessons, and what's coming.
 struct TrainView: View {
-  private let modes: [(title: String, blurb: String, icon: String, milestone: String)] = [
-    ("Drills", "Mates, tactics, board vision. Adaptive daily set.", "bolt.circle", "M3"),
-    ("Openings", "Learn your repertoire move by move.", "book.closed", "M3"),
-    ("Play Coach", "A game where the coach watches every move.", "person.wave.2", "M4"),
-  ]
+  @Environment(TrainingService.self) private var training
+  @State private var running: Running?
+  @State private var showOpenings = false
+
+  struct Running: Identifiable {
+    let id = UUID()
+    let title: String
+    let tasks: [TrainingTask]
+  }
 
   var body: some View {
     ZStack {
-      BackgroundAtmosphere()
+      BackgroundAtmosphere().ignoresSafeArea()
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.l) {
           Eyebrow(text: "Train")
-          Text("Train")
-            .font(Typography.display)
-            .foregroundStyle(Palette.ink)
-            .padding(.bottom, Spacing.s)
-          ForEach(modes, id: \.title) { mode in
-            Button {
-              ToastCenter.shared.show("\(mode.title) is coming in \(mode.milestone)")
-            } label: {
-              Card {
-                HStack(alignment: .top, spacing: Spacing.m) {
-                  Image(systemName: mode.icon)
-                    .font(.system(size: 26, weight: .light))
-                    .foregroundStyle(Palette.primaryDeep)
-                    .frame(width: 36)
-                  VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(mode.title)
-                      .font(Typography.titleSmall)
-                      .foregroundStyle(Palette.ink)
-                    Text(mode.blurb)
-                      .font(Typography.callout)
-                      .foregroundStyle(Palette.textSecondary)
-                      .multilineTextAlignment(.leading)
-                    Text("Coming in \(mode.milestone)")
-                      .font(Typography.caption)
-                      .foregroundStyle(Palette.primaryDeep)
-                      .padding(.horizontal, Spacing.s)
-                      .padding(.vertical, Spacing.xs)
-                      .background(Palette.surfaceAlt, in: Capsule())
-                      .padding(.top, Spacing.xs)
-                  }
-                  Spacer(minLength: 0)
-                  Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.textMuted)
-                }
+          Text("Train").font(Typography.display).foregroundStyle(Palette.ink)
+
+          ratingCard
+          PlanCard()
+
+          SectionHeader(title: "Skills", subtitle: "Six puzzles at your level. Ratings move with every attempt.")
+          LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.m), GridItem(.flexible(), spacing: Spacing.m)], spacing: Spacing.m) {
+            ForEach(SkillCatalog.suggested(forRating: training.globalRating)) { skill in
+              SkillTile(skill: skill, rating: training.skillRatings[skill.id]) {
+                start(skill: skill)
+              }
+              .accessibilityIdentifier("skill-\(skill.id)")
+            }
+          }
+
+          SectionHeader(title: "Lessons", subtitle: "Learn the idea, then drill it.")
+          VStack(spacing: Spacing.s) {
+            ForEach(Curriculum.shared.lessons) { lesson in
+              LessonRow(lesson: lesson, progress: training.lessonProgress[lesson.id]) {
+                running = Running(title: lesson.title, tasks: [.lesson(lesson)])
               }
             }
-            .buttonStyle(.plain)
           }
+
+          SectionHeader(title: "Openings")
+          Button { showOpenings = true } label: {
+            Card {
+              HStack(spacing: Spacing.m) {
+                Image(systemName: "book.closed").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                  Text("Your repertoire").font(Typography.titleSmall).foregroundStyle(Palette.ink)
+                  Text("Learn and drill the openings for your style.").font(Typography.callout).foregroundStyle(Palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Palette.textMuted)
+              }
+            }
+          }
+          .buttonStyle(.plain)
+          .accessibilityIdentifier("open-openings")
+
+          SectionHeader(title: "Coming next")
+          ComingCard(title: "Play Coach", detail: "A game where the coach watches every move and speaks when it matters.", icon: "person.wave.2", milestone: "M4")
         }
         .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, Spacing.xxl)
+        .padding(.top, Spacing.xxl)
+        .padding(.bottom, 80)
       }
     }
-    .wcoachToasts()
+    .sheet(isPresented: $showOpenings) { OpeningsView() }
+    .fullScreenCover(item: $running, onDismiss: { training.refresh() }) { run in
+      TrainingRunnerView(title: run.title, tasks: run.tasks)
+    }
+  }
+
+  private var ratingCard: some View {
+    Card {
+      HStack(alignment: .lastTextBaseline) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+          Eyebrow(text: "Puzzle rating")
+          Text("\(training.globalRating)")
+            .font(Typography.weightLarge)
+            .foregroundStyle(Palette.ink)
+            .accessibilityIdentifier("puzzle-rating")
+        }
+        Spacer()
+        VStack(alignment: .trailing, spacing: Spacing.xs) {
+          if training.dueReviewCount > 0 {
+            Text("\(training.dueReviewCount) review\(training.dueReviewCount == 1 ? "" : "s") due")
+              .font(Typography.callout).foregroundStyle(Palette.accentDeep)
+          }
+          if let style = training.profile?.style {
+            Text("\(style.title) · like \(style.model)").font(Typography.caption).foregroundStyle(Palette.textSecondary)
+          }
+        }
+      }
+    }
+  }
+
+  private func start(skill: Skill) {
+    let rating = Int(training.skillRatings[skill.id]?.rating ?? Double(training.globalRating))
+    let tasks: [TrainingTask]
+    switch skill.source {
+    case .drill(let kind): tasks = [.drill(kind)]
+    case .puzzles(let themes): tasks = training.puzzleTasks(themes: themes, rating: max(400, rating - 150), count: 6)
+    }
+    running = Running(title: skill.name, tasks: tasks)
+  }
+}
+
+private struct SkillTile: View {
+  let skill: Skill
+  let rating: Glicko2?
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: { Haptics.light(); action() }) {
+      VStack(alignment: .leading, spacing: Spacing.s) {
+        HStack {
+          Image(systemName: skill.systemImage).font(.system(size: 18)).foregroundStyle(Palette.primaryDeep)
+          Spacer()
+          if let rating, skill.themes.isEmpty == false {
+            Text("\(Int(rating.rating))")
+              .font(.system(size: 13, weight: .semibold, design: .rounded))
+              .foregroundStyle(rating.deviation > 150 ? Palette.textMuted : Palette.ink)
+          }
+        }
+        Text(skill.name).font(Typography.bodyEmph).foregroundStyle(Palette.ink).lineLimit(1)
+        Text(skill.summary).font(Typography.caption).foregroundStyle(Palette.textSecondary).lineLimit(2)
+          .multilineTextAlignment(.leading)
+      }
+      .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+      .padding(Spacing.m)
+      .background(Palette.paper)
+      .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerMedium, style: .continuous))
+      .overlay(RoundedRectangle(cornerRadius: Spacing.cornerMedium, style: .continuous).stroke(Palette.border, lineWidth: 0.75))
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+private struct LessonRow: View {
+  let lesson: Lesson
+  let progress: LessonProgress?
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: { Haptics.light(); action() }) {
+      HStack(spacing: Spacing.m) {
+        Image(systemName: progress?.passed == true ? "checkmark.circle.fill" : "book")
+          .font(.system(size: 18))
+          .foregroundStyle(progress?.passed == true ? Palette.success : Palette.primaryDeep)
+          .frame(width: 28)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(lesson.title).font(Typography.bodyEmph).foregroundStyle(Palette.ink)
+          Text(progress.map { "Best \($0.bestScore)/\(lesson.mastery.of)" } ?? "Not started")
+            .font(Typography.caption).foregroundStyle(Palette.textSecondary)
+        }
+        Spacer()
+        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.textMuted)
+      }
+      .padding(Spacing.m)
+      .background(Palette.paper)
+      .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerMedium, style: .continuous))
+      .overlay(RoundedRectangle(cornerRadius: Spacing.cornerMedium, style: .continuous).stroke(Palette.border, lineWidth: 0.75))
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+private struct ComingCard: View {
+  let title: String
+  let detail: String
+  let icon: String
+  let milestone: String
+
+  var body: some View {
+    Card {
+      HStack(alignment: .top, spacing: Spacing.m) {
+        Image(systemName: icon).font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+          HStack {
+            Text(title).font(Typography.titleSmall).foregroundStyle(Palette.ink)
+            Spacer()
+            Text("Coming in \(milestone)").font(Typography.caption).foregroundStyle(Palette.textMuted)
+              .padding(.horizontal, 8).padding(.vertical, 3)
+              .background(Capsule().fill(Palette.surfaceAlt))
+          }
+          Text(detail).font(Typography.callout).foregroundStyle(Palette.textSecondary)
+        }
+      }
+    }
   }
 }

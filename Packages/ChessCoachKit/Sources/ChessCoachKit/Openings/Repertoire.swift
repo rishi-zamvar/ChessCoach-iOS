@@ -287,7 +287,12 @@ public enum RepertoireLibrary {
   }
 
   /// The learner's repertoires for a style (white + black vs e4 + black vs d4).
+  /// White first, then Black vs 1.e4, then Black vs 1.d4.
   public static func forStyle(_ style: String) -> [Repertoire] {
-    all().filter { $0.fileName.hasPrefix(style + "-") }
+    let order = ["white", "black-e4", "black-d4"]
+    return all().filter { $0.fileName.hasPrefix(style + "-") }.sorted { a, b in
+      (order.firstIndex { a.fileName.hasSuffix($0) } ?? 9) < (order.firstIndex { b.fileName.hasSuffix($0) } ?? 9)
+    }
   }
+
 }

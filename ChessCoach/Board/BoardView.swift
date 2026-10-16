@@ -28,6 +28,8 @@ struct BoardView: View {
   @State private var identified: [IdentifiedPiece] = []
   @State private var nextID = 0
   @State private var gesture = GestureState()
+  /// True while a finger is down; resets on its own when the system cancels the gesture.
+  @SwiftUI.GestureState private var touching = false
 
   struct GestureState {
     var start: Square?
@@ -59,6 +61,14 @@ struct BoardView: View {
     .onAppear { reconcile() }
     .onChange(of: position.fen) { _, _ in
       withAnimation(.easeOut(duration: 0.15)) { reconcile() }
+    }
+    .onChange(of: interactive) { _, isInteractive in
+      if !isInteractive { resetGesture() }
+    }
+    .onChange(of: touching) { _, isTouching in
+      // onEnded runs first on a normal lift; anything still active here was cancelled.
+      guard !isTouching else { return }
+      DispatchQueue.main.async { if gesture.mode != .idle { resetGesture() } }
     }
   }
 
@@ -212,6 +222,7 @@ struct BoardView: View {
 
   private func boardGesture(_ geo: BoardGeometry) -> some Gesture {
     DragGesture(minimumDistance: 0, coordinateSpace: .local)
+      .updating($touching) { _, state, _ in state = true }
       .onChanged { value in
         if gesture.mode == .idle {
           gesture.start = geo.square(at: value.startLocation)
@@ -241,6 +252,11 @@ struct BoardView: View {
         }
         gesture = GestureState()
       }
+  }
+
+  private func resetGesture() {
+    if gesture.mode == .dragPiece { onDragCancelled() }
+    gesture = GestureState()
   }
 
   private func reconcile() {

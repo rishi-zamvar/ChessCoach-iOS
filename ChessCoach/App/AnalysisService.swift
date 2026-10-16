@@ -57,7 +57,10 @@ final class AnalysisService {
       let known = try env.gameStore.ids(source: .chesscom)
       let batch = try await importer.importGames(username: username, knownURLs: known, monthETags: etags)
       let inserted = try env.gameStore.insertNew(batch.games.map(GameRecord.init(imported:)))
-      UserDefaults.standard.set(etags.merging(batch.etags) { _, new in new }, forKey: Self.etagsKey)
+      // Don't remember months as fetched if this session's games won't persist.
+      if !env.isDegraded {
+        UserDefaults.standard.set(etags.merging(batch.etags) { _, new in new }, forKey: Self.etagsKey)
+      }
       importState = .finished(newGames: inserted)
       revision += 1
     } catch ChessComError.userNotFound {
@@ -85,8 +88,6 @@ final class AnalysisService {
     let analyzer = GameAnalyzer(
       host: host, telemetry: env.telemetry, depth: 14, maiaRating: 1100, cache: env.positionCache)
     let store = env.analysisStore
-    let eta = try? env.databaseSink.medianDuration(step: "analysis.game")
-    progress = Progress(gameID: game.id, done: 0, total: 1, etaSeconds: eta.map { $0 / 1000 })
     let task = Task {
       let result = try await analyzer.analyze(
         gameID: game.id, pgn: game.pgn, userColor: game.userColor, timeControl: game.timeControl)
@@ -111,12 +112,32 @@ final class AnalysisService {
   /// Feeds `progress` from the telemetry stream (analysis.game progress events).
   private func watchProgress() {
     let stream = env.telemetry.events()
+    let sink = env.databaseSink
     progressWatcher = Task { [weak self] in
-      for await event in stream where event.step == "analysis.game" && event.phase == .progress {
-        guard let self, var current = self.progress, let done = event.done, let total = event.total else { continue }
-        current.done = done
-        current.total = total
-        self.progress = current
+      var currentID: UUID?
+      for await event in stream where event.step == "analysis.game" {
+        guard let self else { return }
+        switch event.phase {
+        case .start:
+          // Each run's start names its game; later progress events share its step id.
+          currentID = event.id
+          guard case .string(let gameID) = event.metadata["game"] else { continue }
+          let plies: Int = if case .int(let n) = event.metadata["plies"] { n } else { 1 }
+          self.progress = Progress(gameID: gameID, done: 0, total: plies + 1, etaSeconds: nil)
+          Task.detached(priority: .utility) {
+            let eta = try? sink.medianDuration(step: "analysis.game")
+            await MainActor.run { if self.progress?.gameID == gameID { self.progress?.etaSeconds = eta.map { $0 / 1000 } } }
+          }
+        case .progress where event.id == currentID:
+          if let done = event.done, let total = event.total {
+            self.progress?.done = done
+            self.progress?.total = total
+          }
+        case .finish, .fail:
+          if event.id == currentID { self.progress = nil }
+        default:
+          break
+        }
       }
     }
   }

@@ -157,13 +157,17 @@ public struct DailyPlanner: Sendable {
     {
       ranked.append(ranked.removeFirst())
     }
+    var lessonPlanned = false
     for priority in ranked.prefix(2) {
       guard let skill = SkillCatalog.skill(priority.skillID) else { continue }
-      if let lessonID = state.lessonForSkill[skill.id], !state.masteredLessons.contains(lessonID) {
+      // At most one lesson a day; its own practice set replaces the skill's themed block.
+      if !lessonPlanned, let lessonID = state.lessonForSkill[skill.id], !state.masteredLessons.contains(lessonID) {
+        lessonPlanned = true
         items.append(
           PlanItem(
             id: "lesson-\(lessonID)", title: "Lesson: \(skill.name)", kind: .lesson(id: lessonID),
-            reason: reason(for: priority, skill: skill, state: state, teaching: true), minutes: budget * 0.12))
+            reason: reason(for: priority, skill: skill, state: state, teaching: true), minutes: 6))
+        continue
       }
       let skillRating = Int(state.skillRatings[skill.id]?.rating ?? Double(state.globalRating))
       let kind: PlanItem.Kind =
