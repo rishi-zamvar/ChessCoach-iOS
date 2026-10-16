@@ -5,3 +5,4 @@ xcuserdata/
 *.xcodeproj/
 ChessCoach/Resources/Engines/*
 !ChessCoach/Resources/Engines/.gitkeep
+__pycache__/
