@@ -1,0 +1,7 @@
+.DS_Store
+.build/
+DerivedData/
+xcuserdata/
+*.xcodeproj/
+ChessCoach/Resources/Engines/*
+!ChessCoach/Resources/Engines/.gitkeep
