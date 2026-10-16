@@ -50,6 +50,14 @@ public struct BoardHighlights: Equatable, Sendable {
   public var targets: [Square] = []
   public var premove: [Square] = []
 
+  public init(lastMove: [Square] = [], check: Square? = nil, selected: Square? = nil, targets: [Square] = [], premove: [Square] = []) {
+    self.lastMove = lastMove
+    self.check = check
+    self.selected = selected
+    self.targets = targets
+    self.premove = premove
+  }
+
   public static func make(session: GameSession, ply: Int, interaction: BoardInteraction) -> BoardHighlights {
     var h = BoardHighlights()
     if ply > 0, ply <= session.history.count {

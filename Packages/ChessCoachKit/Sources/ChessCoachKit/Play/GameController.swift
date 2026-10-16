@@ -54,7 +54,7 @@ public final class GameController {
 
   public let config: PlayConfig
   public let bot: BotPlayer
-  public let gameID = UUID()
+  public nonisolated let gameID = UUID()
 
   @ObservationIgnored private let telemetry: Telemetry
   @ObservationIgnored private let store: GameStore?

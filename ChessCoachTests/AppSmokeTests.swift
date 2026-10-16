@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class AppSmokeTests: XCTestCase {
     func test_givenApp_whenLaunched_thenRootViewBuilds() {
-        let host = UIHostingController(rootView: RootView())
+        let host = UIHostingController(rootView: RootView().environment(AppEnvironment(inMemory: true)))
         host.loadViewIfNeeded()
         XCTAssertNotNil(host.view)
     }
