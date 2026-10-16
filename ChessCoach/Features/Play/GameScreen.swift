@@ -27,6 +27,13 @@ struct GameScreen: View {
       VStack(spacing: 0) {
         header
         MoveStrip(history: game.session.history, currentPly: game.viewPly) { game.jump(toPly: $0) }
+        if let nudge = game.nudge {
+          CoachBanner(text: nudge, systemImage: "exclamationmark.bubble.fill", tint: MoveClass.inaccuracy.color)
+        } else if let hint = game.hintText {
+          CoachBanner(text: hint, systemImage: "lightbulb.fill", tint: MoveClass.great.color)
+        } else if game.phase == .coachChecking {
+          CoachBanner(text: "Coach is looking at your move…", systemImage: "eye", tint: ChessChrome.textSecondary)
+        }
         Spacer(minLength: Spacing.s)
         PlayerBar(
           name: name(for: topColor), rating: rating(for: topColor), color: topColor,
@@ -46,6 +53,15 @@ struct GameScreen: View {
     }
     .background(ChessChrome.background.ignoresSafeArea())
     .preferredColorScheme(.dark)
+    .overlay(alignment: .bottom) {
+      if let pause = game.coachPause {
+        CoachPauseCard(pause: pause, onTakeBack: game.takeBack, onShow: game.showBetterMove, onContinue: game.continueGame)
+          .padding(Spacing.m)
+          .padding(.bottom, 60)
+          .transition(.move(edge: .bottom).combined(with: .opacity))
+      }
+    }
+    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: game.coachPause)
     .overlay {
       if let result = game.result, !resultDismissed {
         ResultCard(
@@ -77,6 +93,8 @@ struct GameScreen: View {
 
   // MARK: - Pieces
 
+  private var coachTitle: String { game.isCoached ? "Play Coach" : (game.config.timeControl.isTimed ? game.config.timeControl.label : "Casual") }
+
   private var header: some View {
     HStack {
       Button(action: onClose) {
@@ -86,7 +104,7 @@ struct GameScreen: View {
       }
       .accessibilityIdentifier("game-close")
       Spacer()
-      Text(game.config.timeControl.isTimed ? game.config.timeControl.label : "Casual")
+      Text(coachTitle)
         .font(.system(size: 15, weight: .semibold, design: .rounded))
       Spacer()
       Button { game.flip() } label: {
@@ -129,6 +147,12 @@ struct GameScreen: View {
   private var toolbar: some View {
     HStack(spacing: 0) {
       ToolbarButton(title: "Options", systemImage: "line.3.horizontal") { showOptions = true }
+      if game.isCoached, !game.isOver {
+        ToolbarButton(title: "Hint", systemImage: "lightbulb", enabled: game.phase == .userTurn) {
+          Task { await game.hint() }
+        }
+        .accessibilityIdentifier("toolbar-hint")
+      }
       if game.isOver {
         ToolbarButton(title: "New", systemImage: "plus") { onClose() }
       } else {
@@ -234,6 +258,75 @@ struct BoardOptionsSheet: View {
       }
       .navigationTitle("Options")
       .navigationBarTitleDisplayMode(.inline)
+    }
+  }
+}
+
+/// One-line coach message above the board.
+private struct CoachBanner: View {
+  let text: String
+  let systemImage: String
+  let tint: Color
+
+  var body: some View {
+    HStack(spacing: Spacing.s) {
+      Image(systemName: systemImage).foregroundStyle(tint)
+      Text(text).font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+      Spacer()
+    }
+    .padding(.horizontal, Spacing.m)
+    .padding(.vertical, Spacing.s)
+    .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
+    .padding(.horizontal, Spacing.m)
+    .padding(.top, Spacing.xs)
+    .accessibilityIdentifier("coach-banner")
+  }
+}
+
+/// Shown when Play Coach pauses after a mistake.
+private struct CoachPauseCard: View {
+  let pause: CoachPause
+  let onTakeBack: () -> Void
+  let onShow: () -> Void
+  let onContinue: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: Spacing.m) {
+      HStack(spacing: Spacing.s) {
+        Text(pause.label.glyph)
+          .font(.system(size: 12, weight: .heavy, design: .rounded)).foregroundStyle(.white)
+          .frame(width: 26, height: 26).background(Circle().fill(pause.label.color))
+        Text("\(pause.playedSAN) is a \(pause.label.displayName.lowercased())")
+          .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(pause.label.color)
+      }
+      Text(pause.explanation)
+        .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+        .fixedSize(horizontal: false, vertical: true)
+      HStack(spacing: Spacing.s) {
+        PauseButton(title: "Take back", prominent: true, action: onTakeBack).accessibilityIdentifier("coach-takeback")
+        PauseButton(title: "Show me", prominent: false, action: onShow)
+        PauseButton(title: "Continue", prominent: false, action: onContinue).accessibilityIdentifier("coach-continue")
+      }
+    }
+    .padding(Spacing.l)
+    .background(RoundedRectangle(cornerRadius: 16).fill(ChessChrome.bar))
+    .overlay(RoundedRectangle(cornerRadius: 16).stroke(pause.label.color.opacity(0.6), lineWidth: 1.5))
+    .shadow(color: .black.opacity(0.4), radius: 16, y: 6)
+  }
+}
+
+private struct PauseButton: View {
+  let title: String
+  let prominent: Bool
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Text(title)
+        .font(.system(size: 15, weight: .bold, design: .rounded))
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .foregroundStyle(prominent ? .white : ChessChrome.textPrimary)
+        .background(RoundedRectangle(cornerRadius: 10).fill(prominent ? ChessChrome.accentGreen : ChessChrome.card))
     }
   }
 }

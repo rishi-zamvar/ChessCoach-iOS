@@ -136,6 +136,19 @@ public struct GameSession: Sendable {
     return apply(from: parsed.from, to: parsed.to, promotion: parsed.promotion ?? (isPromotion(from: parsed.from, to: parsed.to) ? .queen : nil))
   }
 
+  /// Takes back the last `count` plies (replays the rest so repetition counts stay right).
+  public mutating func undo(_ count: Int = 1) {
+    guard count > 0, history.count >= count else { return }
+    let kept = history.dropLast(count)
+    var replay = GameSession(startFEN: startFEN)
+    for played in kept {
+      replay.apply(uci: played.uci)
+      replay.setClockAfterLastMove(played.clockAfter ?? 0)
+      if played.clockAfter == nil { replay.history[replay.history.count - 1].clockAfter = nil }
+    }
+    self = replay
+  }
+
   public mutating func setClockAfterLastMove(_ seconds: TimeInterval) {
     guard !history.isEmpty else { return }
     history[history.count - 1].clockAfter = seconds

@@ -60,9 +60,11 @@ final class AppEnvironment {
     }
   }
 
-  func makeGame(_ config: PlayConfig) -> GameController? {
-    guard let bot = bot(for: config.opponent) else { return nil }
-    return GameController(config: config, bot: bot, telemetry: telemetry, store: gameStore, sounds: sounds)
+  func makeGame(_ config: PlayConfig, coached: Bool = false) -> GameController? {
+    guard let bot = bot(for: config.opponent), let engineHost else { return nil }
+    return GameController(
+      config: config, bot: bot, telemetry: telemetry, store: gameStore, sounds: sounds,
+      coach: coached ? StockfishCoach(host: engineHost) : nil)
   }
 }
 

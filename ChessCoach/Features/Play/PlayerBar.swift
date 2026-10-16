@@ -24,7 +24,7 @@ struct PlayerBar: View {
             .font(.system(size: 15, weight: .semibold, design: .rounded))
             .foregroundStyle(ChessChrome.textPrimary)
           if let rating {
-            Text("(\(rating))")
+            Text("(" + String(rating) + ")")
               .font(.system(size: 14, weight: .regular, design: .rounded))
               .foregroundStyle(ChessChrome.textSecondary)
           }

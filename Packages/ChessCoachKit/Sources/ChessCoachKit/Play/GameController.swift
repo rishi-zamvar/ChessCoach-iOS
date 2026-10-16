@@ -35,6 +35,10 @@ public enum GamePhase: Equatable, Sendable {
   case notStarted
   case userTurn
   case botThinking
+  /// Play Coach is checking the user's move.
+  case coachChecking
+  /// Play Coach paused the game after a mistake (see `coachPause`).
+  case coachPaused
   case over(GameResult)
 }
 
@@ -51,6 +55,12 @@ public final class GameController {
   public private(set) var viewPly = 0
   public private(set) var pendingPromotion: Premove?
   public var flipped: Bool
+  /// Play Coach state.
+  public private(set) var coachPause: CoachPause?
+  public private(set) var nudge: String?
+  public private(set) var hintText: String?
+  public private(set) var hintLevel = 0
+  public var isCoached: Bool { coach != nil }
 
   public let config: PlayConfig
   public let bot: BotPlayer
@@ -65,6 +75,9 @@ public final class GameController {
   @ObservationIgnored private var startedAt = Date()
   @ObservationIgnored private var lowTimeWarned = false
   @ObservationIgnored private var gameStep: StepContext?
+  @ObservationIgnored private let coach: CoachAdvisor?
+  @ObservationIgnored private var movesSinceNudge = 99
+  @ObservationIgnored private var hintBest: String?
 
   public init(
     config: PlayConfig,
@@ -74,8 +87,10 @@ public final class GameController {
     sounds: SoundSink,
     startFEN: String = GameSession.standardFEN,
     minimumBotThink: Duration = .milliseconds(450),
+    coach: CoachAdvisor? = nil,
     now: @escaping () -> Date = Date.init
   ) {
+    self.coach = coach
     self.config = config
     self.bot = bot
     self.telemetry = telemetry
@@ -230,6 +245,100 @@ public final class GameController {
     afterMove(played, by: "user")
   }
 
+  // MARK: - Play Coach
+
+  /// Undo the mistake and try again.
+  public func takeBack() {
+    guard coachPause != nil else { return }
+    session.undo()
+    coachPause = nil
+    annotations = AnnotationLayer()
+    viewPly = session.history.count
+    phase = .userTurn
+    telemetry.event("coach.takeback")
+  }
+
+  /// Keep the move and let the game go on.
+  public func continueGame() {
+    guard coachPause != nil else { return }
+    coachPause = nil
+    annotations = AnnotationLayer()
+    advanceTurn()
+  }
+
+  /// Draw the better move on the board.
+  public func showBetterMove() {
+    guard let pause = coachPause, let m = UCIMove(pause.bestUCI) else { return }
+    annotations.arrows = [Arrow(from: m.from, to: m.to, color: .green)]
+  }
+
+  /// Hint ladder for the user's turn: piece → highlight → move.
+  public func hint() async {
+    guard phase == .userTurn, let coach else { return }
+    if hintBest == nil {
+      hintBest = try? await coach.assess(fen: session.position.fen).bestUCI
+    }
+    guard let best = hintBest.flatMap(UCIMove.init), let piece = session.position.piece(at: best.from) else { return }
+    hintLevel = min(3, hintLevel + 1)
+    switch hintLevel {
+    case 1: hintText = "Look at your \(FactExtractor.name(of: piece.kind))s."
+    case 2:
+      hintText = "This piece has a strong move."
+      annotations.circles = [best.from: .blue]
+    default:
+      hintText = "Here's the move."
+      annotations.circles = [:]
+      annotations.arrows = [Arrow(from: best.from, to: best.to, color: .green)]
+    }
+    telemetry.event("coach.hint", metadata: ["level": .int(hintLevel)])
+  }
+
+  private func coachCheck(_ played: PlayedMove) {
+    guard let coach else { return advanceTurn() }
+    phase = .coachChecking
+    let before = session.fen(atPly: session.history.count - 1)
+    let after = session.position.fen
+    Task { [weak self] in
+      let a = try? await coach.assess(fen: before)
+      let b = try? await coach.assess(fen: after)
+      guard let self, self.phase == .coachChecking else { return }
+      guard let a, let b else { return self.advanceTurn() }
+      let bestEP = a.winPercent / 100
+      let playedEP = 1 - b.winPercent / 100
+      let isBest = a.bestUCI == played.uci
+      let loss = isBest ? 0 : max(0, bestEP - playedEP)
+      let label = MoveClassifier.base(loss: loss, isBest: isBest)
+      guard label == .mistake || label == .blunder else { return self.advanceTurn() }
+      let sheet = FactExtractor.sheet(fen: before, played: played.uci, bestLine: [a.bestUCI], punishLine: [b.bestUCI], ply: self.session.history.count)
+      let bestSAN = FactExtractor.sanLine(fen: before, ucis: [a.bestUCI]).first ?? a.bestUCI
+      self.coachPause = CoachPause(
+        label: label, playedSAN: played.san, bestUCI: a.bestUCI, bestSAN: bestSAN,
+        explanation: sheet.map { Explainer.explain($0, as: label, isUser: true) } ?? "There was a better move.")
+      self.phase = .coachPaused
+      self.telemetry.event("coach.pause", metadata: ["label": .string(label.rawValue), "san": .string(played.san)])
+    }
+  }
+
+  /// After the bot moves: nudge the user to look for threats when something is loose
+  /// or the bot's move set up a tactic (at most every third move).
+  private func coachNudge(_ played: PlayedMove) {
+    movesSinceNudge += 1
+    guard coach != nil, movesSinceNudge >= 3 else { return }
+    let before = session.fen(atPly: session.history.count - 1)
+    let threats: Set<Motif> = [.fork, .pin, .skewer, .discoveredAttack, .mateThreat]
+    let facts = FactExtractor.moveFacts(fen: before, uci: played.uci)
+    let hanging = FactExtractor.hangingPieces(fen: session.position.fen, of: userColor)
+    if !hanging.isEmpty {
+      nudge = "Careful — something of yours is loose. Check before you move."
+    } else if let facts, !threats.isDisjoint(with: facts.motifs) {
+      nudge = "\(played.san) set up a threat. What does it attack?"
+    } else {
+      return
+    }
+    movesSinceNudge = 0
+    telemetry.event("coach.nudge")
+  }
+
   private func afterMove(_ played: PlayedMove, by mover: String) {
     if config.timeControl.isTimed {
       clock.press(played.color, at: now())
@@ -244,9 +353,16 @@ public final class GameController {
         "game": .string(gameID.uuidString), "by": .string(mover), "san": .string(played.san),
         "ply": .int(session.history.count),
       ])
+    hintLevel = 0
+    hintText = nil
+    hintBest = nil
+    if mover == "user" { nudge = nil }
     if session.isOver {
       finish()
+    } else if mover == "user", coach != nil {
+      coachCheck(played)
     } else {
+      if mover == "bot" { coachNudge(played) }
       advanceTurn()
     }
   }

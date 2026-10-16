@@ -149,3 +149,23 @@ final class GameSessionRegressionTests: XCTestCase {
     XCTAssertTrue(pgn.contains(#"[White "A \"B\" C"]"#), pgn)
   }
 }
+
+final class GameSessionUndoTests: XCTestCase {
+  func test_givenMoves_whenUndoTwo_thenBackToEarlierPositionAndPlayable() {
+    var s = GameSession()
+    for m in ["e2e4", "e7e5", "g1f3", "b8c6"] { s.apply(uci: m) }
+    let fenAfterTwo = s.fen(atPly: 2)
+    s.undo(2)
+    XCTAssertEqual(s.history.count, 2)
+    XCTAssertEqual(s.position.fen, fenAfterTwo)
+    XCTAssertNotEqual(s.apply(uci: "f1c4"), .illegal)
+  }
+
+  func test_givenCheckmate_whenUndone_thenGameNoLongerOver() {
+    var s = GameSession()
+    for m in ["f2f3", "e7e5", "g2g4", "d8h4"] { s.apply(uci: m) }
+    XCTAssertTrue(s.isOver)
+    s.undo()
+    XCTAssertFalse(s.isOver)
+  }
+}

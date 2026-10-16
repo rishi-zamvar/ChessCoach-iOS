@@ -6,6 +6,8 @@ struct TrainView: View {
   @Environment(TrainingService.self) private var training
   @State private var running: Running?
   @State private var showOpenings = false
+  @State private var coachGame: GameController?
+  @Environment(AppEnvironment.self) private var env
 
   struct Running: Identifiable {
     let id = UUID()
@@ -60,8 +62,27 @@ struct TrainView: View {
           .buttonStyle(.plain)
           .accessibilityIdentifier("open-openings")
 
-          SectionHeader(title: "Coming next")
-          ComingCard(title: "Play Coach", detail: "A game where the coach watches every move and speaks when it matters.", icon: "person.wave.2", milestone: "M4")
+          SectionHeader(title: "Play Coach")
+          Button {
+            coachGame = env.makeGame(
+              PlayConfig(opponent: .maia(rating: 1100), userColor: ColorChoice.random.resolve(), timeControl: .untimed), coached: true)
+          } label: {
+            Card {
+              HStack(spacing: Spacing.m) {
+                Image(systemName: "person.wave.2").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
+                VStack(alignment: .leading, spacing: 2) {
+                  Text("Play with the coach").font(Typography.titleSmall).foregroundStyle(Palette.ink)
+                  Text("A real game vs Maia. The coach stops you after mistakes, nudges you about threats, and gives hints.")
+                    .font(Typography.callout).foregroundStyle(Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Palette.textMuted)
+              }
+            }
+          }
+          .buttonStyle(.plain)
+          .accessibilityIdentifier("play-coach")
         }
         .padding(.horizontal, Spacing.xl)
         .padding(.top, Spacing.xxl)
@@ -69,6 +90,9 @@ struct TrainView: View {
       }
     }
     .sheet(isPresented: $showOpenings) { OpeningsView() }
+    .fullScreenCover(item: $coachGame) { game in
+      GameScreen(game: game) { coachGame = nil }
+    }
     .fullScreenCover(item: $running, onDismiss: { training.refresh() }) { run in
       TrainingRunnerView(title: run.title, tasks: run.tasks)
     }
@@ -166,30 +190,5 @@ private struct LessonRow: View {
       .overlay(RoundedRectangle(cornerRadius: Spacing.cornerMedium, style: .continuous).stroke(Palette.border, lineWidth: 0.75))
     }
     .buttonStyle(.plain)
-  }
-}
-
-private struct ComingCard: View {
-  let title: String
-  let detail: String
-  let icon: String
-  let milestone: String
-
-  var body: some View {
-    Card {
-      HStack(alignment: .top, spacing: Spacing.m) {
-        Image(systemName: icon).font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-          HStack {
-            Text(title).font(Typography.titleSmall).foregroundStyle(Palette.ink)
-            Spacer()
-            Text("Coming in \(milestone)").font(Typography.caption).foregroundStyle(Palette.textMuted)
-              .padding(.horizontal, 8).padding(.vertical, 3)
-              .background(Capsule().fill(Palette.surfaceAlt))
-          }
-          Text(detail).font(Typography.callout).foregroundStyle(Palette.textSecondary)
-        }
-      }
-    }
   }
 }
