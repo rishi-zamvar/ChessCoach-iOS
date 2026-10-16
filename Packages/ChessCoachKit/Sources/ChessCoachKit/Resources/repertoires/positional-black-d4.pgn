@@ -1,0 +1,92 @@
+[Event "Positional repertoire"]
+[Side "black"]
+[Style "positional"]
+[Name "Queen's Gambit Declined"]
+[Summary "Hold d5 with ...e6, develop calmly, castle, and free your position with ...dxc4 and ...Nd5 when the time is right."]
+[Result "*"]
+
+1. d4
+( 1. c4 { The English. [%dev] }
+  1... e6 { Prepare ...d5. }
+  2. Nc3
+  2... d5 { Take the centre. }
+  3. d4
+  3... Nf6 { Back in the Queen's Gambit Declined. Next ...Be7 and castle. [%cal Bf8e7] } )
+( 1. Nf3 { [%dev] A flexible start. }
+  1... d5 { Take the centre. }
+  2. c4
+  2... e6 { Hold d5 with a pawn. }
+  3. d4
+  3... Nf6 { The same setup as always. [%cal Bf8e7] } )
+1... d5 { Put a pawn in the centre and stop e4. [%cal Rd5e4] }
+2. c4 { The Queen's Gambit: White offers a pawn to pull d5 away. [%cal Rc4d5] }
+( 2. Bf4 { The London. [%dev] }
+  2... Nf6 { Develop. }
+  3. e3
+  3... c5 { Hit d4 at once. [%cal Gc5d4] }
+  4. c3
+  4... Nc6 { Pile up on d4. }
+  5. Nd2
+  5... e6 { Solid. Next ...Bd6 to challenge the London bishop. [%cal Bf8d6] }
+  6. Ngf3
+  6... Bd6 { Offer to trade White's best piece. [%cal Gd6f4] }
+  7. Bg3
+  7... O-O { Castle. You have a comfortable, equal position. } )
+( 2. Nf3 { [%dev] A quiet move. }
+  2... Nf6 { Develop. }
+  3. e3
+  3... e6 { Solid. }
+  4. Bd3
+  4... c5 { Hit d4 and free your game. [%cal Gc5d4] }
+  5. b3
+  5... Nc6 { Develop. Next ...Bd6 and castle. [%cal Bf8d6] } )
+( 2. e4 { The Blackmar-Diemer Gambit. [%dev] }
+  2... dxe4 { Take the pawn. }
+  3. Nc3
+  3... Nf6 { Develop and guard e4. [%cal Gf6e4] }
+  4. f3
+  4... exf3 { Take again; White wants open lines, so get your pieces out quickly. }
+  5. Nxf3
+  5... e6 { Solid. Next ...Be7 and castle; you are a pawn up. [%cal Bf8e7] } )
+2... e6 { Decline the gambit: hold d5 with a pawn. [%cal Ge6d5] }
+3. Nc3
+( 3. cxd5 { The Exchange. [%dev] }
+  3... exd5 { Recapture; your light-squared bishop is free now. [%cal Gc8f5] }
+  4. Nc3
+  4... Nf6 { Develop. }
+  5. Bg5
+  5... c6 { Support d5 for good. }
+  6. e3
+  6... Be7 { Unpin the knight. Castle next. [%cal Ge7f6] } )
+( 3. Nf3 { [%dev] Another normal move. }
+  3... Nf6 { Develop. }
+  4. Nc3
+  4... Be7 { Same setup: bishop out, castle next. [%cal Ge8g8] } )
+3... Nf6 { Develop and guard d5. [%cal Gf6d5] }
+4. Bg5 { White pins your knight. [%cal Rg5d8] }
+4... Nbd7 { Develop the knight. It seems to leave your queen loose, but it sets the Elephant Trap. [%cal Gd7f6] }
+5. e3
+( 5. cxd5 { [%dev] White trades pawns. }
+  5... exd5 { Recapture with the pawn. Now d5 looks loose, but it is bait. [%csl Gd5] }
+  6. Nxd5? { White grabs the pawn and falls into the Elephant Trap. [%cal Rc3d5] }
+  ( 6. e3 { [%dev] The correct move. }
+    6... c6 { Support d5. }
+    7. Bd3
+    7... Be7 { Develop. Castle next; a solid, equal game. } )
+  6... Nxd5 { Take the knight! White's bishop can take your queen, but... [%trap Elephant Trap] [%cal Gf6d5] }
+  7. Bxd8
+  7... Bb4+ { Check! White must give the queen back. [%cal Gb4e1] }
+  8. Qd2
+  8... Bxd2+ { Take the queen. }
+  9. Kxd2
+  9... Kxd8 { You win a whole piece. [%csl Gd8] } )
+5... Be7 { Unpin the knight. Castle next. [%cal Ge7g5] }
+6. Nf3
+6... O-O { Castle. Your king is safe. }
+7. Rc1
+7... c6 { Support d5 and get ready for ...dxc4 and ...Nd5. [%cal Gc6d5] }
+8. Bd3
+8... dxc4 { Take when White's bishop has moved, so White loses a tempo recapturing. }
+9. Bxc4
+9... Nd5 { The freeing move: trade pieces to ease your position. [%cal Gd5c3,Ge7g5] }
+*

@@ -1,0 +1,108 @@
+[Event "Tactician repertoire"]
+[Side "black"]
+[Style "tactician"]
+[Name "Sicilian: Accelerated Dragon"]
+[Summary "Fight 1.e4 with 1...c5 and a fianchettoed bishop that turns the long diagonal into a tactical highway."]
+[Result "*"]
+
+1. e4
+1... c5 { The Sicilian: you fight for d4 from the side and keep the game unbalanced. [%cal Gc5d4] }
+2. Nf3 { White prepares d4. [%cal Bd2d4] }
+( 2. Nc3 { The Closed Sicilian. [%dev] }
+  2... Nc6 { Develop and watch d4. [%cal Gc6d4] }
+  3. g3
+  3... g6 { Fianchetto your bishop to the long diagonal. [%cal Gf8g7] }
+  4. Bg2
+  4... Bg7 { The bishop eyes d4 and b2. [%cal Gg7b2] }
+  5. d3
+  5... d6 { Solid. Next ...e6, ...Nge7 and castle, then push ...Rb8 and ...b5. [%cal Bb7b5] } )
+( 2. c3 { The Alapin: White wants d4 with a pawn. [%dev] [%cal Rd2d4] }
+  2... Nf6 { Hit e4 so White must commit. [%cal Gf6e4] }
+  3. e5
+  3... Nd5 { The knight sits on a strong central square. [%cal Gd5c3] }
+  4. d4
+  4... cxd4 { Trade pawns. }
+  5. Nf3
+  5... Nc6 { Develop and pressure d4. [%cal Gc6d4] }
+  6. cxd4
+  6... d6 { Challenge the e5 pawn and open your light-squared bishop. [%cal Gd6e5] } )
+( 2. d4 { The Smith-Morra Gambit offer. [%dev] }
+  2... cxd4 { Take the pawn. }
+  3. c3
+  3... Nf6 { Decline the second pawn: hit e4 instead. [%cal Gf6e4] }
+  4. e5
+  4... Nd5 { Centralise the knight. }
+  5. Nf3
+  5... Nc6 { Develop and defend d4. [%cal Gc6d4] }
+  6. cxd4
+  6... d6 { Hit e5 at once. You have an easy, equal game. [%cal Gd6e5] } )
+( 2. f4 { The Grand Prix Attack. [%dev] [%cal Rf4f5] }
+  2... Nc6 { Develop. }
+  3. Nf3
+  3... g6 { Fianchetto; your bishop will blunt White's kingside attack. [%cal Gf8g7] }
+  4. Bc4
+  4... Bg7 { The bishop takes the long diagonal. [%cal Gg7b2] }
+  5. O-O
+  5... e6 { Shut out White's c4 bishop from f7. [%cal Ge6f7] }
+  6. d3
+  6... Nge7 { Develop toward f5 and castle next. [%cal Ge7f5] } )
+( 2. Bc4 { [%dev] The bishop aims at f7. [%cal Rc4f7] }
+  2... e6 { Blunt the bishop; ...d5 next will hit it. [%cal Gd7d5] }
+  3. Nf3
+  3... a6 { Prepare ...b5 or ...d5 to gain time on the bishop. [%cal Gb7b5] }
+  4. a4
+  4... Nc6 { Develop. ...Nf6 and ...d5 are next. [%cal Bd7d5] } )
+2... Nc6 { Develop and aim at d4. [%cal Gc6d4] }
+3. d4
+( 3. Bb5 { The Rossolimo. [%dev] [%cal Rb5c6] }
+  3... g6 { Fianchetto as usual. [%cal Gf8g7] }
+  4. Bxc6
+  4... dxc6 { Recapture toward the centre; your queen and bishop open up. [%cal Gd8d1] }
+  5. d3
+  5... Bg7 { The bishop takes the long diagonal. [%cal Gg7b2] }
+  6. h3
+  6... Nf6 { Develop. Castle next; your two bishops are a long-term plus. [%cal Ge8g8] } )
+( 3. Nc3 { [%dev] White develops before d4. }
+  3... g6 { Fianchetto. If White plays d4 we are back in the main line. [%cal Gf8g7] }
+  4. d4
+  4... cxd4
+  5. Nxd4
+  5... Bg7 { The bishop pins down the d4 knight along the diagonal. [%cal Gg7d4] }
+  6. Be3
+  6... Nf6 { Develop and get ready to castle. [%cal Ge8g8] } )
+3... cxd4 { Trade your wing pawn for White's centre pawn. [%cal Gc5d4] }
+4. Nxd4
+4... g6 { The Accelerated Dragon: fianchetto before playing ...d6. [%cal Gf8g7] }
+5. Nc3
+( 5. c4 { The Maroczy Bind: White clamps d5. [%dev] [%cal Rc4d5] }
+  5... Bg7 { The bishop hits the d4 knight. [%cal Gg7d4] }
+  6. Be3
+  6... Nf6 { Develop. }
+  7. Nc3
+  7... Ng4 { A tactical trick: hit the bishop that defends the d4 knight. [%cal Gg4e3] }
+  8. Qxg4
+  8... Nxd4 { Your knight takes d4 and now threatens c2 and a discovered attack along the diagonal. [%cal Gd4c2,Gg7b2] }
+  9. Qd1
+  9... Ne6 { Material is level and you have the bishop pair. Castle next. [%cal Ge8g8] } )
+( 5. Nxc6 { [%dev] White trades knights. }
+  5... bxc6 { Take toward the centre and open the b-file for your rook. [%cal Gb8b2] }
+  6. Qd4
+  6... f6 { Shut the queen's diagonal toward your rook on h8. [%cal Rd4h8] }
+  7. Bc4
+  7... Nh6 { Develop toward f7 and castle next. [%cal Gh6f7] } )
+5... Bg7 { Your bishop on the long diagonal x-rays the d4 knight and b2. [%cal Gg7d4,Bg7b2] }
+6. Be3
+6... Nf6 { Develop and hit e4. [%cal Gf6e4] }
+7. Bc4 { White's bishop eyes f7. [%cal Rc4f7] }
+7... O-O { Castle. Your king hides behind the bishop. [%cal Gg7h8] }
+8. Bb3
+8... d6 { Solid centre; your bishop and queen are ready to work together. [%cal Gd8a5] }
+( 8... Na5? { This natural move falls into the Dragon Trap. [%trap Dragon Trap] [%cal Ra5b3] }
+  9. e5
+  9... Ne8
+  10. Bxf7+ { White sacrifices on f7! [%cal Rb3f7] }
+  10... Kxf7
+  11. Ne6 { The knight traps your queen: if ...dxe6 then Qxd8. Play 8...d6 instead. [%cal Re6d8] [%csl Rd8] } )
+9. f3
+9... Bd7 { Develop and connect your rooks. Plan ...Rc8 and ...Na5 to hit the b3 bishop. [%cal Ba8c8] }
+*

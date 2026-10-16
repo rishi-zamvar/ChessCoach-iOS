@@ -1,0 +1,90 @@
+[Event "All-rounder repertoire"]
+[Side "black"]
+[Style "allRounder"]
+[Name "1...d5 with the Slav"]
+[Summary "Answer 1.d4 with 1...d5, hold it with ...c6, and get your light-squared bishop out to f5 before ...e6."]
+[Result "*"]
+
+1. d4
+( 1. c4 { The English. [%dev] }
+  1... e5 { Take the centre like a reversed Sicilian. [%cal Ge7e5] }
+  2. Nc3
+  2... Nf6 { Develop. }
+  3. Nf3
+  3... Nc6 { Defend e5. }
+  4. g3
+  4... d5 { Strike the centre. [%cal Gd5c4] }
+  5. cxd5
+  5... Nxd5 { Centralise. Next ...Be7 and castle. } )
+( 1. Nf3 { [%dev] A flexible start. }
+  1... d5 { Take the centre. }
+  2. g3
+  2... Nf6 { Develop. }
+  3. Bg2
+  3... c6 { Solid: guard d5 and prepare ...Bg4 or ...Bf5. [%cal Gc6d5] }
+  4. O-O
+  4... Bg4 { Develop the bishop outside the pawn chain. Next ...e6, ...Nbd7 and ...Be7. [%cal Gg4f3] } )
+1... d5 { Put a pawn in the centre and stop e4. [%cal Rd5e4] }
+2. c4 { The Queen's Gambit. [%cal Rc4d5] }
+( 2. Bf4 { The London. [%dev] }
+  2... Nf6 { Develop. }
+  3. e3
+  3... e6 { Solid. Your dark-squared bishop is free to come to d6. [%cal Gf8d6] }
+  4. Nf3
+  4... Bd6 { Challenge the London bishop. [%cal Gd6f4] }
+  5. Bg3
+  ( 5. Bxd6 { [%dev] White trades. }
+    5... Qxd6 { Recapture; your queen controls e5. Castle next. [%cal Gd6e5] } )
+  5... O-O { Castle. }
+  6. Bd3
+  6... c5 { Hit d4 and free your game. [%cal Gc5d4] }
+  7. c3
+  7... Nc6 { Develop. A comfortable, equal position. } )
+( 2. Nf3 { [%dev] A quiet move. }
+  2... Nf6 { Develop. }
+  3. e3
+  3... Bf5 { Develop the bishop outside the pawn chain before ...e6. [%cal Gf5b1] }
+  4. Bd3
+  4... Bxd3 { Trade off White's best attacking bishop. }
+  5. Qxd3
+  5... e6 { Solid. Next ...Be7, castle and ...c5. [%cal Bc7c5] } )
+( 2. e4 { The Blackmar-Diemer Gambit. [%dev] }
+  2... dxe4 { Take the pawn. }
+  3. Nc3
+  3... Nf6 { Develop and guard e4. }
+  4. f3
+  4... exf3 { Take again and get your pieces out quickly. }
+  5. Nxf3
+  5... Bg4 { Pin the knight. Next ...e6, ...Bd6 or ...Be7, and castle. You are a pawn up. [%cal Gg4f3] } )
+2... c6 { The Slav: guard d5 with a pawn and keep the c8 bishop's diagonal open. [%cal Gc6d5,Gc8f5] }
+3. Nf3
+( 3. cxd5 { The Exchange Slav. [%dev] }
+  3... cxd5 { Recapture; the position is symmetrical and solid. }
+  4. Nc3
+  4... Nf6 { Develop. }
+  5. Bf4
+  5... Nc6 { Develop. Next ...Bf5 and ...e6. [%cal Bc8f5] } )
+( 3. Nc3 { [%dev] Another normal move. }
+  3... Nf6 { Develop. }
+  4. e3
+  4... Bf5 { Out with the bishop before ...e6. [%cal Gf5b1] }
+  5. cxd5
+  5... cxd5 { Recapture. }
+  6. Qb3
+  6... Qb6 { Guard b7 and offer a queen trade. [%cal Gb6b3] }
+  ( 6... e6? { Trap: this natural move forgets b7. [%trap b7 Queen Raid] [%cal Rb3b7] }
+    7. Qxb7 { White grabs the pawn and hits your b8 knight; the a8 rook is next. When your bishop leaves c8, always check b7. [%cal Rb7b8,Rb7a8] [%csl Rb7] } )
+  7. Qxb6
+  7... axb6 { Your rook gets the open a-file. A comfortable endgame. [%cal Ga8a2] } )
+3... Nf6 { Develop and guard d5 again. [%cal Gf6d5] }
+4. Nc3
+4... dxc4 { Take the pawn now that White's knights are committed. [%cal Gd5c4] }
+5. a4 { White stops ...b5 holding the pawn. [%cal Ra4b5] }
+5... Bf5 { Develop the bishop to its best diagonal. [%cal Gf5b1] }
+6. e3
+6... e6 { Solid; open the f8 bishop. [%cal Gf8b4] }
+7. Bxc4
+7... Bb4 { Pin the c3 knight so White cannot easily play e4. [%cal Gb4c3,Rd5e4] }
+8. O-O
+8... O-O { Castle. A sound, classical Slav position. [%csl Gg8] }
+*

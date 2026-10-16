@@ -1,0 +1,91 @@
+[Event "Positional repertoire"]
+[Side "white"]
+[Style "positional"]
+[Name "London System"]
+[Summary "Same easy setup every game: d4, Bf4, e3, Nf3, c3, Bd3 and castle, then outplay them in the middlegame."]
+[Result "*"]
+
+1. d4 { You take the centre with a pawn that is already defended by your queen. [%cal Gd4e5,Gd4c5] }
+1... d5
+( 1... Nf6 { [%dev] Black keeps options open. }
+  2. Bf4 { Same London bishop: out before e3 locks it in. [%cal Gf4c7] }
+  2... g6
+  ( 2... e6 { [%dev] A classical setup. }
+    3. e3 { Solid centre; opens your light-squared bishop. [%cal Gf1d3] }
+    3... c5
+    4. c3 { Your pawn triangle makes d4 rock solid. [%cal Gc3d4] }
+    4... Nc6
+    5. Nf3 { Develop. Then Nbd2, Bd3 and castle. [%cal Bf1d3] } )
+  3. e3 { Solid centre. }
+  3... Bg7
+  4. Nf3 { Develop. }
+  4... O-O
+  5. Be2 { Develop and get ready to castle. }
+  5... d6
+  6. h3 { Give your bishop a retreat square on h2 so it never gets swapped by ...Nh5. [%cal Gf4h2] } )
+( 1... e5 { The Englund Gambit: a pawn offer with a nasty trap behind it. [%dev] }
+  2. dxe5 { Take the pawn. }
+  2... Nc6
+  3. Nf3 { Defend the extra pawn. [%cal Gf3e5] }
+  3... Qe7 { Black attacks e5 and prepares ...Qb4+. [%cal Re7e5,Re7b4] }
+  4. Qd5 { The safe answer: guard e5 and keep b2 covered. [%cal Gd5e5] }
+  ( 4. Bf4? { The natural London move walks into the trap. [%trap Englund Gambit Trap] }
+    4... Qb4+ { Check and attack on b2. [%cal Rb4b2] }
+    5. Bd2
+    5... Qxb2
+    6. Bc3?? { Attacking the queen looks strong but loses. }
+    6... Bb4 { Pin! The queen on b2 cannot be taken safely. [%cal Rb4c3] }
+    7. Qd2
+    7... Bxc3
+    8. Qxc3
+    8... Qc1# { Checkmate. Never let the queen reach b2 with ...Qb4+; play 4.Qd5. [%csl Re1] } )
+  4... f6 { Black tries to open lines. [%cal Rf6e5] }
+  5. exf6 { Trade and stay a pawn up. }
+  5... Nxf6
+  6. Qb3 { Retreat safely. You are a clean pawn up; develop and castle. [%cal Ge1g1] } )
+( 1... f5 { The Dutch. [%dev] }
+  2. Bf4 { London bishop. }
+  2... Nf6
+  3. e3 { Solid centre. }
+  3... e6
+  4. Nf3 { Develop. }
+  4... Be7
+  5. Bd3 { Your bishop points at Black's weakened kingside. [%cal Gd3h7] } )
+( 1... c5 { [%dev] Black hits your centre at once. }
+  2. c3 { Support d4 with a pawn and keep the London shape. [%cal Gc3d4] }
+  2... d5
+  3. Bf4 { London bishop. }
+  3... Nc6
+  4. e3 { Pawn triangle: c3, d4, e3. Nf3, Bd3 and castle next. [%cal Gc3d4,Ge3d4] } )
+2. Bf4 { The London bishop gets out before e3. It controls e5 and c7. [%cal Gf4e5,Gf4c7] }
+2... Nf6
+( 2... c5 { [%dev] Black attacks d4 straight away. }
+  3. e3 { Solid; your bishop on f1 is now free. [%cal Gf1d3] }
+  3... Nc6
+  4. c3 { Pawn triangle: d4 is safe. [%cal Gc3d4] }
+  4... Qb6 { Black hits b2, left alone by your bishop. [%cal Rb6b2] [%csl Rb2] }
+  5. Qb3 { Offer a queen trade and guard b2. If Black trades, you get the a-file. [%cal Gb3b6] }
+  5... c4
+  6. Qc2 { Retreat. Black has gained space, but you have a solid centre and e4 coming. [%cal Ge3e4] } )
+3. e3 { Pawn chain toward the centre; your light-squared bishop is free. [%cal Gf1d3] }
+3... e6
+4. Nf3 { Develop and guard d4. [%cal Gf3d4] }
+4... c5 { Black challenges d4. [%cal Rc5d4] }
+( 4... Bd6 { [%dev] Black offers to trade bishops. }
+  5. Bg3 { Keep your bishop; if Black takes, your h-pawn recaptures and opens the h-file. [%cal Gh2g3] }
+  5... O-O
+  6. Bd3 { Develop. }
+  6... c5
+  7. c3 { Pawn triangle. Nbd2 and castle next. [%cal Gc3d4] } )
+5. c3 { Support d4 a second time. Your pawn triangle is the backbone of the London. [%cal Gc3d4,Ge3d4] }
+5... Nc6
+( 5... Qb6 { [%dev] The queen hits b2. [%cal Rb6b2] }
+  6. Qb3 { Guard b2 and offer a trade. [%cal Gb3b6] }
+  6... c4
+  7. Qc2 { Your queen stays on the diagonal toward h7. Nbd2, Be2 and e4 next. [%cal Gc2h7] } )
+6. Nbd2 { Develop toward e4 and f3; this knight supports a later e4 push. [%cal Gd2e4] }
+6... Bd6 { Black offers a bishop trade. [%cal Rd6f4] }
+7. Bg3 { Keep the bishop. If Black takes, hxg3 gives you an open h-file. [%cal Gh2g3] }
+7... O-O
+8. Bd3 { Your bishop aims at h7; castle next and play Ne5 or e4. [%cal Gd3h7,Gf3e5] }
+*
