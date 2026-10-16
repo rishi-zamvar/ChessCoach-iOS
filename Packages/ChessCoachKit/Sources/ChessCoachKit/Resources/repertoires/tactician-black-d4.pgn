@@ -1,0 +1,82 @@
+[Event "Tactician repertoire"]
+[Side "black"]
+[Style "tactician"]
+[Name "King's Indian Defence setup"]
+[Summary "Fianchetto, castle, then hit the centre with ...e5 and swing everything at White's king."]
+[Result "*"]
+
+1. d4
+( 1. c4 { The English. [%dev] }
+  1... Nf6 { Same setup as always. }
+  2. Nc3
+  2... g6 { Fianchetto. }
+  3. e4
+  3... d6 { Stop e5 and prepare ...e5. }
+  4. d4
+  4... Bg7 { Back in the King's Indian. Castle next, then ...e5. [%cal Be8g8,Be7e5] } )
+( 1. Nf3 { [%dev] A flexible start. }
+  1... Nf6 { Develop. }
+  2. g3
+  2... g6 { Fianchetto too. }
+  3. Bg2
+  3... Bg7 { The bishop eyes the long diagonal. }
+  4. O-O
+  4... O-O { Castle. Next ...d6 and ...e5. [%cal Be7e5] } )
+1... Nf6 { Develop and stop e4 for now. [%cal Gf6e4] }
+2. c4
+( 2. Bf4 { The London. [%dev] }
+  2... g6 { Fianchetto your bishop against the London. [%cal Gf8g7] }
+  3. e3
+  3... Bg7 { The bishop hits d4 and b2. [%cal Gg7b2] }
+  4. Nf3
+  4... O-O { Castle. }
+  5. Be2
+  5... d6 { Prepare ...c5 or ...Nbd7 and ...e5. [%cal Bc7c5,Be7e5] }
+  6. h3
+  6... c5 { Hit d4; White's queenside is now short of defenders. [%cal Gc5d4] } )
+( 2. Nf3 { [%dev] A quiet move. }
+  2... g6 { Fianchetto. }
+  3. g3
+  3... Bg7
+  4. Bg2
+  4... O-O { Castle. Next ...d6 and ...e5. [%cal Bd7d6,Be7e5] } )
+2... g6 { Prepare to fianchetto your bishop. [%cal Gf8g7] }
+3. Nc3
+( 3. g3 { [%dev] White fianchettoes too. }
+  3... Bg7 { Your bishop on the long diagonal. }
+  4. Bg2
+  4... O-O { Castle. }
+  5. Nc3
+  5... d6 { Prepare ...e5. }
+  6. Nf3
+  6... Nbd7 { Support ...e5. [%cal Gd7e5] }
+  7. O-O
+  7... e5 { Strike the centre. [%cal Ge5d4] } )
+3... Bg7 { The bishop lands on the long diagonal and protects your future castle. [%cal Gg7d4] }
+4. e4
+4... d6 { Stop e5 so White cannot kick your knight. [%cal Gd6e5] }
+5. Nf3
+( 5. f3 { The Samisch: White guards e4 and wants to attack. [%dev] }
+  5... O-O { Castle. }
+  6. Be3
+  6... e5 { Strike the centre anyway. [%cal Ge5d4] }
+  7. d5
+  7... Nh5 { Clear the f-pawn and eye f4. [%cal Gf7f5,Gh5f4] }
+  8. Qd2
+  8... f5 { Hit e4 and open the f-file for your rook. [%cal Gf5e4,Gf8f1] } )
+5... O-O { Castle before you open the centre. [%cal Gg8h8] }
+6. Be2
+6... e5 { The key break: fight for the centre with a pawn. [%cal Ge5d4] }
+7. O-O
+( 7. dxe5 { [%dev] White trades into an endgame. }
+  7... dxe5 { Recapture. }
+  8. Qxd8
+  8... Rxd8 { Take back with the rook on the open file. }
+  9. Nxe5? { White grabs a pawn, but your bishop is waiting. [%cal Re5f7] }
+  9... Nxe4 { Take e4 and unmask your bishop: now it hits both the e5 knight and c3. [%trap King's Indian Endgame Trick] [%cal Gg7c3,Gg7e5] }
+  10. Nxe4
+  10... Bxe5 { You win the pawn back and your bishop is a monster. [%cal Ge5b2] } )
+7... Nc6 { Develop and add pressure to d4. [%cal Gc6d4] }
+8. d5
+8... Ne7 { Reroute the knight toward the kingside attack. Next ...Nd7 and ...f5. [%cal Ge7g6,Gf7f5] }
+*

@@ -109,9 +109,30 @@ public struct BoardInteraction: Equatable, Sendable {
     legalTargets = []
   }
 
-  /// Moves the piece could make if it were its side's turn (premove candidates).
+  /// Premove candidates: every square the piece attacks (including squares its own
+  /// pieces stand on now, for recaptures) plus pawn pushes. Legality is checked when
+  /// the premove is played.
   static func premoveTargets(from square: Square, session: GameSession) -> [Square] {
-    guard let position = Position(fen: FENTools.passTurn(session.position.fen)) else { return [] }
-    return Board(position: position).legalMoves(forPieceAt: square)
+    let map = BoardMap(session.position)
+    guard let piece = map[square] else { return [] }
+    var targets = Set(map.attacks(of: piece))
+    if piece.kind == .pawn {
+      let dir = piece.color == .white ? 1 : -1
+      let file = square.file.number
+      let rank = square.rank.value
+      if let one = BoardMap.square(file, rank + dir) { targets.insert(one) }
+      let homeRank = piece.color == .white ? 2 : 7
+      if rank == homeRank, let two = BoardMap.square(file, rank + 2 * dir) { targets.insert(two) }
+    } else if piece.kind == .king {
+      // Castling premoves.
+      let back = piece.color == .white ? 1 : 8
+      if rank(square) == back, square.file == .e {
+        [BoardMap.square(7, back), BoardMap.square(3, back)].compactMap { $0 }.forEach { targets.insert($0) }
+      }
+    }
+    targets.remove(square)
+    return targets.sorted { $0.rawValue < $1.rawValue }
   }
+
+  private static func rank(_ square: Square) -> Int { square.rank.value }
 }

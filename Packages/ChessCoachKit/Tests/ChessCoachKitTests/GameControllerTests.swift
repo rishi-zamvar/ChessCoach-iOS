@@ -131,6 +131,16 @@ final class GameControllerTests: XCTestCase {
     XCTAssertEqual(controller.phase, .over(GameResult(winner: .black, termination: .timeout)))
   }
 
+  func test_givenClockAlreadyFlagged_whenUserMovesBeforeTick_thenGameEndsOnTime() {
+    let controller = make(bot: ScriptedBot(["e7e5"]), time: .init(base: 60, increment: 5))
+    controller.start()
+    now += 61
+    controller.tap(Square("e2"))
+    controller.tap(Square("e4"))
+    XCTAssertEqual(controller.phase, .over(GameResult(winner: .black, termination: .timeout)))
+    XCTAssertTrue(controller.session.history.isEmpty)
+  }
+
   func test_givenTimedGame_whenUserClockLow_thenLowTimeSoundOnce() {
     let controller = make(bot: ScriptedBot([]), time: .init(base: 60, increment: 0))
     controller.start()

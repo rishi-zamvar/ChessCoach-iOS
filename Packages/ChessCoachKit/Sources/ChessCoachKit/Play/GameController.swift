@@ -213,8 +213,16 @@ public final class GameController {
     }
   }
 
+  /// Ends the game if the side to move has already run out of time.
+  private func flagIfOutOfTime() -> Bool {
+    guard config.timeControl.isTimed, let flagged = clock.flagged(at: now()) else { return false }
+    session.flag(flagged)
+    finish()
+    return true
+  }
+
   private func playUserMove(from: Square, to: Square, promotion: Piece.Kind?) {
-    guard phase == .userTurn else { return }
+    guard phase == .userTurn, !flagIfOutOfTime() else { return }
     guard case .applied(let played) = session.apply(from: from, to: to, promotion: promotion) else {
       sounds.play(.illegal)
       return
@@ -283,7 +291,7 @@ public final class GameController {
   }
 
   private func applyBotMove(_ uci: String?, expectedPly: Int) {
-    guard !isOver, session.history.count == expectedPly else { return }
+    guard !isOver, session.history.count == expectedPly, !flagIfOutOfTime() else { return }
     var outcome: ApplyOutcome = .illegal
     if let uci { outcome = session.apply(uci: uci) }
     if case .applied(let played) = outcome {
@@ -321,6 +329,8 @@ public final class GameController {
     let white = userColor == .white ? userName : bot.name
     let black = userColor == .black ? userName : bot.name
     let dateFormatter = DateFormatter()
+    dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+    dateFormatter.calendar = Calendar(identifier: .gregorian)
     dateFormatter.dateFormat = "yyyy.MM.dd"
     let pgn = session.pgn(tags: [
       "Event": "ChessCoach", "Site": "ChessCoach iOS", "Date": dateFormatter.string(from: startedAt),

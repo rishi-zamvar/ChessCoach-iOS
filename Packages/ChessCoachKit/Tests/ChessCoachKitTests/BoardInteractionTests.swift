@@ -54,6 +54,16 @@ final class BoardInteractionTests: XCTestCase {
     XCTAssertEqual(interaction.premove?.from, d2)
   }
 
+  func test_givenOwnKnightThatMayBeTaken_whenPremovingPawn_thenRecaptureSquareOffered() {
+    var session = GameSession()
+    for m in ["e2e4", "e7e5", "g1f3", "d7d6", "d2d4", "c8g4"] { session.apply(uci: m) }
+    session.apply(uci: "h2h3")  // Black to move; ...Bxf3 is coming, White premoves gxf3
+    let targets = BoardInteraction.premoveTargets(from: Square("g2"), session: session)
+    XCTAssertTrue(targets.contains(Square("f3")), "\(targets)")
+    XCTAssertTrue(targets.contains(Square("g3")))
+    XCTAssertTrue(targets.contains(Square("g4")))
+  }
+
   func test_givenQueuedPremove_whenTappingAnywhereEmpty_thenPremoveCancelled() {
     var interaction = BoardInteraction()
     var session = GameSession()
