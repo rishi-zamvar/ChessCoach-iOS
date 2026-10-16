@@ -116,6 +116,8 @@ private struct ReviewContent: View {
   @Environment(AppEnvironment.self) private var env
   /// AI-rewritten explanations by ply (template text shows until one arrives).
   @State private var aiText: [Int: String] = [:]
+  @State private var askingCoach = false
+  @State private var coachArrows: [Arrow] = []
   let flipped: Bool
   let theme: BoardTheme
   let pieceSet: PieceSetID
@@ -132,7 +134,11 @@ private struct ReviewContent: View {
         BoardView(
           position: Position(fen: controller.displayedFEN) ?? .standard,
           highlights: controller.highlights,
-          annotations: controller.annotations,
+          annotations: {
+            var layer = controller.annotations
+            layer.arrows += coachArrows
+            return layer
+          }(),
           theme: theme,
           pieceSet: pieceSet,
           flipped: flipped,
@@ -168,7 +174,18 @@ private struct ReviewContent: View {
       }
       controls
     }
-    .task(id: controller.ply) { await loadAIExplanation() }
+    .task(id: controller.ply) {
+      coachArrows = []
+      await loadAIExplanation()
+    }
+    .sheet(isPresented: $askingCoach) {
+      AskCoachSheet(
+        fen: controller.displayedFEN,
+        history: controller.analysis.moves.prefix(controller.ply).map(\.san),
+        suggestions: ["Why was this move bad?", "What was the better plan?", "What should I have noticed?"]
+      ) { coachArrows = $0 }
+      .presentationDetents([.medium, .large])
+    }
   }
 
   @State private var dragFrom: Square?
@@ -199,6 +216,11 @@ private struct ReviewContent: View {
   @ViewBuilder
   private var controls: some View {
     HStack(spacing: Spacing.s) {
+      if controller.retryState == nil {
+        ControlButton(title: "", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
+          .frame(maxWidth: 56)
+          .accessibilityIdentifier("review-ask")
+      }
       if let retry = controller.retryState {
         ControlButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endRetry() }
         if !retry.solved && !retry.revealed {

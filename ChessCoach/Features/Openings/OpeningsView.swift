@@ -100,6 +100,8 @@ struct OpeningTrainerView: View {
   @State private var correct = 0
   @State private var misses = 0
   @State private var finishedLine = false
+  @State private var askingCoach = false
+  @State private var coachArrows: [Arrow] = []
 
   var body: some View {
     VStack(spacing: 0) {
@@ -127,6 +129,14 @@ struct OpeningTrainerView: View {
     .background(ChessChrome.background.ignoresSafeArea())
     .preferredColorScheme(.dark)
     .onAppear { startLine() }
+    .onChange(of: game.history.count) { _, _ in coachArrows = [] }
+    .sheet(isPresented: $askingCoach) {
+      AskCoachSheet(
+        fen: game.position.fen, history: game.history.map(\.san),
+        suggestions: ["Why is this move good?", "What if they play something else?", "What's the trap here?"]
+      ) { coachArrows = $0 }
+      .presentationDetents([.medium, .large])
+    }
   }
 
   // MARK: - UI
@@ -185,6 +195,8 @@ struct OpeningTrainerView: View {
       } else if isUserTurn {
         PuzzleButton(title: showAnswer ? "Hide" : "Show move", systemImage: "eye") { showAnswer.toggle() }
       }
+      PuzzleButton(title: "Ask", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
+        .frame(maxWidth: 110)
     }
     .padding(Spacing.m)
     .background(ChessChrome.bar)
@@ -196,6 +208,7 @@ struct OpeningTrainerView: View {
       layer.arrows = node.arrows
       layer.circles = node.highlights
     }
+    layer.arrows += coachArrows
     if isUserTurn, mode == .learn || showAnswer {
       for option in options where mode == .drill || option.id == learnTarget?.id {
         if let m = UCIMove(option.uci) { layer.arrows.append(Arrow(from: m.from, to: m.to, color: .blue)) }
