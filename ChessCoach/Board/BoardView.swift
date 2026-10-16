@@ -22,6 +22,8 @@ struct BoardView: View {
   var onDragEnded: (Square?) -> Void = { _ in }
   var onDragCancelled: () -> Void = {}
   var onArrow: (Square, Square) -> Void = { _, _ in }
+  /// Small round badge at a square's top-right corner (move classification).
+  var badge: SquareBadge? = nil
 
   @State private var identified: [IdentifiedPiece] = []
   @State private var nextID = 0
@@ -43,6 +45,7 @@ struct BoardView: View {
         targetsLayer(geo)
         piecesLayer(geo)
         annotationLayer(geo)
+        badgeLayer(geo)
         draggedPieceLayer(geo)
       }
       .frame(width: side, height: side)
@@ -174,6 +177,25 @@ struct BoardView: View {
   }
 
   @ViewBuilder
+  private func badgeLayer(_ geo: BoardGeometry) -> some View {
+    if let badge {
+      let origin = geo.origin(of: badge.square)
+      let size = geo.squareSize * 0.42
+      Text(badge.text)
+        .font(.system(size: size * 0.5, weight: .heavy, design: .rounded))
+        .minimumScaleFactor(0.5)
+        .foregroundStyle(.white)
+        .frame(width: size, height: size)
+        .background(Circle().fill(badge.color))
+        .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 1.5))
+        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+        .position(x: origin.x + geo.squareSize - size * 0.25, y: origin.y + size * 0.25)
+        .allowsHitTesting(false)
+        .transition(.scale.combined(with: .opacity))
+    }
+  }
+
+  @ViewBuilder
   private func draggedPieceLayer(_ geo: BoardGeometry) -> some View {
     if gesture.mode == .dragPiece, let start = gesture.start, let piece = position.piece(at: start) {
       Image(pieceSet.assetName(color: piece.color, kind: piece.kind))
@@ -226,6 +248,12 @@ struct BoardView: View {
     identified = PieceIdentity.reconcile(previous: identified, next: position.pieces, nextID: &id)
     nextID = id
   }
+}
+
+struct SquareBadge: Equatable {
+  var square: Square
+  var text: String
+  var color: Color
 }
 
 extension AnnotationColor {

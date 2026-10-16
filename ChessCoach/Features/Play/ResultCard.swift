@@ -7,6 +7,7 @@ struct ResultCard: View {
   let result: GameResult
   let userColor: Piece.Color
   let opponentName: String
+  let onReview: () -> Void
   let onNewGame: () -> Void
   let onDone: () -> Void
 
@@ -36,12 +37,20 @@ struct ResultCard: View {
             .foregroundStyle(ChessChrome.textSecondary)
         }
         VStack(spacing: Spacing.s) {
-          Button(action: onNewGame) {
-            Text("New Game")
+          Button(action: onReview) {
+            Label("Game Review", systemImage: "sparkle.magnifyingglass")
               .font(.system(size: 17, weight: .bold, design: .rounded))
               .frame(maxWidth: .infinity, minHeight: 50)
               .foregroundStyle(.white)
               .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.accentGreen))
+          }
+          .accessibilityIdentifier("result-review")
+          Button(action: onNewGame) {
+            Text("New Game")
+              .font(.system(size: 16, weight: .semibold, design: .rounded))
+              .frame(maxWidth: .infinity, minHeight: 46)
+              .foregroundStyle(ChessChrome.textPrimary)
+              .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
           }
           .accessibilityIdentifier("result-new-game")
           Button(action: onDone) {
@@ -51,10 +60,6 @@ struct ResultCard: View {
               .foregroundStyle(ChessChrome.textPrimary)
               .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
           }
-          Text("Game Review arrives with Analysis (M2). The game is saved under Analyze.")
-            .font(.system(size: 12, design: .rounded))
-            .foregroundStyle(ChessChrome.textSecondary.opacity(0.8))
-            .multilineTextAlignment(.center)
         }
       }
       .padding(Spacing.xl)

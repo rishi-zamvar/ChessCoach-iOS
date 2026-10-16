@@ -3,7 +3,9 @@ import SwiftUI
 
 struct TodayView: View {
   @Environment(AppEnvironment.self) private var env
+  @Environment(AnalysisService.self) private var analysis
   @State private var recent: [GameRecord] = []
+  @State private var topMistake: MistakePattern?
 
   var body: some View {
     ZStack {
@@ -22,6 +24,20 @@ struct TodayView: View {
               .font(Typography.body)
               .foregroundStyle(Palette.textMuted)
               .padding(.top, Spacing.s)
+          }
+
+          if let topMistake {
+            Card {
+              Eyebrow(text: "Your top mistake")
+              Text(topMistake.title)
+                .font(Typography.titleSmall)
+                .foregroundStyle(Palette.ink)
+                .padding(.top, Spacing.s)
+              Text("\(topMistake.count) times in your last games. Drills arrive in M3.")
+                .font(Typography.callout)
+                .foregroundStyle(Palette.textSecondary)
+                .padding(.top, Spacing.xs)
+            }
           }
 
           Card {
@@ -68,6 +84,9 @@ struct TodayView: View {
         .padding(.vertical, Spacing.xxl)
       }
     }
-    .onAppear { recent = (try? env.gameStore.recent(limit: 3)) ?? [] }
+    .task(id: analysis.revision) {
+      recent = (try? env.gameStore.recent(limit: 3)) ?? []
+      topMistake = analysis.recurringPatterns().first
+    }
   }
 }

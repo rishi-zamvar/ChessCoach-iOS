@@ -14,6 +14,8 @@ struct GameScreen: View {
   @State private var confirmResign = false
   @State private var drawDeclined = false
   @State private var resultDismissed = false
+  @State private var reviewGame: GameRecord?
+  @Environment(AppEnvironment.self) private var env
 
   private var theme: BoardTheme { BoardTheme.named(themeID) }
   private var pieceSet: PieceSetID { PieceSetID(rawValue: pieceSetRaw) ?? .default }
@@ -49,6 +51,7 @@ struct GameScreen: View {
       if let result = game.result, !resultDismissed {
         ResultCard(
           result: result, userColor: game.userColor, opponentName: game.bot.name,
+          onReview: { reviewGame = try? env.gameStore.game(id: game.gameID.uuidString) },
           onNewGame: onClose, onDone: { resultDismissed = true })
         .transition(.scale(scale: 0.9).combined(with: .opacity))
       }
@@ -63,6 +66,9 @@ struct GameScreen: View {
       Button("OK", role: .cancel) {}
     } message: {
       Text("\(game.bot.name) wants to play on.")
+    }
+    .fullScreenCover(item: $reviewGame) { record in
+      ReviewScreen(game: record)
     }
     .sheet(isPresented: $showOptions) {
       BoardOptionsSheet(themeID: $themeID, pieceSetRaw: $pieceSetRaw, showCoordinates: $showCoordinates)

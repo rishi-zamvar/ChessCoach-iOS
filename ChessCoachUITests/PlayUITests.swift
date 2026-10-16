@@ -40,6 +40,14 @@ final class PlayUITests: XCTestCase {
     app.buttons["confirm-resign"].firstMatch.tap()
     XCTAssertTrue(app.staticTexts["result-title"].waitForExistence(timeout: 5))
     snapshot(app, "06-result")
+
+    app.buttons["result-review"].tap()
+    let start = app.buttons["review-start"]
+    XCTAssertTrue(start.waitForExistence(timeout: 60), "analysis never finished")
+    snapshot(app, "07-review-summary")
+    start.tap()
+    XCTAssertTrue(app.staticTexts["coach-text"].waitForExistence(timeout: 5))
+    snapshot(app, "08-review-moment")
   }
 
   private func tap(_ board: XCUIElement, column: Int, row: Int) {

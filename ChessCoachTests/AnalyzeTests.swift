@@ -42,4 +42,16 @@ final class AnalyzeTests: XCTestCase {
     XCTAssertEqual(GameOutcome(userColor: "white", result: "1/2-1/2"), .draw)
     XCTAssertEqual(GameOutcome(userColor: "black", result: "1/2-1/2"), .draw)
   }
+
+  func test_givenMixedSources_whenFiltering_thenOnlyMatchingGames() {
+    func game(_ id: String, _ source: GameRecord.Source) -> GameRecord {
+      GameRecord(
+        id: id, source: source, pgn: "", white: "a", black: "b", userColor: "white", result: "1-0",
+        termination: "", timeControl: "", opponentKind: "", startedAt: .now, endedAt: .now)
+    }
+    let games = [game("1", .local), game("2", .chesscom), game("3", .local)]
+    XCTAssertEqual(GameFilter.all.apply(games).map(\.id), ["1", "2", "3"])
+    XCTAssertEqual(GameFilter.chesscom.apply(games).map(\.id), ["2"])
+    XCTAssertEqual(GameFilter.local.apply(games).map(\.id), ["1", "3"])
+  }
 }

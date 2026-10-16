@@ -9,6 +9,8 @@ import SwiftUI
 final class AppEnvironment {
   let database: AppDatabase
   let gameStore: GameStore
+  let analysisStore: AnalysisStore
+  let positionCache: PositionCache
   let telemetry: Telemetry
   let databaseSink: DatabaseSink
   let engineHost: EngineHost?
@@ -24,6 +26,8 @@ final class AppEnvironment {
     }
     self.database = database
     gameStore = GameStore(database: database)
+    analysisStore = AnalysisStore(database: database)
+    positionCache = PositionCache(database: database)
     databaseSink = DatabaseSink(database: database)
     telemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
     let engineTelemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
