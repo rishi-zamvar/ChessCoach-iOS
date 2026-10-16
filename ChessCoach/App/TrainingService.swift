@@ -110,9 +110,16 @@ final class TrainingService {
 
   // MARK: - Onboarding
 
+  /// Retake onboarding (Settings).
+  func resetProfile() {
+    try? store.clearProfile()
+    env.telemetry.event("onboarding.reset")
+    refresh()
+  }
+
   func completeOnboarding(_ profile: LearnerProfile) {
     try? store.saveProfile(profile)
-    try? store.seedRatings(at: profile.placementRating)
+    try? store.seedRatings(at: profile.placementRating)  // only seeds skills that have no rating yet
     env.telemetry.event("onboarding.complete", metadata: ["style": .string(profile.style.rawValue), "rating": .int(profile.placementRating)])
     refresh()
   }

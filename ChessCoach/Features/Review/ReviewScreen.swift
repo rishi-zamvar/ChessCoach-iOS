@@ -192,6 +192,21 @@ private struct ReviewContent: View {
             FollowUpRow(line: controller.followUpLine)
           }
           ReviewMoveList(moves: controller.analysis.moves, current: controller.ply) { controller.goTo(ply: $0) }
+          if let note = repertoireNote {
+            HStack(alignment: .top, spacing: Spacing.s) {
+              Image(systemName: "book.closed").foregroundStyle(MoveClass.book.color)
+              Text(note.text).font(.system(size: 14, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+              Spacer(minLength: 0)
+              if let ply = note.ply {
+                Button("Show") { controller.goTo(ply: ply) }
+                  .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.accentGreen)
+              }
+            }
+            .padding(Spacing.m)
+            .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.bar))
+            .accessibilityIdentifier("repertoire-note")
+          }
           SummaryCard(analysis: controller.analysis)
         }
         .padding(Spacing.m)
@@ -213,6 +228,29 @@ private struct ReviewContent: View {
   }
 
   @State private var dragFrom: Square?
+  @Environment(TrainingService.self) private var training
+
+  /// Where this game left the learner's style repertoire (or the opponent left the book).
+  private var repertoireNote: (text: String, ply: Int?)? {
+    let analysis = controller.analysis
+    let userColor: Piece.Color = analysis.userColor == "white" ? .white : .black
+    let style = training.profile?.style.rawValue ?? "allRounder"
+    let first = analysis.moves.first?.uci ?? ""
+    let file: String =
+      userColor == .white ? "\(style)-white" : (first == "e2e4" ? "\(style)-black-e4" : "\(style)-black-d4")
+    guard let rep = RepertoireLibrary.forStyle(style).first(where: { $0.fileName == file }),
+      let departure = rep.departure(gameMoves: analysis.moves.map(\.uci), userColor: userColor)
+    else { return nil }
+    let moveNumber = { (ply: Int) in "move \((ply + 1) / 2)" }
+    switch departure {
+    case .userLeft(let ply, let played, let expected):
+      return ("You left your \(rep.name) at \(moveNumber(ply)): you played \(played), your line is \(expected.joined(separator: " or ")).", ply)
+    case .opponentLeft(let ply, let played):
+      return ("Your opponent left your repertoire at \(moveNumber(ply)) with \(played) — worth learning a reply.", ply)
+    case .followedToEnd(let ply):
+      return ("You followed your \(rep.name) for \((ply + 1) / 2) moves. Nice.", nil)
+    }
+  }
 
   private var bubbleText: String {
     if controller.retryState == nil, let ai = aiText[controller.ply] { return ai }
