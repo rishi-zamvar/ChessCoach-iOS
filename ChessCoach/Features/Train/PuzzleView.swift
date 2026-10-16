@@ -31,6 +31,7 @@ struct PuzzleView: View {
   @State private var started = Date()
   @State private var change: TrainingService.RatingChange?
   @State private var recorded = false
+  @State private var ready = false
 
   enum Feedback: Equatable {
     case prompt, correct, wrong(String), solved, revealed
@@ -48,7 +49,7 @@ struct PuzzleView: View {
             theme: BoardTheme.named(themeID),
             pieceSet: PieceSetID(rawValue: pieceSetRaw) ?? .default,
             flipped: session.userColor == .black,
-            interactive: feedback != .solved && feedback != .revealed,
+            interactive: ready && feedback != .solved && feedback != .revealed,
             onTap: tap,
             onDragBegan: { square in
               guard let s = self.session else { return false }
@@ -165,8 +166,8 @@ struct PuzzleView: View {
   // MARK: - Flow
 
   private func start() async {
-    var s = PuzzleSession(puzzle: puzzle, hasSetupMove: hasSetupMove)
-    session = s
+    session = PuzzleSession(puzzle: puzzle, hasSetupMove: hasSetupMove)
+    ready = !hasSetupMove
     feedback = .prompt
     hintText = nil
     annotations = AnnotationLayer()
@@ -175,10 +176,12 @@ struct PuzzleView: View {
     recorded = false
     if hasSetupMove {
       try? await Task.sleep(for: .milliseconds(450))
-      if let setup = s.playSetup() {
+      // Mutate the live session (a hint tapped during the delay must not be lost).
+      if var s = session, let setup = s.playSetup() {
         session = s
         playSound(for: setup, in: s)
       }
+      ready = true
     }
     started = Date()
   }
@@ -228,7 +231,7 @@ struct PuzzleView: View {
   }
 
   private func hint() {
-    guard var s = session, let h = s.nextHint() else { return }
+    guard ready, var s = session, let h = s.nextHint() else { return }
     session = s
     switch h {
     case .theme(let name): hintText = "Hint: look for a \(name.lowercased())."

@@ -19,6 +19,23 @@ struct ReviewScreen: View {
     VStack(spacing: 0) {
       header
       if let controller {
+        if analysisService.progress?.gameID == game.id {
+          ProgressView(value: analysisService.progress?.fraction ?? 0) {
+            Text("Deep analysis on your home PC…").font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+          }
+          .tint(ChessChrome.accentGreen)
+          .padding(.horizontal, Spacing.m)
+        } else if env.server.isOnline, !controller.analysis.engine.contains("pc") {
+          Button {
+            Task { await deepen() }
+          } label: {
+            Label("Deeper analysis on your home PC", systemImage: "desktopcomputer")
+              .font(.system(size: 13, weight: .semibold, design: .rounded))
+              .foregroundStyle(ChessChrome.accentGreen)
+          }
+          .padding(.top, Spacing.xs)
+          .accessibilityIdentifier("review-deep")
+        }
         ReviewContent(
           controller: controller, flipped: flipped, theme: BoardTheme.named(themeID),
           pieceSet: PieceSetID(rawValue: pieceSetRaw) ?? .default)
@@ -51,6 +68,13 @@ struct ReviewScreen: View {
     .foregroundStyle(ChessChrome.textSecondary)
     .padding(.horizontal, Spacing.s)
     .background(ChessChrome.bar)
+  }
+
+  private func deepen() async {
+    guard let session = GameSession(pgn: game.pgn) else { return }
+    if let deep = try? await analysisService.deepAnalyze(game) {
+      controller = ReviewController(analysis: deep, session: session, telemetry: env.telemetry)
+    }
   }
 
   private func load() async {
@@ -113,13 +137,18 @@ private struct AnalyzingView: View {
 /// The loaded review.
 private struct ReviewContent: View {
   @Bindable var controller: ReviewController
+  @Environment(AppEnvironment.self) private var env
+  /// AI-rewritten explanations by ply (template text shows until one arrives).
+  @State private var aiText: [Int: String] = [:]
+  @State private var askingCoach = false
+  @State private var coachArrows: [Arrow] = []
   let flipped: Bool
   let theme: BoardTheme
   let pieceSet: PieceSetID
 
   var body: some View {
     VStack(spacing: 0) {
-      CoachBubble(text: controller.coachText, move: controller.retryState == nil ? controller.currentMove : nil)
+      CoachBubble(text: bubbleText, move: controller.retryState == nil ? controller.currentMove : nil)
         .padding(.horizontal, Spacing.m)
         .padding(.vertical, Spacing.s)
         .animation(.easeOut(duration: 0.2), value: controller.coachText)
@@ -129,7 +158,11 @@ private struct ReviewContent: View {
         BoardView(
           position: Position(fen: controller.displayedFEN) ?? .standard,
           highlights: controller.highlights,
-          annotations: controller.annotations,
+          annotations: {
+            var layer = controller.annotations
+            layer.arrows += coachArrows
+            return layer
+          }(),
           theme: theme,
           pieceSet: pieceSet,
           flipped: flipped,
@@ -165,9 +198,37 @@ private struct ReviewContent: View {
       }
       controls
     }
+    .task(id: controller.ply) {
+      coachArrows = []
+      await loadAIExplanation()
+    }
+    .sheet(isPresented: $askingCoach) {
+      AskCoachSheet(
+        fen: controller.displayedFEN,
+        history: controller.analysis.moves.prefix(controller.ply).map(\.san),
+        suggestions: ["Why was this move bad?", "What was the better plan?", "What should I have noticed?"]
+      ) { coachArrows = $0 }
+      .presentationDetents([.medium, .large])
+    }
   }
 
   @State private var dragFrom: Square?
+
+  private var bubbleText: String {
+    if controller.retryState == nil, let ai = aiText[controller.ply] { return ai }
+    return controller.coachText
+  }
+
+  /// Ask the AI to rewrite the current move's explanation (critical moves only; cached).
+  private func loadAIExplanation() async {
+    let ply = controller.ply
+    guard aiText[ply] == nil, let move = controller.currentMove, move.label.isCritical || move.label.isError,
+      let facts = move.facts
+    else { return }
+    let result = await env.aiExplainer.explain(
+      sheet: facts, label: move.label, isUser: move.color == controller.analysis.userColor, template: move.explanation)
+    if result.origin != .template { aiText[ply] = result.text }
+  }
 
   private var displayedPly: Int { controller.retryState.map { $0.ply - 1 } ?? controller.ply }
 
@@ -179,6 +240,11 @@ private struct ReviewContent: View {
   @ViewBuilder
   private var controls: some View {
     HStack(spacing: Spacing.s) {
+      if controller.retryState == nil {
+        ControlButton(title: "", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
+          .frame(maxWidth: 56)
+          .accessibilityIdentifier("review-ask")
+      }
       if let retry = controller.retryState {
         ControlButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endRetry() }
         if !retry.solved && !retry.revealed {

@@ -60,6 +60,14 @@ public struct PlanItem: Equatable, Sendable, Identifiable {
   /// Why it's in today's plan (always shown).
   public var reason: String
   public var minutes: Double
+
+  public init(id: String, title: String, kind: Kind, reason: String, minutes: Double) {
+    self.id = id
+    self.title = title
+    self.kind = kind
+    self.reason = reason
+    self.minutes = minutes
+  }
 }
 
 /// Everything the planner needs to know about the learner.

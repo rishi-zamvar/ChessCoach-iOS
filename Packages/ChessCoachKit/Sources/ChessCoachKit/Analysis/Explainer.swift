@@ -121,7 +121,7 @@ public enum Explainer {
     }
   }
 
-  static func squareSuffix(_ token: String) -> String? {
+  public static func squareSuffix(_ token: String) -> String? {
     let stripped = token.replacingOccurrences(of: #"[+#]|=[QRBN]"#, with: "", options: .regularExpression)
     guard stripped.count >= 2 else { return nil }
     return String(stripped.suffix(2))

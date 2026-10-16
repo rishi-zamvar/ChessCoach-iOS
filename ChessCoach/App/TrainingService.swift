@@ -75,7 +75,28 @@ final class TrainingService {
       masteredLessons: Set(lessonProgress.values.filter(\.passed).map(\.lessonID)), dueReviews: due.count,
       ownMistakesAvailable: due.filter { $0.kind == .mistake }.count, weakness: weakness,
       yesterdayFocus: UserDefaults.standard.string(forKey: "plan.yesterdayFocus"), lessonForSkill: lessonForSkill)
-    plan = planner.plan(for: state, now: now)
+    // The plan is fixed for the day (built once); finishing blocks doesn't reshuffle it.
+    let built = planner.plan(for: state, now: now)
+    let dayKey = Self.completedKey(for: now).replacingOccurrences(of: "completed", with: "ids")
+    if let ids = UserDefaults.standard.stringArray(forKey: dayKey), !ids.isEmpty {
+      let byID = Dictionary(built.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+      let stored = UserDefaults.standard.data(forKey: dayKey + ".items").flatMap { try? JSONDecoder().decode([StoredPlanItem].self, from: $0) } ?? []
+      plan = ids.compactMap { id in byID[id] ?? stored.first { $0.id == id }?.item }
+    } else {
+      plan = built
+      UserDefaults.standard.set(built.map(\.id), forKey: dayKey)
+      if let data = try? JSONEncoder().encode(built.map(StoredPlanItem.init)) { UserDefaults.standard.set(data, forKey: dayKey + ".items") }
+      UserDefaults.standard.set(UserDefaults.standard.string(forKey: "plan.todayFocus"), forKey: "plan.yesterdayFocus")
+      UserDefaults.standard.set(built.first { $0.id.hasPrefix("focus-") }.map { String($0.id.dropFirst(6)) }, forKey: "plan.todayFocus")
+    }
+    let rating = globalRating
+    let style = profile?.style.title ?? "All-rounder"
+    let focus = planner.priorities(state, now: now).prefix(3).compactMap { p in
+      SkillCatalog.skill(p.skillID).map { skill in
+        "\(skill.name)\(weakness.evidence[skill.id].map { " (missed \($0)× in recent games)" } ?? "")"
+      }
+    }.joined(separator: ", ")
+    env.learnerBrief = { "Puzzle rating about \(rating), chess.com rapid ~300, style \(style). Working on: \(focus)." }
     env.telemetry.event(
       "training.plan",
       metadata: ["items": .int(plan.count), "due": .int(due.count), "rating": .int(globalRating),
@@ -183,7 +204,7 @@ final class TrainingService {
   }
 
   func recordLesson(_ lesson: Lesson, score: Int, of total: Int) {
-    let passed = score >= lesson.mastery.required * total / max(1, lesson.mastery.of)
+    let passed = lesson.isPassed(score: score, total: total)
     try? store.recordLesson(lesson.id, score: score, passed: passed, now: Date())
     lessonProgress = (try? store.lessonProgress()) ?? lessonProgress
     env.telemetry.event("training.lesson", metadata: ["id": .string(lesson.id), "score": .int(score), "passed": .bool(passed)])
@@ -205,9 +226,6 @@ final class TrainingService {
   func markDone(_ item: PlanItem, now: Date = Date()) {
     completedToday.insert(item.id)
     UserDefaults.standard.set(Array(completedToday), forKey: Self.completedKey(for: now))
-    if item.id.hasPrefix("focus-") {
-      UserDefaults.standard.set(String(item.id.dropFirst("focus-".count)), forKey: "plan.yesterdayFocus")
-    }
     revision += 1
   }
 
@@ -219,5 +237,48 @@ final class TrainingService {
 
   private static func loadCompleted(for date: Date) -> Set<String> {
     Set(UserDefaults.standard.stringArray(forKey: completedKey(for: date)) ?? [])
+  }
+}
+
+/// A plan block persisted for the day (so it can be shown even if today's rebuild differs).
+private struct StoredPlanItem: Codable {
+  var id: String
+  var title: String
+  var reason: String
+  var minutes: Double
+  var kind: String
+  var a: String
+  var n: Int
+  var r: Int
+
+  init(_ item: PlanItem) {
+    id = item.id
+    title = item.title
+    reason = item.reason
+    minutes = item.minutes
+    switch item.kind {
+    case .drill(let d, let c): (kind, a, n, r) = ("drill", d.rawValue, c, 0)
+    case .speed(let c, let rating): (kind, a, n, r) = ("speed", "", c, rating)
+    case .reviews(let c): (kind, a, n, r) = ("reviews", "", c, 0)
+    case .lesson(let id): (kind, a, n, r) = ("lesson", id, 0, 0)
+    case .themed(let s, let c, let rating): (kind, a, n, r) = ("themed", s, c, rating)
+    case .mixed(let ss, let c, let rating): (kind, a, n, r) = ("mixed", ss.joined(separator: ","), c, rating)
+    case .ownMistakes(let c): (kind, a, n, r) = ("own", "", c, 0)
+    }
+  }
+
+  var item: PlanItem? {
+    let k: PlanItem.Kind
+    switch kind {
+    case "drill": guard let d = DrillKind(rawValue: a) else { return nil }; k = .drill(d, count: n)
+    case "speed": k = .speed(count: n, rating: r)
+    case "reviews": k = .reviews(count: n)
+    case "lesson": k = .lesson(id: a)
+    case "themed": k = .themed(skillID: a, count: n, rating: r)
+    case "mixed": k = .mixed(skillIDs: a.split(separator: ",").map(String.init), count: n, rating: r)
+    case "own": k = .ownMistakes(count: n)
+    default: return nil
+    }
+    return PlanItem(id: id, title: title, kind: k, reason: reason, minutes: minutes)
   }
 }

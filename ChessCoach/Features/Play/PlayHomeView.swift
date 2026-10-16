@@ -26,6 +26,18 @@ struct PlayHomeView: View {
           SectionHeader(title: "Opponent")
           VStack(spacing: Spacing.m) {
             OpponentCard(
+              title: "Coach bot",
+              subtitle: env.ai.isAvailable
+                ? "Plays at your level and sets up the patterns you're learning."
+                : "Plays at your level. (AI teaching moves turn on once your home PC shares the key.)",
+              systemImage: "sparkles", selected: opponent == .teaching
+            ) {
+              opponent = .teaching
+            } accessory: {
+              EmptyView()
+            }
+            .accessibilityIdentifier("opponent-teaching")
+            OpponentCard(
               title: "Maia 1100", subtitle: "Plays like a real 1100 — human mistakes and all.",
               systemImage: "person.fill", selected: opponent == .maia(rating: 1100)
             ) {
