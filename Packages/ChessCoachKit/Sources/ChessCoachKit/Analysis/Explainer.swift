@@ -176,6 +176,6 @@ extension Explainer {
       return "\(san) develops the \(FactExtractor.name(of: kind))."
     }
     if kind == .pawn, ["d4", "e4", "d5", "e5", "c4", "c5"].contains(to) { return "\(san) claims the centre." }
-    return "\(san) improves the position."
+    return "\(san) is a quiet move."
   }
 }

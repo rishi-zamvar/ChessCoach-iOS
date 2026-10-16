@@ -34,7 +34,7 @@ final class TrainUITests: XCTestCase {
       XCTAssertTrue(next.waitForExistence(timeout: 3))
       if i == 0 {
         // The revealed solution steps forward one move at a time, each with a reason.
-        let caption = app.staticTexts["move-caption"]
+        let caption = app.descendants(matching: .any)["move-caption"]
         let before = caption.label
         app.buttons["step-forward"].tap()
         XCTAssertNotEqual(caption.label, before)

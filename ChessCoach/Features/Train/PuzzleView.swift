@@ -168,13 +168,17 @@ struct PuzzleView: View {
     HStack(spacing: Spacing.s) {
       StepButton(systemImage: "chevron.left", enabled: viewPly > firstPly) { step(-1) }
         .accessibilityIdentifier("step-back")
-      Text(caption)
-        .font(.system(size: 14, weight: .medium, design: .rounded))
-        .foregroundStyle(ChessChrome.textPrimary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .lineLimit(2).minimumScaleFactor(0.85)
-        .accessibilityIdentifier("move-caption")
-        .animation(nil, value: viewPly)
+      Group {
+        if let note = captionNote {
+          MoveNote(who: note.who, isYou: note.isYou, san: note.san, text: note.text, compact: true)
+        } else {
+          Color.clear.frame(height: 1)
+        }
+      }
+      .frame(maxWidth: .infinity)
+      .accessibilityElement(children: .combine)
+      .accessibilityIdentifier("move-caption")
+      .accessibilityLabel(caption)
       StepButton(systemImage: "chevron.right", enabled: viewPly < shownGame.history.count) { step(1) }
         .accessibilityIdentifier("step-forward")
     }
@@ -227,6 +231,15 @@ struct PuzzleView: View {
     let who = session.map { played.color == $0.userColor } == true ? "You" : (played.color == .white ? "White" : "Black")
     let why = Explainer.reason(fen: shownGame.fen(atPly: viewPly - 1), uci: played.uci) ?? played.san
     return "\(who): \(why)"
+  }
+
+  private var captionNote: (who: String, isYou: Bool, san: String, text: String)? {
+    let history = shownGame.history
+    guard viewPly > 0, viewPly <= history.count, let s = session else { return nil }
+    let played = history[viewPly - 1]
+    let isYou = played.color == s.userColor
+    let why = Explainer.reason(fen: shownGame.fen(atPly: viewPly - 1), uci: played.uci) ?? played.san
+    return (isYou ? "You" : (played.color == .white ? "White" : "Black"), isYou, played.san, why)
   }
 
   private func step(_ delta: Int) {

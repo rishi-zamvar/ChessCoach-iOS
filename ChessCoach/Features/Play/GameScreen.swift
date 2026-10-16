@@ -30,10 +30,11 @@ struct GameScreen: View {
         MoveStrip(history: game.session.history, currentPly: game.viewPly) { game.jump(toPly: $0) }
         moveCaption
         if let line = game.coachLine {
-          CoachBanner(text: line.text, systemImage: "person.wave.2.fill", tint: ChessChrome.accentGreen)
+          CoachLineBubble(
+            text: line.text, speaking: CoachSpeaker.shared.isSpeaking,
+            onReplay: CoachMode.current == .voice ? { CoachSpeaker.shared.say(line.text) } : nil)
             .id(line.id)
             .transition(.move(edge: .top).combined(with: .opacity))
-            .onTapGesture { if CoachMode.current == .voice { CoachSpeaker.shared.say(line.text) } }
         } else if let nudge = game.nudge {
           CoachBanner(text: nudge, systemImage: "exclamationmark.bubble.fill", tint: MoveClass.inaccuracy.color)
         } else if let hint = game.hintText {
@@ -120,16 +121,14 @@ struct GameScreen: View {
     if game.viewPly > 0, game.viewPly <= history.count {
       let played = history[game.viewPly - 1]
       let who = played.color == game.userColor ? "You" : game.bot.name
-      let why = played.color == game.userColor ? nil : game.botReasons[game.viewPly]
-        .map { "\(played.san). \($0)" }
+      let isYou = played.color == game.userColor
+      let why = isYou ? nil : game.botReasons[game.viewPly]
       let facts = Explainer.reason(fen: game.session.fen(atPly: game.viewPly - 1), uci: played.uci) ?? played.san
-      Text("\(who): \(why ?? facts)")
-        .font(.system(size: 13, weight: .medium, design: .rounded))
-        .foregroundStyle(ChessChrome.textSecondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
+      MoveNote(who: who, isYou: isYou, san: played.san, text: why ?? facts, compact: true)
         .padding(.horizontal, Spacing.m)
         .padding(.top, Spacing.xs)
-        .lineLimit(2)
+        .id(game.viewPly)
+        .transition(.opacity)
         .accessibilityIdentifier("game-move-caption")
     }
   }
@@ -202,6 +201,13 @@ struct GameScreen: View {
         }
         ToolbarButton(title: "Resign", systemImage: "flag") { confirmResign = true }
           .accessibilityIdentifier("toolbar-resign")
+      }
+      if !game.config.timeControl.isTimed, !game.isOver {
+        ToolbarButton(title: "Undo", systemImage: "arrow.uturn.backward", enabled: game.canUndo) {
+          Haptics.medium()
+          withAnimation(.easeOut(duration: 0.2)) { game.undoMove() }
+        }
+        .accessibilityIdentifier("toolbar-undo")
       }
       ToolbarButton(title: "Back", systemImage: "chevron.left", enabled: game.viewPly > 0) { game.stepBack() }
       ToolbarButton(title: "Forward", systemImage: "chevron.right", enabled: !game.isViewingLatest) { game.stepForward() }

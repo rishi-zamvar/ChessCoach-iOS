@@ -31,7 +31,7 @@ final class MoveReasonTests: XCTestCase {
 
   func test_givenQuietMove_whenReasoned_thenFallsBackToPlainSentence() {
     let text = Explainer.reason(fen: "4k3/8/8/8/8/8/P7/4K3 w - - 0 1", uci: "a2a3")
-    XCTAssertEqual(text, "a3 improves the position.")
+    XCTAssertEqual(text, "a3 is a quiet move.")
   }
 
   func test_givenCentrePawnPush_whenReasoned_thenClaimsCentre() {

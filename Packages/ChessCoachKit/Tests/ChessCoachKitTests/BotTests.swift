@@ -100,4 +100,32 @@ final class ExplainedBotTests: XCTestCase {
     XCTAssertEqual(c.botReasons[2], "I want my share of the centre.")
     XCTAssertNil(c.botReasons[1])
   }
+
+  func test_givenMovesPlayed_whenUndo_thenBackBeforeYourLastMoveAndPlayContinues() async {
+    let c = GameController(
+      config: PlayConfig(opponent: .teaching, userColor: .white, timeControl: .untimed),
+      bot: TalkingBot(), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(), minimumBotThink: .zero)
+    XCTAssertFalse(c.canUndo)
+    c.start()
+    c.tap(Square("e2"))
+    c.tap(Square("e4"))
+    for _ in 0..<200 where c.session.history.count < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+    XCTAssertTrue(c.canUndo)
+    c.undoMove()
+    XCTAssertEqual(c.session.history.count, 0)
+    XCTAssertEqual(c.phase, .userTurn)
+    XCTAssertTrue(c.botReasons.isEmpty)
+    c.tap(Square("d2"))
+    c.tap(Square("d4"))
+    for _ in 0..<200 where c.session.history.count < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+    XCTAssertEqual(c.session.history.map(\.san), ["d4", "e5"])
+  }
+
+  func test_givenTimedGame_whenCheckingUndo_thenNotAllowed() {
+    let c = GameController(
+      config: PlayConfig(opponent: .teaching, userColor: .white, timeControl: TimeControl.presets.first { $0.isTimed }!),
+      bot: TalkingBot(), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(), minimumBotThink: .zero)
+    c.start()
+    XCTAssertFalse(c.canUndo)
+  }
 }

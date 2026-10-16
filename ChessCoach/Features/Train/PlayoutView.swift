@@ -51,9 +51,10 @@ struct PlayoutView: View {
         },
         onDragCancelled: { interaction.dragCancelled() })
       if let last = game.lastMove {
-        Text("\(last.color == userColor ? "You" : "Stockfish"): \(Explainer.reason(fen: game.fen(atPly: game.history.count - 1), uci: last.uci) ?? last.san)")
-          .font(.system(size: 14, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
-          .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Spacing.m).padding(.top, Spacing.s)
+        MoveNote(
+          who: last.color == userColor ? "You" : "Stockfish", isYou: last.color == userColor, san: last.san,
+          text: Explainer.reason(fen: game.fen(atPly: game.history.count - 1), uci: last.uci) ?? last.san, compact: true)
+          .padding(.horizontal, Spacing.m).padding(.top, Spacing.s)
           .accessibilityIdentifier("playout-caption")
       }
       Spacer(minLength: 0)

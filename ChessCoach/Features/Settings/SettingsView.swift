@@ -56,6 +56,14 @@ struct SettingsView: View {
           Picker("Coach during games", selection: $coachModeRaw) {
             ForEach(CoachMode.allCases) { Text($0.title).tag($0.rawValue) }
           }
+          if coachModeRaw == CoachMode.voice.rawValue {
+            LabeledContent("Coach voice", value: CoachSpeaker.shared.voiceName)
+            Button("Hear the coach") { CoachSpeaker.shared.say("Take your time. Checks, captures, threats. What is their last move up to?") }
+            if !CoachSpeaker.shared.hasNaturalVoice {
+              Text("For a much more natural voice, download one on this iPhone: Settings → Accessibility → Spoken Content → Voices → English → Jamie or Ava (Premium).")
+                .font(.footnote).foregroundStyle(.secondary)
+            }
+          }
         }
         Section("Coach AI & home PC") {
           LabeledContent("Home PC", value: serverText)

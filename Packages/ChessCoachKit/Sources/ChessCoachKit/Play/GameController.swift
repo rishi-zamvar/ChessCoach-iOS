@@ -90,6 +90,8 @@ public final class GameController {
   /// Engine's best move in the position you're facing (for the coach's reaction afterwards).
   @ObservationIgnored private var voiceBest: (ply: Int, uci: String)?
   @ObservationIgnored private var userTurns = 0
+  /// Bumped by undo so engine/coach work started before it is dropped.
+  @ObservationIgnored private var generation = 0
 
   public init(
     config: PlayConfig,
@@ -261,6 +263,35 @@ public final class GameController {
     afterMove(played, by: "user")
   }
 
+  // MARK: - Undo
+
+  /// Untimed games only: a clock can't be rewound fairly.
+  public var canUndo: Bool {
+    !isOver && phase != .notStarted && !config.timeControl.isTimed && session.history.contains { $0.color == userColor }
+  }
+
+  /// Takes back your last move and anything the bot played after it.
+  public func undoMove() {
+    guard canUndo, let mine = session.history.lastIndex(where: { $0.color == userColor }) else { return }
+    generation += 1
+    botTask?.cancel()
+    botTask = nil
+    session.undo(session.history.count - mine)
+    interaction.reset()
+    coachPause = nil
+    annotations = AnnotationLayer()
+    nudge = nil
+    hintText = nil
+    hintLevel = 0
+    hintBest = nil
+    coachLine = nil
+    pendingPromotion = nil
+    botReasons = botReasons.filter { $0.key <= session.history.count }
+    viewPly = session.history.count
+    phase = .userTurn
+    telemetry.event("game.undo", metadata: ["ply": .int(session.history.count)])
+  }
+
   // MARK: - Play Coach
 
   /// Undo the mistake and try again.
@@ -322,10 +353,11 @@ public final class GameController {
     phase = .coachChecking
     let before = session.fen(atPly: session.history.count - 1)
     let after = session.position.fen
+    let gen = generation
     Task { [weak self] in
       let a = try? await coach.assess(fen: before)
       let b = try? await coach.assess(fen: after)
-      guard let self, self.phase == .coachChecking else { return }
+      guard let self, self.phase == .coachChecking, self.generation == gen else { return }
       guard let a, let b else { return self.advanceTurn() }
       let bestEP = a.winPercent / 100
       let playedEP = 1 - b.winPercent / 100
@@ -422,9 +454,10 @@ public final class GameController {
     let last = session.lastMove
     let before = session.fen(atPly: ply - 1)
     let turn = userTurns
+    let gen = generation
     Task { [weak self] in
       let best = try? await voice.assess(fen: fen).bestUCI
-      guard let self, self.session.history.count == ply, !self.isOver, let best else { return }
+      guard let self, self.generation == gen, self.session.history.count == ply, !self.isOver, let best else { return }
       self.voiceBest = (ply, best)
       // Play Coach's nudge banner already covers threats; the voice adds tactics and advice.
       guard let last, last.color != self.userColor else { return }
@@ -456,6 +489,7 @@ public final class GameController {
   private func requestBotMove() {
     let fen = session.position.fen
     let ply = session.history.count
+    let gen = generation
     botTask = Task { [weak self, bot, minimumBotThink, telemetry] in
       let started = ContinuousClock.now
       let pick: (uci: String, why: String?)?
@@ -468,8 +502,9 @@ public final class GameController {
       }
       let elapsed = ContinuousClock.now - started
       if elapsed < minimumBotThink { try? await Task.sleep(for: minimumBotThink - elapsed) }
-      self?.botReasons[ply + 1] = pick?.why
-      self?.applyBotMove(pick?.uci, expectedPly: ply)
+      guard let self, self.generation == gen, !Task.isCancelled else { return }
+      self.botReasons[ply + 1] = pick?.why
+      self.applyBotMove(pick?.uci, expectedPly: ply)
     }
   }
 
