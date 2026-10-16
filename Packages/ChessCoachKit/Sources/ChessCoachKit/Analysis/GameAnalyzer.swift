@@ -109,14 +109,14 @@ public struct GameAnalyzer: Sendable {
       // 1. Evaluate every position (start + after each ply).
       let fens = (0...session.history.count).map { session.fen(atPly: $0) }
       var evals: [PositionEval] = []
+      var coolingLeft = 30  // one 60 s cooling budget per game, not per position
       for (i, fen) in fens.enumerated() {
         try Task.checkCancellation()
         // Spec §4: back off when the phone is hot instead of cooking it.
-        var cooled = 0
-        while ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue, cooled < 30 {
-          if cooled == 0 { telemetry.event("analysis.thermalPause", parent: ctx) }
+        while coolingLeft > 0, ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue {
+          if coolingLeft == 30 { telemetry.event("analysis.thermalPause", parent: ctx) }
           try await Task.sleep(for: .seconds(2))
-          cooled += 1
+          coolingLeft -= 1
         }
         evals.append(try await evaluate(fen: fen, parent: ctx))
         ctx.progress(done: i + 1, total: fens.count)
@@ -211,7 +211,8 @@ public struct GameAnalyzer: Sendable {
     // MultiPV 2 is enough for "Great" (best vs second-best); 3 costs ~50% more.
     let result = try await host.search(.stockfish, fen: fen, limit: limit, multipv: min(2, legal))
     guard let first = result.lines.first else { throw EngineError.noBestMove }
-    cache?.store(fenKey: key, depth: depth, lines: result.lines)
+    // Record the depth actually reached (time-capped searches can stop short).
+    cache?.store(fenKey: key, depth: result.lines.map(\.depth).max() ?? 0, lines: result.lines)
     return PositionEval(lines: result.lines, sideToMoveWin: WinChance.winPercent(first.score), legalMoves: legal)
   }
 

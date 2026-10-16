@@ -17,6 +17,7 @@ struct PuzzleRushView: View {
   @State private var seen: Set<String> = []
   @State private var over = false
   @State private var best = UserDefaults.standard.integer(forKey: PuzzleRushView.bestKey)
+  @State private var isNewBest = false
 
   /// Starts easy and climbs ~40 points per solve.
   private var targetRating: Int { 450 + score * 40 }
@@ -51,6 +52,7 @@ struct PuzzleRushView: View {
           summary
         } else if let current {
           PuzzleView(puzzle: current, rated: false, rush: true) { outcome in
+            guard !over else { return }  // a solve landing after time ran out doesn't count
             if outcome.solvedCleanly { score += 1 } else { strikes += 1 }
             if strikes >= 3 { finish() } else { next() }
           }
@@ -74,7 +76,7 @@ struct PuzzleRushView: View {
       Spacer()
       Image(systemName: "bolt.fill").font(.system(size: 50)).foregroundStyle(ChessChrome.accentGreen)
       Text("\(score)").font(.system(size: 64, weight: .heavy, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
-      Text(score >= best ? "New best!" : "Best: \(best)")
+      Text(isNewBest ? "New best!" : "Best: \(best)")
         .font(.system(size: 17, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
       Spacer()
       HStack(spacing: Spacing.s) {
@@ -89,11 +91,13 @@ struct PuzzleRushView: View {
     let themes = ["mateIn1", "hangingPiece", "fork", "mateIn2", "pin", "backRankMate", "skewer", "discoveredAttack"]
     let theme = themes[(score + strikes) % themes.count]
     current = (try? training.puzzles?.puzzles(theme: theme, around: targetRating, excluding: seen, limit: 1))??.first
-    if let id = current?.id { seen.insert(id) }
+    if let id = current?.id { seen.insert(id) } else { finish() }  // no puzzles left: end the run
   }
 
   private func finish() {
+    guard !over else { return }
     over = true
+    isNewBest = score > best
     if score > best {
       best = score
       UserDefaults.standard.set(score, forKey: Self.bestKey)
@@ -105,6 +109,7 @@ struct PuzzleRushView: View {
     score = 0
     strikes = 0
     over = false
+    isNewBest = false
     startedAt = Date()
     next()
   }

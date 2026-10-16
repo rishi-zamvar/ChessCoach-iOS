@@ -308,6 +308,17 @@ public struct TrainingStore: Sendable {
     }
   }
 
+  /// Sets the overall puzzle rating from a (re)placement; skill ratings keep their history.
+  public func setGlobalRating(_ rating: Int) throws {
+    try database.writer.write { db in
+      let row = try SkillRow.fetchOne(db, key: Self.globalSkill)
+      try SkillRow(
+        skillID: Self.globalSkill, rating: Double(rating), deviation: 200, volatility: 0.06,
+        attempts: row?.attempts ?? 0, lastPracticed: row?.lastPracticed
+      ).save(db)
+    }
+  }
+
   /// Clears the onboarding profile (ratings, reviews and lessons stay).
   public func clearProfile() throws {
     _ = try database.writer.write { db in try ProfileRow.deleteAll(db) }

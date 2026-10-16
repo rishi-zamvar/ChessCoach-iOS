@@ -120,6 +120,7 @@ final class TrainingService {
   func completeOnboarding(_ profile: LearnerProfile) {
     try? store.saveProfile(profile)
     try? store.seedRatings(at: profile.placementRating)  // only seeds skills that have no rating yet
+    try? store.setGlobalRating(profile.placementRating)  // a retake's placement counts
     env.telemetry.event("onboarding.complete", metadata: ["style": .string(profile.style.rawValue), "rating": .int(profile.placementRating)])
     refresh()
   }

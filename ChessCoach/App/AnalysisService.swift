@@ -32,6 +32,7 @@ final class AnalysisService {
   @ObservationIgnored private var progressWatcher: Task<Void, Never>?
   @ObservationIgnored private var backgroundTask: Task<Void, Never>?
   @ObservationIgnored private var backgroundGameID: String?
+  @ObservationIgnored private var backgroundToken: UUID?
   @ObservationIgnored private var foregroundUsers = 0
   /// Games analyzed in the background this session (for the UI).
   private(set) var backgroundAnalyzed = 0
@@ -103,8 +104,12 @@ final class AnalysisService {
     }
     running[game.id] = task
     defer {
-      running[game.id] = nil
-      if progress?.gameID == game.id { progress = nil }
+      // Only clear our own entry: a cancelled background run may unwind after the
+      // user's review registered a fresh task for the same game.
+      if running[game.id] == task {
+        running[game.id] = nil
+        if progress?.gameID == game.id { progress = nil }
+      }
     }
     let result = try await task.value
     analyzedIDs.insert(game.id)
@@ -139,8 +144,17 @@ final class AnalysisService {
   /// daily plan learns from them without the user opening each review.
   func startBackgroundAnalysis(limit: Int = 10) {
     guard backgroundTask == nil, foregroundUsers == 0, env.engineHost != nil else { return }
+    let token = UUID()
+    backgroundToken = token
     backgroundTask = Task { [weak self] in
-      defer { self?.backgroundTask = nil; self?.backgroundGameID = nil }
+      defer {
+        // A cancelled run can finish after a newer one started; don't clear the newer one.
+        if self?.backgroundToken == token {
+          self?.backgroundTask = nil
+          self?.backgroundGameID = nil
+          self?.backgroundToken = nil
+        }
+      }
       guard let self else { return }
       let games = ((try? self.env.gameStore.recent(limit: 40)) ?? []).filter { !self.isAnalyzed($0.id) }.prefix(limit)
       for game in games {
@@ -157,6 +171,7 @@ final class AnalysisService {
     foregroundUsers += 1
     backgroundTask?.cancel()
     backgroundTask = nil
+    backgroundToken = nil
     if let id = backgroundGameID {
       running[id]?.cancel()
       running[id] = nil

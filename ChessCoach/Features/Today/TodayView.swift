@@ -8,6 +8,7 @@ struct TodayView: View {
   @State private var recent: [GameRecord] = []
   @State private var topMistake: MistakePattern?
   @State private var showSettings = false
+  @State private var retakeRequested = false
 
   var body: some View {
     ZStack {
@@ -91,7 +92,15 @@ struct TodayView: View {
         .padding(.vertical, Spacing.xxl)
       }
     }
-    .sheet(isPresented: $showSettings) { SettingsView() }
+    .sheet(isPresented: $showSettings, onDismiss: {
+      // Present onboarding only after the Settings sheet is fully gone.
+      if retakeRequested {
+        retakeRequested = false
+        training.resetProfile()
+      }
+    }) {
+      SettingsView(onRetake: { retakeRequested = true })
+    }
     .task(id: analysis.revision) {
       training.refresh()
       recent = (try? env.gameStore.recent(limit: 3)) ?? []
