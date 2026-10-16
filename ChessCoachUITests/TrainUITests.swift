@@ -32,6 +32,15 @@ final class TrainUITests: XCTestCase {
       let next = app.buttons["puzzle-next"]
       app.buttons["puzzle-solution"].tap()
       XCTAssertTrue(next.waitForExistence(timeout: 3))
+      if i == 0 {
+        // Retry replays the finished puzzle from the start.
+        app.buttons["puzzle-retry"].tap()
+        XCTAssertTrue(hint.waitForExistence(timeout: 5))
+        XCTAssertFalse(next.exists)
+        hint.tap(); hint.tap(); hint.tap()
+        app.buttons["puzzle-solution"].tap()
+        XCTAssertTrue(next.waitForExistence(timeout: 3))
+      }
       next.tap()
     }
     XCTAssertTrue(app.buttons["onboarding-finish"].waitForExistence(timeout: 10))

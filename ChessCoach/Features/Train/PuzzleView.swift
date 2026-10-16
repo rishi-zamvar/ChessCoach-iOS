@@ -34,6 +34,9 @@ struct PuzzleView: View {
   @State private var change: TrainingService.RatingChange?
   @State private var recorded = false
   @State private var ready = false
+  /// Replaying a finished puzzle for practice: never re-rated, outcome stays the first attempt's.
+  @State private var isRetry = false
+  @State private var firstOutcome: PuzzleOutcome?
 
   enum Feedback: Equatable {
     case prompt, correct, wrong(String), solved, revealed
@@ -123,7 +126,7 @@ struct PuzzleView: View {
       case .correct: return ("checkmark.circle.fill", "Best move! Keep going…", ChessChrome.accentGreen)
       case .wrong(let san): return ("xmark.circle.fill", "\(san) isn't it. Try again.", ChessChrome.lowTime)
       case .solved:
-        let delta = change.map { $0.delta >= 0 ? " +\($0.delta)" : " \($0.delta)" } ?? ""
+        let delta = isRetry ? "" : change.map { $0.delta >= 0 ? " +\($0.delta)" : " \($0.delta)" } ?? ""
         return ("checkmark.seal.fill", "Solved!\(delta)", ChessChrome.accentGreen)
       case .revealed: return ("eye.fill", "Here's the solution.", MoveClass.inaccuracy.color)
       }
@@ -144,6 +147,8 @@ struct PuzzleView: View {
   private var controls: some View {
     HStack(spacing: Spacing.s) {
       if feedback == .solved || feedback == .revealed {
+        PuzzleButton(title: "Retry", systemImage: "arrow.counterclockwise") { Task { await start(retry: true) } }
+          .accessibilityIdentifier("puzzle-retry")
         PuzzleButton(title: "Next", systemImage: "arrow.right", prominent: true) { finish() }
           .accessibilityIdentifier("puzzle-next")
       } else {
@@ -167,15 +172,19 @@ struct PuzzleView: View {
 
   // MARK: - Flow
 
-  private func start() async {
+  private func start(retry: Bool = false) async {
+    isRetry = retry
     session = PuzzleSession(puzzle: puzzle, hasSetupMove: hasSetupMove)
     ready = !hasSetupMove
     feedback = .prompt
     hintText = nil
     annotations = AnnotationLayer()
     interaction.reset()
-    change = nil
-    recorded = false
+    if !retry {
+      change = nil
+      recorded = false
+      firstOutcome = nil
+    }
     if hasSetupMove {
       try? await Task.sleep(for: .milliseconds(450))
       // Mutate the live session (a hint tapped during the delay must not be lost).
@@ -267,6 +276,7 @@ struct PuzzleView: View {
   private func record(_ s: PuzzleSession) {
     guard !recorded else { return }
     recorded = true
+    firstOutcome = PuzzleOutcome(solvedCleanly: s.isSolved && !s.failedFirstTry && s.hintsUsed == 0, ratingChange: nil)
     guard rated else { return }
     let seconds = Date().timeIntervalSince(started)
     if let review {
@@ -277,7 +287,7 @@ struct PuzzleView: View {
   }
 
   private func finish() {
-    let clean = session.map { $0.isSolved && !$0.failedFirstTry && $0.hintsUsed == 0 } ?? false
+    let clean = firstOutcome?.solvedCleanly ?? session.map { $0.isSolved && !$0.failedFirstTry && $0.hintsUsed == 0 } ?? false
     onFinished(PuzzleOutcome(solvedCleanly: clean, ratingChange: change))
   }
 
