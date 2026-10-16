@@ -3,6 +3,14 @@ import XCTest
 @testable import ChessCoach
 
 final class ServerLinkTests: XCTestCase {
+  func test_givenResolvedAddresses_whenCheckedForTailnet_thenOnlyPinnedPCAddressesPass() {
+    XCTAssertTrue(ServerLink.isTailnet(["100.91.236.115"]))
+    XCTAssertTrue(ServerLink.isTailnet(["fd7a:115c:a1e0::1234", "100.91.236.115"]))
+    XCTAssertFalse(ServerLink.isTailnet([]))
+    XCTAssertFalse(ServerLink.isTailnet(["192.168.1.50"]))
+    XCTAssertFalse(ServerLink.isTailnet(["100.91.236.115", "203.0.113.9"]), "a spoofed extra address must be rejected")
+  }
+
   func test_givenM5JobResult_whenParsed_thenPositionsWithCpAndMateLines() throws {
     let json = """
       {"positions": [

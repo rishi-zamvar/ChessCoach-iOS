@@ -35,6 +35,9 @@ targets:
       properties:
         UILaunchScreen:
           UIColorName: LaunchBackground
+        # Plain HTTP to the home PC over the Tailscale tunnel (100.x); everything else stays HTTPS-only.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         CFBundleDisplayName: ChessCoach

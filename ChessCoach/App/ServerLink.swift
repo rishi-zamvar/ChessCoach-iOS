@@ -51,10 +51,36 @@ final class ServerLink {
   var isOnline: Bool { if case .online = status { true } else { false } }
   var hasKey: Bool { KeyStore.read() != nil }
 
-  /// The PC's Tailscale IP only: 100.x addresses route solely through the encrypted
-  /// tunnel, while a bare MagicDNS name could be answered by a hostile Wi-Fi DNS.
-  static let hosts = ["100.91.236.115"]
+  /// The PC's MagicDNS name: iOS only allows plain HTTP (NSAllowsLocalNetworking) to bare
+  /// hostnames, not to 100.x IPs. A hostile Wi-Fi DNS could answer the name, so it is only
+  /// used when every address it resolves to is the PC's Tailscale IP or a tailnet IPv6.
+  static let host = "zee-cloud"
+  nonisolated static let pinnedIPv4 = "100.91.236.115"
   static let port = 8810
+
+  /// True when `addresses` is non-empty and each is the pinned IPv4 or inside Tailscale's fd7a:115c:a1e0::/48.
+  nonisolated static func isTailnet(_ addresses: [String]) -> Bool {
+    !addresses.isEmpty && addresses.allSatisfy { $0 == pinnedIPv4 || $0.lowercased().hasPrefix("fd7a:115c:a1e0:") }
+  }
+
+  /// Every address `host` resolves to (blocking getaddrinfo, so run off the main actor).
+  nonisolated static func resolve(_ host: String) async -> [String] {
+    await Task.detached {
+      var hints = addrinfo(ai_flags: 0, ai_family: AF_UNSPEC, ai_socktype: SOCK_STREAM, ai_protocol: 0,
+        ai_addrlen: 0, ai_canonname: nil, ai_addr: nil, ai_next: nil)
+      var list: UnsafeMutablePointer<addrinfo>?
+      guard getaddrinfo(host, nil, &hints, &list) == 0, let first = list else { return [] }
+      defer { freeaddrinfo(list) }
+      var out: [String] = []
+      for info in sequence(first: first, next: { $0.pointee.ai_next }) {
+        var buffer = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        if getnameinfo(info.pointee.ai_addr, info.pointee.ai_addrlen, &buffer, socklen_t(buffer.count), nil, 0, NI_NUMERICHOST) == 0 {
+          out.append(String(cString: buffer).components(separatedBy: "%")[0])
+        }
+      }
+      return out
+    }.value
+  }
 
   @ObservationIgnored private let telemetry: Telemetry
   @ObservationIgnored private let session: URLSession = {
@@ -73,7 +99,12 @@ final class ServerLink {
     guard status != .checking else { return }
     status = .checking
     await telemetry.step("server.link") { ctx in
-      for host in Self.hosts {
+      for host in [Self.host] {
+        let addresses = await Self.resolve(host)
+        guard Self.isTailnet(addresses) else {
+          ctx.annotate("rejected", .string(addresses.joined(separator: ",")))
+          continue
+        }
         guard let base = URL(string: "http://\(host):\(Self.port)") else { continue }
         guard let health = try? await getJSON(base.appendingPathComponent("health")), health["ok"] == .bool(true) else { continue }
         status = .online(version: health["version"]?.stringValue ?? "?")
