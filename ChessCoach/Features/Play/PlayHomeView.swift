@@ -29,7 +29,7 @@ struct PlayHomeView: View {
               title: "Coach bot",
               subtitle: env.ai.isAvailable
                 ? "Plays at your level and sets up the patterns you're learning."
-                : "Plays at your level. (AI teaching moves turn on once your home PC shares the key.)",
+                : "Plays at your level, with a coach in your corner.",
               systemImage: "sparkles", selected: opponent == .teaching
             ) {
               opponent = .teaching

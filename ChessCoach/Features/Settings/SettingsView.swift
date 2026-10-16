@@ -65,12 +65,14 @@ struct SettingsView: View {
             }
           }
         }
-        Section("Coach AI & home PC") {
-          LabeledContent("Home PC", value: serverText)
-          LabeledContent("AI key", value: env.server.hasKey ? "Ready (\(env.server.keyID ?? "—"))" : "Not yet received")
-          LabeledContent("Spent this month", value: String(format: "$%.2f of $80", env.aiStore.spentThisMonth()))
-          LabeledContent("On-device model", value: OnDeviceExplainer.isAvailable ? "Available" : "Not on this device")
-          Button("Check now") { Task { await env.server.refresh() } }
+        if env.server.hasKey {
+          Section("Coach AI & home PC") {
+            LabeledContent("Home PC", value: serverText)
+            LabeledContent("AI key", value: "Ready (\(env.server.keyID ?? "—"))")
+            LabeledContent("Spent this month", value: String(format: "$%.2f of $80", env.aiStore.spentThisMonth()))
+            LabeledContent("On-device model", value: OnDeviceExplainer.isAvailable ? "Available" : "Not on this device")
+            Button("Check now") { Task { await env.server.refresh() } }
+          }
         }
         Section {
           Text("ChessCoach · engines: Stockfish 17, Maia-1100 (Lc0) · puzzles & openings: Lichess (CC0)")

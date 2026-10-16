@@ -46,7 +46,12 @@ final class AnalysisService {
   static let etagsKey = "chesscom.etags"
 
   var username: String {
-    get { UserDefaults.standard.string(forKey: Self.usernameKey) ?? "Zammy009" }
+    // Only the owner's phone (it holds the home-PC key) and UI tests fall back to Zammy009;
+    // anyone else starts empty so they never import someone else's games.
+    get {
+      UserDefaults.standard.string(forKey: Self.usernameKey)
+        ?? (env.server.hasKey || ProcessInfo.processInfo.arguments.contains("-uiTesting") ? "Zammy009" : "")
+    }
     set { UserDefaults.standard.set(newValue, forKey: Self.usernameKey) }
   }
 
@@ -59,7 +64,7 @@ final class AnalysisService {
   // MARK: - Import
 
   func importFromChessCom() async {
-    guard importState != .running else { return }
+    guard importState != .running, !username.isEmpty else { return }
     importState = .running
     let client = ChessComClient(telemetry: env.telemetry)
     let importer = ChessComImporter(client: client, telemetry: env.telemetry)

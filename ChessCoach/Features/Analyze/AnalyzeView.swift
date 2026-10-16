@@ -109,9 +109,9 @@ struct AnalyzeView: View {
         editingUsername = true
       } label: {
         HStack(spacing: Spacing.s) {
-          Text(analysis.username)
+          Text(analysis.username.isEmpty ? "Add your chess.com username" : analysis.username)
             .font(Typography.titleSmall)
-            .foregroundStyle(Palette.ink)
+            .foregroundStyle(analysis.username.isEmpty ? Palette.primaryDeep : Palette.ink)
           Image(systemName: "pencil")
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(Palette.textMuted)

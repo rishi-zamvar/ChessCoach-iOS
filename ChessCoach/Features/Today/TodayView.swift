@@ -32,7 +32,8 @@ struct TodayView: View {
 
           WeekCard()
 
-          AIStatusCard()
+          // Only for phones that got the key from the home PC; everyone else just gets offline coaching.
+          if env.server.hasKey { AIStatusCard() }
 
           if let topMistake {
             Card {

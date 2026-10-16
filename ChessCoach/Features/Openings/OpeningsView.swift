@@ -195,8 +195,10 @@ struct OpeningTrainerView: View {
       } else if isUserTurn {
         PuzzleButton(title: showAnswer ? "Hide" : "Show move", systemImage: "eye") { showAnswer.toggle() }
       }
-      PuzzleButton(title: "Ask", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
-        .frame(maxWidth: 110)
+      if env.server.hasKey {
+        PuzzleButton(title: "Ask", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
+          .frame(maxWidth: 110)
+      }
     }
     .padding(Spacing.m)
     .background(ChessChrome.bar)

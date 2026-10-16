@@ -7,7 +7,7 @@ struct OnboardingView: View {
   @Environment(TrainingService.self) private var training
   @Environment(AnalysisService.self) private var analysis
   @State private var step: Step = .welcome
-  @State private var username = "Zammy009"
+  @State private var username = ""
   @State private var style: LearnerProfile.Style = .allRounder
   @State private var quizAnswers: [Bool] = []  // true = picked the sharp move
   @State private var placement = PlacementState()
@@ -84,7 +84,7 @@ struct OnboardingView: View {
       Spacer()
       PrimaryButton(title: "Continue", action: {
         analysis.username = username.trimmingCharacters(in: .whitespaces)
-        Task { await analysis.importFromChessCom() }
+        if !analysis.username.isEmpty { Task { await analysis.importFromChessCom() } }
         step = .style
       }, icon: "arrow.right")
       Button("Skip") { step = .style }
