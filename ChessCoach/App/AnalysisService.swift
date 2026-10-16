@@ -26,6 +26,11 @@ final class AnalysisService {
   private(set) var importState: ImportState = .idle
   private(set) var analyzedIDs: Set<String> = []
   private(set) var revision = 0
+  /// When chess.com was last checked successfully (survives relaunches).
+  private(set) var lastImportAt: Date? = UserDefaults.standard.object(forKey: AnalysisService.lastImportKey) as? Date
+  /// Called after an import that brought in games (e.g. to re-anchor the rating).
+  @ObservationIgnored var onImported: () -> Void = {}
+  static let lastImportKey = "chesscom.lastImport"
 
   @ObservationIgnored private let env: AppEnvironment
   @ObservationIgnored private var running: [String: Task<GameAnalysis, Error>] = [:]
@@ -69,7 +74,10 @@ final class AnalysisService {
         UserDefaults.standard.set(etags.merging(batch.etags) { _, new in new }, forKey: Self.etagsKey)
       }
       importState = .finished(newGames: inserted)
+      lastImportAt = Date()
+      UserDefaults.standard.set(lastImportAt, forKey: Self.lastImportKey)
       revision += 1
+      onImported()
       startBackgroundAnalysis()
     } catch ChessComError.userNotFound {
       importState = .failed("chess.com user “\(username)” not found.")
@@ -78,6 +86,14 @@ final class AnalysisService {
     } catch {
       importState = .failed("Import failed. Check your connection and try again.")
     }
+  }
+
+  /// Event-driven refresh: on launch and whenever the app comes back, if the last
+  /// check is older than `interval` (chess.com has no push, so this is the cheap trigger).
+  func importIfStale(interval: TimeInterval = 600) async {
+    guard !env.isInMemory else { return }
+    if let last = lastImportAt, Date().timeIntervalSince(last) < interval { return }
+    await importFromChessCom()
   }
 
   // MARK: - Analysis

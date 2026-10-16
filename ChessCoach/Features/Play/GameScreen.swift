@@ -28,7 +28,13 @@ struct GameScreen: View {
       VStack(spacing: 0) {
         header
         MoveStrip(history: game.session.history, currentPly: game.viewPly) { game.jump(toPly: $0) }
-        if let nudge = game.nudge {
+        moveCaption
+        if let line = game.coachLine {
+          CoachBanner(text: line.text, systemImage: "person.wave.2.fill", tint: ChessChrome.accentGreen)
+            .id(line.id)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .onTapGesture { if CoachMode.current == .voice { CoachSpeaker.shared.say(line.text) } }
+        } else if let nudge = game.nudge {
           CoachBanner(text: nudge, systemImage: "exclamationmark.bubble.fill", tint: MoveClass.inaccuracy.color)
         } else if let hint = game.hintText {
           CoachBanner(text: hint, systemImage: "lightbulb.fill", tint: MoveClass.great.color)
@@ -77,7 +83,16 @@ struct GameScreen: View {
       analysis.beginForegroundEngineUse()
       game.start()
     }
-    .onDisappear { analysis.endForegroundEngineUse() }
+    .onDisappear {
+      analysis.endForegroundEngineUse()
+      CoachSpeaker.shared.stop()
+    }
+    .onChange(of: game.coachLine?.id) { _, _ in
+      guard let text = game.coachLine?.text else { return }
+      if CoachMode.current == .voice { CoachSpeaker.shared.say(text) }
+      Haptics.soft()
+    }
+    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: game.coachLine?.id)
     .confirmationDialog("Resign this game?", isPresented: $confirmResign, titleVisibility: .visible) {
       Button("Resign", role: .destructive) { game.resign() }
         .accessibilityIdentifier("confirm-resign")
@@ -97,6 +112,25 @@ struct GameScreen: View {
   }
 
   // MARK: - Pieces
+
+  /// What the move on the board does — yours and the bot's.
+  @ViewBuilder
+  private var moveCaption: some View {
+    let history = game.session.history
+    if game.viewPly > 0, game.viewPly <= history.count {
+      let played = history[game.viewPly - 1]
+      let who = played.color == game.userColor ? "You" : game.bot.name
+      let why = Explainer.reason(fen: game.session.fen(atPly: game.viewPly - 1), uci: played.uci) ?? played.san
+      Text("\(who): \(why)")
+        .font(.system(size: 13, weight: .medium, design: .rounded))
+        .foregroundStyle(ChessChrome.textSecondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Spacing.m)
+        .padding(.top, Spacing.xs)
+        .lineLimit(2)
+        .accessibilityIdentifier("game-move-caption")
+    }
+  }
 
   private var coachTitle: String { game.isCoached ? "Play Coach" : (game.config.timeControl.isTimed ? game.config.timeControl.label : "Casual") }
 

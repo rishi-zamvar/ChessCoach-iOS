@@ -30,8 +30,27 @@ final class MoveReasonTests: XCTestCase {
   }
 
   func test_givenQuietMove_whenReasoned_thenFallsBackToPlainSentence() {
-    let text = Explainer.reason(fen: "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", uci: "e2e4")
-    XCTAssertEqual(text, "e4 improves the position.")
+    let text = Explainer.reason(fen: "4k3/8/8/8/8/8/P7/4K3 w - - 0 1", uci: "a2a3")
+    XCTAssertEqual(text, "a3 improves the position.")
+  }
+
+  func test_givenCentrePawnPush_whenReasoned_thenClaimsCentre() {
+    XCTAssertEqual(Explainer.reason(fen: GameSession.standardFEN, uci: "e2e4"), "e4 claims the centre.")
+  }
+
+  func test_givenKnightOffBackRank_whenReasoned_thenDevelops() {
+    XCTAssertEqual(Explainer.reason(fen: GameSession.standardFEN, uci: "g1f3"), "Nf3 develops the knight.")
+  }
+
+  func test_givenCastling_whenReasoned_thenTucksKingAway() {
+    let text = Explainer.reason(fen: "4k3/8/8/8/8/8/8/4K2R w K - 0 1", uci: "e1g1")
+    XCTAssertEqual(text, "O-O castles, tucking the king away.")
+  }
+
+  func test_givenMoveHittingUndefendedPiece_whenReasoned_thenSaysAttacks() {
+    // Bb5 hits the undefended knight on c6... use a lone knight on c6 with no defenders.
+    let text = Explainer.reason(fen: "7k/8/2n5/8/8/8/8/4KB2 w - - 0 1", uci: "f1b5")
+    XCTAssertEqual(text, "Bb5 attacks the knight on c6.")
   }
 
   func test_givenIllegalMove_whenReasoned_thenNil() {

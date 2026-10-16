@@ -88,7 +88,8 @@ final class AppEnvironment {
     guard let bot else { return nil }
     return GameController(
       config: config, bot: bot, telemetry: telemetry, store: gameStore, sounds: sounds,
-      coach: coached ? StockfishCoach(host: engineHost) : nil)
+      coach: coached ? StockfishCoach(host: engineHost) : nil,
+      voice: CoachMode.current == .off ? nil : StockfishCoach(host: engineHost))
   }
 }
 
@@ -99,6 +100,23 @@ enum BoardSettings {
   static let soundKey = "board.sound"
   static let coordinatesKey = "board.coordinates"
   static let paceKey = "board.pace"
+  static let coachModeKey = "coach.mode"
+}
+
+/// The coach in your corner during games.
+enum CoachMode: String, CaseIterable, Identifiable {
+  case voice, text, off
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .voice: "Speaks"
+    case .text: "Text only"
+    case .off: "Off"
+    }
+  }
+  static var current: CoachMode {
+    CoachMode(rawValue: UserDefaults.standard.string(forKey: BoardSettings.coachModeKey) ?? "") ?? .voice
+  }
 }
 
 /// How the opponent's replies are shown in puzzles and lessons.

@@ -22,11 +22,17 @@ struct ChessCoachApp: App {
         .environment(training)
         .preferredColorScheme(.light)
         .task {
+          analysis.onImported = { training.anchorToRealRating() }
+          training.anchorToRealRating()
           await env.server.refresh()
           analysis.startBackgroundAnalysis()
+          await analysis.importIfStale()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-          Task { await env.server.refresh() }
+          Task {
+            await env.server.refresh()
+            await analysis.importIfStale()
+          }
         }
     }
   }

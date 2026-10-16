@@ -63,6 +63,9 @@ public final class GameController {
   public private(set) var hintText: String?
   public private(set) var hintLevel = 0
   public var isCoached: Bool { coach != nil }
+  /// The latest line from the coach in your corner (spoken by the app). `id` changes per line.
+  public private(set) var coachLine: (id: Int, text: String)?
+  public var hasVoiceCoach: Bool { voice != nil }
 
   public let config: PlayConfig
   public let bot: BotPlayer
@@ -81,6 +84,10 @@ public final class GameController {
   @ObservationIgnored private var movesSinceNudge = 99
   @ObservationIgnored private var hintBest: String?
   @ObservationIgnored private var hinting = false
+  @ObservationIgnored private let voice: CoachAdvisor?
+  /// Engine's best move in the position you're facing (for the coach's reaction afterwards).
+  @ObservationIgnored private var voiceBest: (ply: Int, uci: String)?
+  @ObservationIgnored private var userTurns = 0
 
   public init(
     config: PlayConfig,
@@ -91,9 +98,11 @@ public final class GameController {
     startFEN: String = GameSession.standardFEN,
     minimumBotThink: Duration = .milliseconds(450),
     coach: CoachAdvisor? = nil,
+    voice: CoachAdvisor? = nil,
     now: @escaping () -> Date = Date.init
   ) {
     self.coach = coach
+    self.voice = voice
     self.config = config
     self.bot = bot
     self.telemetry = telemetry
@@ -369,13 +378,17 @@ public final class GameController {
     hintLevel = 0
     hintText = nil
     hintBest = nil
-    if mover == "user" { nudge = nil }
+    if mover == "user" {
+      nudge = nil
+      coachLine = nil  // the prompt was about the position you just left
+      voiceReact(played)
+    }
     if session.isOver {
       finish()
     } else if mover == "user", coach != nil {
       coachCheck(played)
     } else {
-      if mover == "bot" { coachNudge(played) }
+      if mover == "bot", voice == nil { coachNudge(played) }
       advanceTurn()
     }
   }
@@ -383,11 +396,49 @@ public final class GameController {
   private func advanceTurn() {
     if session.sideToMove == userColor {
       phase = .userTurn
+      voicePrompt()
       playPremoveIfAny()
     } else {
       phase = .botThinking
       requestBotMove()
     }
+  }
+
+  // MARK: - Coach in your corner
+
+  private func say(_ text: String) {
+    coachLine = (id: (coachLine?.id ?? 0) + 1, text: text)
+    telemetry.event("coach.voice", metadata: ["text": .string(text)])
+  }
+
+  /// On your turn: find the engine's best move, then nudge toward the idea (never the move).
+  private func voicePrompt() {
+    guard let voice else { return }
+    userTurns += 1
+    let ply = session.history.count
+    let fen = session.position.fen
+    let last = session.lastMove
+    let before = session.fen(atPly: ply - 1)
+    let turn = userTurns
+    Task { [weak self] in
+      let best = try? await voice.assess(fen: fen).bestUCI
+      guard let self, self.session.history.count == ply, !self.isOver, let best else { return }
+      self.voiceBest = (ply, best)
+      // Play Coach's nudge banner already covers threats; the voice adds tactics and advice.
+      guard let last, last.color != self.userColor else { return }
+      if let line = CoachVoice.prompt(fenBeforeOpponent: before, opponentMove: last.uci, fenNow: fen, best: best, turn: turn) {
+        self.say(line)
+      }
+    }
+  }
+
+  private func voiceReact(_ played: PlayedMove) {
+    guard voice != nil else { return }
+    let ply = session.history.count - 1
+    let best = voiceBest?.ply == ply ? voiceBest?.uci : nil
+    // Play Coach pauses on real mistakes itself; the voice only praises or warns there.
+    let line = CoachVoice.react(fenBefore: session.fen(atPly: ply), played: played.uci, bestBefore: coach == nil ? best : nil)
+    if let line { say(line) }
   }
 
   private func playPremoveIfAny() {

@@ -75,6 +75,7 @@ struct AnalyzeView: View {
 
       if let progress = analysis.progress { ProgressBanner(progress: progress) }
     }
+    .refreshable { await analysis.importFromChessCom() }
     .task(id: analysis.revision) { reload() }
     .task {
       guard !didAutoImport else { return }
@@ -119,12 +120,19 @@ struct AnalyzeView: View {
       .buttonStyle(.plain)
       .padding(.vertical, Spacing.s)
 
-      PrimaryButton(
-        title: "Import from chess.com",
-        action: { Task { await analysis.importFromChessCom() } },
-        isLoading: analysis.importState == .running,
-        icon: "arrow.down.circle")
-        .accessibilityIdentifier("import-button")
+      HStack(spacing: Spacing.s) {
+        if analysis.importState == .running {
+          ProgressView().controlSize(.small)
+          Text("Checking chess.com…")
+        } else {
+          Image(systemName: "arrow.down")
+          Text(analysis.lastImportAt.map { "Pull down to refresh · checked \($0.formatted(.relative(presentation: .named)))" }
+            ?? "Pull down to fetch your games")
+        }
+      }
+      .font(Typography.callout)
+      .foregroundStyle(Palette.textSecondary)
+      .accessibilityIdentifier("import-status")
 
       switch analysis.importState {
       case .finished(let n):

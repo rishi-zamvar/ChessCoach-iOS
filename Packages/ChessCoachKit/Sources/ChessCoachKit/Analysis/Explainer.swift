@@ -1,3 +1,4 @@
+import ChessKit
 import Foundation
 
 /// Turns a fact sheet into 1–2 plain sentences without any AI. Every move or
@@ -151,12 +152,30 @@ extension Explainer {
       return "\(san) sets up a \(motif.displayName.lowercased())."
     }
     if m.contains(.check) { return "\(san) gives check." }
+    if case .castle = played.move.result { return "\(san) castles, tucking the king away." }
     let mover = played.color
+    let afterFEN = session.position.fen
     let wasHanging = FactExtractor.hangingPieces(fen: fen, of: mover).contains { $0.square == played.move.start }
-    let stillHanging = FactExtractor.hangingPieces(fen: session.position.fen, of: mover).contains { $0.square == played.move.end }
+    let stillHanging = FactExtractor.hangingPieces(fen: afterFEN, of: mover).contains { $0.square == played.move.end }
     if wasHanging, !stillHanging {
       return "\(san) moves the \(FactExtractor.name(of: played.move.piece.kind)) out of danger."
     }
+    // A new threat: an enemy piece the moved piece now attacks and could win.
+    if let after = Position(fen: afterFEN) {
+      let map = BoardMap(after)
+      let before = Set(FactExtractor.hangingPieces(fen: fen, of: mover.opposite).map(\.square))
+      if let target = FactExtractor.hangingPieces(fen: afterFEN, of: mover.opposite).first(where: { piece in
+        !before.contains(piece.square) && map.attackers(of: piece.square, by: mover).contains { $0.square == played.move.end }
+      }) {
+        return "\(san) attacks the \(FactExtractor.name(of: target.kind)) on \(target.square.notation)."
+      }
+    }
+    let kind = played.move.piece.kind
+    let homeRank = mover == .white ? 1 : 8
+    if kind == .knight || kind == .bishop, played.move.start.rank.value == homeRank {
+      return "\(san) develops the \(FactExtractor.name(of: kind))."
+    }
+    if kind == .pawn, ["d4", "e4", "d5", "e5", "c4", "c5"].contains(to) { return "\(san) claims the centre." }
     return "\(san) improves the position."
   }
 }

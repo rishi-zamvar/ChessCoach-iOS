@@ -13,8 +13,10 @@ final class TourUITests: XCTestCase {
 
     shot(app, "30-today")
     app.tabBars.buttons["Analyze"].tap()
-    let importButton = app.buttons["import-button"]
-    if importButton.waitForExistence(timeout: 5) { importButton.tap() }
+    // Import runs on its own when no games are stored; pulling down refreshes it too.
+    if app.staticTexts["import-status"].waitForExistence(timeout: 5) {
+      app.scrollViews.firstMatch.swipeDown(velocity: .fast)
+    }
     let firstGame = app.descendants(matching: .any)["game-row-0"]
     XCTAssertTrue(firstGame.waitForExistence(timeout: 60), "no games imported")
     sleep(2)

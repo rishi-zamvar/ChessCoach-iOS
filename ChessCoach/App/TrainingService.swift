@@ -117,7 +117,20 @@ final class TrainingService {
     refresh()
   }
 
+  /// The user's real chess.com rating (median of recent games), if any are imported.
+  var realRating: Int? { RatingAnchor.realRating((try? env.gameStore.recent(limit: 50)) ?? []) }
+
+  /// Pulls the overall rating back to the real one when it has drifted far (>150) from it.
+  func anchorToRealRating() {
+    guard profile != nil, RatingAnchor.needsRecalibration(current: globalRating, real: realRating), let real = realRating else { return }
+    env.telemetry.event("rating.anchor", metadata: ["from": .int(globalRating), "to": .int(real)])
+    try? store.setGlobalRating(real)
+    refresh()
+  }
+
   func completeOnboarding(_ profile: LearnerProfile) {
+    var profile = profile
+    profile.placementRating = RatingAnchor.blend(placement: profile.placementRating, real: realRating)
     try? store.saveProfile(profile)
     try? store.seedRatings(at: profile.placementRating)  // only seeds skills that have no rating yet
     try? store.setGlobalRating(profile.placementRating)  // a retake's placement counts

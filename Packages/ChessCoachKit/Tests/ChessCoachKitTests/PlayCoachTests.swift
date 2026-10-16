@@ -95,6 +95,24 @@ final class PlayCoachTests: XCTestCase {
     await waitUntil { c.session.history.count == 4 }
     XCTAssertNotNil(c.nudge)
   }
+
+  func test_givenVoiceCoach_whenBotHangsQueen_thenCoachPointsAtItWithoutTheMove() async {
+    let voice = FakeCoach()
+    let start = "4k3/8/8/1q6/8/8/8/3RK3 w - - 0 1"
+    var s = GameSession(startFEN: start)
+    s.apply(uci: "e1f2")
+    s.apply(uci: "b5d5")
+    voice.best[FENTools.key(s.position.fen)] = "d1d5"
+    let c = GameController(
+      config: PlayConfig(opponent: .maia(rating: 1100), userColor: .white, timeControl: .untimed),
+      bot: ScriptedBot(["b5d5"]), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(),
+      startFEN: start, minimumBotThink: .zero, voice: voice)
+    c.start()
+    c.tap(Square("e1"))
+    c.tap(Square("f2"))
+    await waitUntil { c.coachLine != nil }
+    XCTAssertEqual(c.coachLine?.text, "Their queen looks loose. Can you win it?")
+  }
 }
 
 @MainActor
@@ -126,4 +144,5 @@ final class PuzzleUnderpromotionTests: XCTestCase {
     s.playSetup()
     XCTAssertEqual(s.submit(uci: "e7e8"), .solved)
   }
+
 }

@@ -176,9 +176,11 @@ struct OnboardingView: View {
       Eyebrow(text: "All set")
       Text("Here's where we start").font(Typography.title).foregroundStyle(Palette.ink)
       Card {
-        Eyebrow(text: "Starting puzzle rating")
-        Text("\(placement.rating)").font(Typography.weightLarge).foregroundStyle(Palette.ink)
-        Text("Based on \(placement.done) placement puzzles (\(placement.solved) solved).")
+        let real = training.realRating
+        Eyebrow(text: "Starting rating")
+        Text("\(RatingAnchor.blend(placement: placement.rating, real: real))").font(Typography.weightLarge).foregroundStyle(Palette.ink)
+        Text(real.map { "Your chess.com rating is \($0); \(placement.solved) of \(placement.done) placement puzzles adjusted it slightly." }
+          ?? "Based on \(placement.done) placement puzzles (\(placement.solved) solved).")
           .font(Typography.caption).foregroundStyle(Palette.textSecondary)
       }
       Card {
