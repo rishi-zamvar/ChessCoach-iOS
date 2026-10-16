@@ -111,6 +111,13 @@ public struct GameAnalyzer: Sendable {
       var evals: [PositionEval] = []
       for (i, fen) in fens.enumerated() {
         try Task.checkCancellation()
+        // Spec §4: back off when the phone is hot instead of cooking it.
+        var cooled = 0
+        while ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue, cooled < 30 {
+          if cooled == 0 { telemetry.event("analysis.thermalPause", parent: ctx) }
+          try await Task.sleep(for: .seconds(2))
+          cooled += 1
+        }
         evals.append(try await evaluate(fen: fen, parent: ctx))
         ctx.progress(done: i + 1, total: fens.count)
       }

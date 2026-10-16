@@ -214,6 +214,22 @@ public struct TrainingStore: Sendable {
     }
   }
 
+  /// Consecutive days (ending today or yesterday) with at least one training attempt.
+  public func streak(now: Date, calendar: Calendar = .current) throws -> Int {
+    let days = try database.reader.read { db in
+      try Date.fetchAll(db, sql: "SELECT at FROM attempt WHERE at >= ? ORDER BY at DESC", arguments: [now.addingTimeInterval(-400 * 86_400)])
+    }
+    let practiced = Set(days.map { calendar.startOfDay(for: $0) })
+    var day = calendar.startOfDay(for: now)
+    if !practiced.contains(day) { day = calendar.date(byAdding: .day, value: -1, to: day)! }
+    var count = 0
+    while practiced.contains(day) {
+      count += 1
+      day = calendar.date(byAdding: .day, value: -1, to: day)!
+    }
+    return count
+  }
+
   public func attemptsCount(since date: Date) throws -> Int {
     try database.reader.read { db in try AttemptRow.filter(Column("at") >= date).fetchCount(db) }
   }

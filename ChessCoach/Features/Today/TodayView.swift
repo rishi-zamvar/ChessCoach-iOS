@@ -157,10 +157,19 @@ struct WeekCard: View {
   @Environment(TrainingService.self) private var training
   @State private var games = 0
   @State private var puzzles = 0
+  @State private var streak = 0
 
   var body: some View {
     Card {
-      Eyebrow(text: "This week")
+      HStack {
+        Eyebrow(text: "This week")
+        Spacer()
+        if streak > 0 {
+          Label("\(streak)-day streak", systemImage: "flame.fill")
+            .font(Typography.caption.weight(.semibold)).foregroundStyle(Palette.accentDeep)
+            .accessibilityIdentifier("streak")
+        }
+      }
       HStack(spacing: Spacing.l) {
         stat("\(games)", "games")
         stat("\(puzzles)", "puzzles")
@@ -173,6 +182,7 @@ struct WeekCard: View {
       let weekAgo = Date().addingTimeInterval(-7 * 86_400)
       games = ((try? env.gameStore.recent(limit: 200)) ?? []).filter { $0.endedAt >= weekAgo }.count
       puzzles = (try? training.store.attemptsCount(since: weekAgo)) ?? 0
+      streak = (try? training.store.streak(now: Date())) ?? 0
     }
   }
 
