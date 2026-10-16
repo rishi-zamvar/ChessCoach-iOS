@@ -91,6 +91,7 @@ public final class AppDatabase: Sendable {
       }
     }
     TrainingStore.migrate(&migrator)
+    AIStore.migrate(&migrator)
     return migrator
   }
 }
