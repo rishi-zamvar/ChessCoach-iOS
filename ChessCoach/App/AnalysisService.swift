@@ -30,6 +30,11 @@ final class AnalysisService {
   @ObservationIgnored private let env: AppEnvironment
   @ObservationIgnored private var running: [String: Task<GameAnalysis, Error>] = [:]
   @ObservationIgnored private var progressWatcher: Task<Void, Never>?
+  @ObservationIgnored private var backgroundTask: Task<Void, Never>?
+  @ObservationIgnored private var backgroundGameID: String?
+  @ObservationIgnored private var foregroundUsers = 0
+  /// Games analyzed in the background this session (for the UI).
+  private(set) var backgroundAnalyzed = 0
 
   static let usernameKey = "chesscom.username"
   static let etagsKey = "chesscom.etags"
@@ -64,6 +69,7 @@ final class AnalysisService {
       }
       importState = .finished(newGames: inserted)
       revision += 1
+      startBackgroundAnalysis()
     } catch ChessComError.userNotFound {
       importState = .failed("chess.com user “\(username)” not found.")
     } catch ChessComError.rateLimited {
@@ -125,6 +131,47 @@ final class AnalysisService {
     try env.analysisStore.save(result, endedAt: game.endedAt)
     revision += 1
     return result
+  }
+
+  // MARK: - Background analysis
+
+  /// Analyzes the most recent unanalyzed games (up to `limit`) one at a time so the
+  /// daily plan learns from them without the user opening each review.
+  func startBackgroundAnalysis(limit: Int = 10) {
+    guard backgroundTask == nil, foregroundUsers == 0, env.engineHost != nil else { return }
+    backgroundTask = Task { [weak self] in
+      defer { self?.backgroundTask = nil; self?.backgroundGameID = nil }
+      guard let self else { return }
+      let games = ((try? self.env.gameStore.recent(limit: 40)) ?? []).filter { !self.isAnalyzed($0.id) }.prefix(limit)
+      for game in games {
+        if Task.isCancelled || self.foregroundUsers > 0 { return }
+        self.backgroundGameID = game.id
+        if (try? await self.analysis(for: game)) != nil { self.backgroundAnalyzed += 1 }
+      }
+      self.env.telemetry.event("analysis.background", metadata: ["analyzed": .int(self.backgroundAnalyzed)])
+    }
+  }
+
+  /// Something interactive needs the engine (a game, a review, Play Coach): stop background work.
+  func beginForegroundEngineUse() {
+    foregroundUsers += 1
+    backgroundTask?.cancel()
+    backgroundTask = nil
+    if let id = backgroundGameID {
+      running[id]?.cancel()
+      running[id] = nil
+      backgroundGameID = nil
+    }
+  }
+
+  func endForegroundEngineUse() {
+    foregroundUsers = max(0, foregroundUsers - 1)
+    if foregroundUsers == 0 {
+      Task { [weak self] in
+        try? await Task.sleep(for: .seconds(5))
+        self?.startBackgroundAnalysis()
+      }
+    }
   }
 
   func recurringPatterns() -> [MistakePattern] {

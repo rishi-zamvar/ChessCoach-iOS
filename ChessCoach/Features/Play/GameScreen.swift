@@ -16,6 +16,7 @@ struct GameScreen: View {
   @State private var resultDismissed = false
   @State private var reviewGame: GameRecord?
   @Environment(AppEnvironment.self) private var env
+  @Environment(AnalysisService.self) private var analysis
 
   private var theme: BoardTheme { BoardTheme.named(themeID) }
   private var pieceSet: PieceSetID { PieceSetID(rawValue: pieceSetRaw) ?? .default }
@@ -72,7 +73,11 @@ struct GameScreen: View {
       }
     }
     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: game.isOver)
-    .onAppear { game.start() }
+    .onAppear {
+      analysis.beginForegroundEngineUse()
+      game.start()
+    }
+    .onDisappear { analysis.endForegroundEngineUse() }
     .confirmationDialog("Resign this game?", isPresented: $confirmResign, titleVisibility: .visible) {
       Button("Resign", role: .destructive) { game.resign() }
         .accessibilityIdentifier("confirm-resign")
