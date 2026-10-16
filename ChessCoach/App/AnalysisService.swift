@@ -50,15 +50,16 @@ final class AnalysisService {
   func importFromChessCom() async {
     guard importState != .running else { return }
     importState = .running
-    let etags = (UserDefaults.standard.dictionary(forKey: Self.etagsKey) as? [String: String]) ?? [:]
     let client = ChessComClient(telemetry: env.telemetry)
     let importer = ChessComImporter(client: client, telemetry: env.telemetry)
     do {
       let known = try env.gameStore.ids(source: .chesscom)
+      // ETags say "you already have this month" — only true if the games are actually stored.
+      let etags = known.isEmpty ? [:] : (UserDefaults.standard.dictionary(forKey: Self.etagsKey) as? [String: String]) ?? [:]
       let batch = try await importer.importGames(username: username, knownURLs: known, monthETags: etags)
       let inserted = try env.gameStore.insertNew(batch.games.map(GameRecord.init(imported:)))
       // Don't remember months as fetched if this session's games won't persist.
-      if !env.isDegraded {
+      if !env.isDegraded, !env.isInMemory {
         UserDefaults.standard.set(etags.merging(batch.etags) { _, new in new }, forKey: Self.etagsKey)
       }
       importState = .finished(newGames: inserted)
@@ -86,7 +87,7 @@ final class AnalysisService {
     if let task = running[game.id] { return try await task.value }
     guard let host = env.engineHost else { throw AnalysisError.unreadablePGN }
     let analyzer = GameAnalyzer(
-      host: host, telemetry: env.telemetry, depth: 14, maiaRating: 1100, cache: env.positionCache)
+      host: host, telemetry: env.telemetry, maiaRating: 1100, cache: env.positionCache)
     let store = env.analysisStore
     let task = Task {
       let result = try await analyzer.analyze(
@@ -118,7 +119,7 @@ final class AnalysisService {
       env.positionCache.store(fenKey: FENTools.key(p.fen), depth: p.lines.map(\.depth).max() ?? 22, lines: p.lines)
     }
     env.telemetry.event("analysis.deep", metadata: ["game": .string(game.id), "positions": .int(positions.count)])
-    let analyzer = GameAnalyzer(host: host, telemetry: env.telemetry, depth: 14, maiaRating: 1100, cache: env.positionCache)
+    let analyzer = GameAnalyzer(host: host, telemetry: env.telemetry, maiaRating: 1100, cache: env.positionCache)
     var result = try await analyzer.analyze(gameID: game.id, pgn: game.pgn, userColor: game.userColor, timeControl: game.timeControl)
     result.engine = "stockfish-pc (depth \(positions.compactMap { $0.lines.first?.depth }.max() ?? 22))"
     try env.analysisStore.save(result, endedAt: game.endedAt)

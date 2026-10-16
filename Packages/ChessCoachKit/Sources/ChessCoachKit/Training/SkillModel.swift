@@ -34,7 +34,7 @@ public enum SkillCatalog {
       band: 0...800, frequency: 0.3, systemImage: "square.grid.3x3"),
     Skill(id: "D1", name: "Blunder check", summary: "Checks, captures, threats — every move.", source: .drill(.safeMove),
       band: 0...1600, frequency: 1.0, systemImage: "shield.lefthalf.filled"),
-    Skill(id: "D2", name: "Spot every check & capture", summary: "See all forcing moves at a glance.", source: .drill(.checksCaptures),
+    Skill(id: "D2", name: "Checks & captures", summary: "See all forcing moves at a glance.", source: .drill(.checksCaptures),
       band: 0...1200, frequency: 0.7, systemImage: "scope"),
     Skill(id: "C1", name: "Free pieces", summary: "Take what's hanging; don't hang yours.", source: .puzzles(["hangingPiece"]),
       band: 0...1000, frequency: 0.9, systemImage: "gift"),

@@ -292,6 +292,11 @@ public struct TrainingStore: Sendable {
     }
   }
 
+  /// Clears the onboarding profile (ratings, reviews and lessons stay).
+  public func clearProfile() throws {
+    _ = try database.writer.write { db in try ProfileRow.deleteAll(db) }
+  }
+
   public func saveProfile(_ profile: LearnerProfile) throws {
     let json = String(data: try JSONEncoder().encode(profile), encoding: .utf8) ?? "{}"
     try database.writer.write { db in try ProfileRow(json: json).save(db) }

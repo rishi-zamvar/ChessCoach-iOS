@@ -1,0 +1,91 @@
+import ChessCoachKit
+import SwiftUI
+
+/// Settings: profile (retake onboarding), chess.com username, board look, sound, AI status.
+struct SettingsView: View {
+  @Environment(\.dismiss) private var dismiss
+  @Environment(TrainingService.self) private var training
+  @Environment(AnalysisService.self) private var analysis
+  @Environment(AppEnvironment.self) private var env
+  @AppStorage(BoardSettings.themeKey) private var themeID = BoardTheme.default.id
+  @AppStorage(BoardSettings.piecesKey) private var pieceSetRaw = PieceSetID.default.rawValue
+  @AppStorage(BoardSettings.coordinatesKey) private var showCoordinates = true
+  @AppStorage(BoardSettings.soundKey) private var soundOn = true
+  @State private var username = ""
+  @State private var confirmRetake = false
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section("You") {
+          if let p = training.profile {
+            LabeledContent("Style", value: "\(p.style.title) · like \(p.style.model)")
+            LabeledContent("Puzzle rating", value: "\(training.globalRating)")
+          }
+          Button("Retake onboarding") { confirmRetake = true }
+            .accessibilityIdentifier("settings-retake")
+        }
+        Section("chess.com") {
+          TextField("Username", text: $username)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .onSubmit { analysis.username = username.trimmingCharacters(in: .whitespaces) }
+        }
+        Section("Board") {
+          Picker("Theme", selection: $themeID) {
+            ForEach(BoardTheme.all) { Text($0.name).tag($0.id) }
+          }
+          Picker("Pieces", selection: $pieceSetRaw) {
+            ForEach(PieceSetID.allCases) { set in
+              HStack {
+                Image(set.assetName(color: .white, kind: .knight)).resizable().frame(width: 22, height: 22)
+                Text(set.displayName)
+              }
+              .tag(set.rawValue)
+            }
+          }
+          Toggle("Coordinates", isOn: $showCoordinates)
+          Toggle("Move sounds", isOn: $soundOn)
+        }
+        Section("Coach AI & home PC") {
+          LabeledContent("Home PC", value: serverText)
+          LabeledContent("AI key", value: env.server.hasKey ? "Ready (\(env.server.keyID ?? "—"))" : "Not yet received")
+          LabeledContent("Spent this month", value: String(format: "$%.2f of $80", env.aiStore.spentThisMonth()))
+          LabeledContent("On-device model", value: OnDeviceExplainer.isAvailable ? "Available" : "Not on this device")
+          Button("Check now") { Task { await env.server.refresh() } }
+        }
+        Section {
+          Text("ChessCoach · engines: Stockfish 17, Maia-1100 (Lc0) · puzzles & openings: Lichess (CC0)")
+            .font(.footnote).foregroundStyle(.secondary)
+        }
+      }
+      .navigationTitle("Settings")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { commit(); dismiss() } } }
+      .onAppear { username = analysis.username }
+      .confirmationDialog("Retake onboarding?", isPresented: $confirmRetake, titleVisibility: .visible) {
+        Button("Retake") {
+          commit()
+          training.resetProfile()
+          dismiss()
+        }
+      } message: {
+        Text("You'll pick your style and redo placement. Your games, ratings and reviews stay.")
+      }
+    }
+  }
+
+  private var serverText: String {
+    switch env.server.status {
+    case .online(let v): "Connected (v\(v))"
+    case .checking: "Checking…"
+    case .offline: "Not reachable"
+    case .unknown: "—"
+    }
+  }
+
+  private func commit() {
+    let trimmed = username.trimmingCharacters(in: .whitespaces)
+    if !trimmed.isEmpty { analysis.username = trimmed }
+  }
+}

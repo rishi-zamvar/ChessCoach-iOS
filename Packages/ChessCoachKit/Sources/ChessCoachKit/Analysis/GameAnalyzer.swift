@@ -85,14 +85,20 @@ public struct GameAnalyzer: Sendable {
   public let depth: Int
   /// Rating whose Maia model judges "would a human find this" for Brilliant.
   public let maiaRating: Int?
+  /// Per-position time cap (ms); nil = depth only.
+  public let msPerPosition: Int?
   let cache: PositionCache?
 
-  public init(host: EngineHost, telemetry: Telemetry, depth: Int = 14, maiaRating: Int? = 1100, cache: PositionCache? = nil) {
+  public init(
+    host: EngineHost, telemetry: Telemetry, depth: Int = 12, maiaRating: Int? = 1100, cache: PositionCache? = nil,
+    msPerPosition: Int? = 250
+  ) {
     self.host = host
     self.telemetry = telemetry
     self.depth = depth
     self.maiaRating = maiaRating
     self.cache = cache
+    self.msPerPosition = msPerPosition
   }
 
   public func analyze(gameID: String, pgn: String, userColor: String, timeControl: String) async throws -> GameAnalysis {
@@ -190,10 +196,13 @@ public struct GameAnalyzer: Sendable {
       return PositionEval(lines: [], sideToMoveWin: inCheck ? 0 : 50, legalMoves: 0)
     }
     let key = FENTools.key(fen)
-    if let cached = cache?.lookup(fenKey: key, minDepth: depth) {
+    // Time-capped searches can stop short of `depth`; accept cached lines a little shallower.
+    if let cached = cache?.lookup(fenKey: key, minDepth: msPerPosition == nil ? depth : max(1, depth - 4)) {
       return PositionEval(lines: cached, sideToMoveWin: WinChance.winPercent(cached[0].score), legalMoves: legal)
     }
-    let result = try await host.search(.stockfish, fen: fen, limit: .depth(depth), multipv: min(3, legal))
+    let limit: SearchLimit = msPerPosition.map { .depthOrTime(depth: depth, milliseconds: $0) } ?? .depth(depth)
+    // MultiPV 2 is enough for "Great" (best vs second-best); 3 costs ~50% more.
+    let result = try await host.search(.stockfish, fen: fen, limit: limit, multipv: min(2, legal))
     guard let first = result.lines.first else { throw EngineError.noBestMove }
     cache?.store(fenKey: key, depth: depth, lines: result.lines)
     return PositionEval(lines: result.lines, sideToMoveWin: WinChance.winPercent(first.score), legalMoves: legal)

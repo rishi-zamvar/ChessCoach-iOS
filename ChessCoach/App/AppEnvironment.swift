@@ -23,6 +23,8 @@ final class AppEnvironment {
   let sounds: SoundPlayer
   /// The on-disk store failed to open and we're running in memory (nothing persists).
   let isDegraded: Bool
+  /// UI tests / previews run on a throwaway in-memory store.
+  let isInMemory: Bool
 
   init(inMemory: Bool = false) {
     let database: AppDatabase
@@ -37,6 +39,7 @@ final class AppEnvironment {
       openError = String(describing: error)
     }
     isDegraded = degraded
+    isInMemory = inMemory
     self.database = database
     gameStore = GameStore(database: database)
     analysisStore = AnalysisStore(database: database)

@@ -35,5 +35,5 @@ Tests: **270+ package tests + app unit + 4 UI flows**, all green.
 - M5 PC server: being built on the PC. The phone side is ready: discovery, key handoff, deep analysis client.
 - Teaching-bot quality needs real games to tune (gift frequency, loss caps).
 - Openings: "what if I skip this move" refutations; Socratic AI walkthrough is available via Ask the coach.
-- Weekly plan summary (AI) and an on-device model (M7).
+- Weekly plan summary (AI). M7 on-device model: wired for review explanations on iOS 26 + Apple Intelligence devices (offline fallback, same grounding check) — needs a real device to verify.
 - TailscaleKit embedding (currently uses the Tailscale app).
