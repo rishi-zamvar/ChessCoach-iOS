@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+markers = [
+    "engine: real-engine smoke tests that require stockfish/lc0 binaries installed on the host",
+]
