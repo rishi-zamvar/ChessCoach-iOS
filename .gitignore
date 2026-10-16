@@ -6,3 +6,4 @@ xcuserdata/
 ChessCoach/Resources/Engines/*
 !ChessCoach/Resources/Engines/.gitkeep
 __pycache__/
+build/
