@@ -29,6 +29,8 @@ public struct MoveAnalysis: Codable, Equatable, Sendable, Identifiable {
   public var bestEP: Double
   public var playedEP: Double
   public var bestUCI: String?
+  /// Engine moves within 2% of the best (also accepted in Retry).
+  public var goodMoves: [String] = []
   public var bestLine: [String]
   public var label: MoveClass
   public var accuracy: Double
@@ -144,6 +146,7 @@ public struct GameAnalyzer: Sendable {
           MoveAnalysis(
             ply: index + 1, san: played.san, uci: played.uci, color: mover == .white ? "white" : "black",
             fenBefore: fens[index], bestEP: bestEP, playedEP: playedEP, bestUCI: bestUCI,
+            goodMoves: before.lines.filter { bestEP - WinChance.winPercent($0.score) / 100 <= 0.02 }.compactMap(\.pv.first),
             bestLine: sheet?.bestLineSAN ?? [], label: label,
             accuracy: WinChance.moveAccuracy(winBefore: bestEP * 100, winAfter: playedEP * 100),
             facts: sheet, explanation: explanation,
