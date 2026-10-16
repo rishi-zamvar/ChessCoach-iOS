@@ -46,6 +46,10 @@ public struct TeachingBot: BotPlayer {
   static let movesBetweenGifts = 8
 
   public func move(fen: String) async throws -> String {
+    try await explainedMove(fen: fen).uci
+  }
+
+  public func explainedMove(fen: String) async throws -> (uci: String, why: String?) {
     try await telemetry.step("bot.move", metadata: ["kind": .string(kind)]) { ctx in
       let candidates = try await candidates(fen: fen)
       guard let best = candidates.max(by: { $0.ep < $1.ep }) else { throw EngineError.noBestMove }
@@ -53,10 +57,12 @@ public struct TeachingBot: BotPlayer {
       let allowed = Self.allowed(candidates, best: best.ep, giftAllowed: giftAllowed)
       var chosen: Candidate?
       var reason = "maia"
+      var why: String?
       if let client, client.isAvailable, allowed.count > 1 {
         if let pick = try? await askClaude(fen: fen, allowed: allowed, client: client) {
           chosen = allowed.first { $0.uci == pick.uci }
           reason = pick.reason
+          why = pick.explanation.flatMap { Self.isGrounded($0, fen: fen, uci: pick.uci) ? $0 : nil }
         }
       }
       if chosen == nil {
@@ -69,7 +75,21 @@ public struct TeachingBot: BotPlayer {
       ctx.annotate("move", .string(move.uci))
       ctx.annotate("reason", .string(String(reason.prefix(200))))
       ctx.annotate("loss", .double(best.ep - move.ep))
-      return move.uci
+      return (move.uci, move.uci == chosen?.uci ? why : nil)
+    }
+  }
+
+  /// The learner-facing sentence may only mention this move and squares that hold a
+  /// piece before or after it (no invented pieces, no other moves like the refutation).
+  static func isGrounded(_ text: String, fen: String, uci: String) -> Bool {
+    var session = GameSession(startFEN: fen)
+    let before = session.position
+    guard case .applied(let played) = session.apply(uci: uci), text.count <= 160 else { return false }
+    let occupied = Set((before.pieces + session.position.pieces).map(\.square.notation))
+    let bare = played.san.replacingOccurrences(of: #"[+#]"#, with: "", options: .regularExpression)
+    return Explainer.mentions(in: text).allSatisfy { token in
+      let t = token.replacingOccurrences(of: #"[+#]"#, with: "", options: .regularExpression)
+      return t == bare || (t.count == 2 && occupied.contains(t))
     }
   }
 
@@ -110,11 +130,14 @@ public struct TeachingBot: BotPlayer {
     You are a chess coach playing a training game against a beginner. Each turn you pick the move that best TEACHES them, \
     from a list of candidate moves that were already checked by an engine. Play like a natural human opponent most of the time. \
     When a candidate "gives" something (a loose piece) and it matches a weakness the learner is practicing, you may choose it \
-    occasionally so the learner gets to spot and punish it. Never explain to the learner here.
-    Call the play_move tool exactly once with one of the candidate moves and a short private reason.
+    occasionally so the learner gets to spot and punish it.
+    Call the play_move tool exactly once with one of the candidate moves, a short private reason, and an `explanation`: \
+    one friendly sentence (under 20 words) the learner sees, saying what your move is trying to do as their opponent \
+    (e.g. "I'm bringing my knight toward your king."). The explanation must never reveal a deliberate gift, hint at \
+    their best reply, or name any move other than the one you played.
     """
 
-  func askClaude(fen: String, allowed: [Candidate], client: AnthropicClient) async throws -> (uci: String, reason: String) {
+  func askClaude(fen: String, allowed: [Candidate], client: AnthropicClient) async throws -> (uci: String, reason: String, explanation: String?) {
     let list = allowed.map { c in
       "- \(c.uci) (\(c.san)): engine expectation \(Int(c.ep * 100))%, human likelihood \(Int(c.maiaProbability * 100))%\(c.gives.map { ", \($0)" } ?? "")"
     }.joined(separator: "\n")
@@ -132,8 +155,9 @@ public struct TeachingBot: BotPlayer {
         "properties": .object([
           "move": .object(["type": .string("string"), "enum": .array(allowed.map { .string($0.uci) })]),
           "reason": .object(["type": .string("string")]),
+          "explanation": .object(["type": .string("string")]),
         ]),
-        "required": .array([.string("move"), .string("reason")]),
+        "required": .array([.string("move"), .string("reason"), .string("explanation")]),
         "additionalProperties": .bool(false),
       ]))
     // One call: read the play_move tool_use directly (no need to send a tool_result back).
@@ -144,7 +168,7 @@ public struct TeachingBot: BotPlayer {
     guard let call = turn.toolUses.first(where: { $0.name == "play_move" }), let uci = call.input["move"]?.stringValue,
       allowed.contains(where: { $0.uci == uci })
     else { throw AIError.badResponse }
-    return (uci, call.input["reason"]?.stringValue ?? "")
+    return (uci, call.input["reason"]?.stringValue ?? "", call.input["explanation"]?.stringValue)
   }
 }
 

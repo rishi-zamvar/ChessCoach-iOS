@@ -66,6 +66,8 @@ public final class GameController {
   /// The latest line from the coach in your corner (spoken by the app). `id` changes per line.
   public private(set) var coachLine: (id: Int, text: String)?
   public var hasVoiceCoach: Bool { voice != nil }
+  /// The bot's own explanation per ply (1-based, as in `viewPly`), when it gave one.
+  public private(set) var botReasons: [Int: String] = [:]
 
   public let config: PlayConfig
   public let bot: BotPlayer
@@ -456,17 +458,18 @@ public final class GameController {
     let ply = session.history.count
     botTask = Task { [weak self, bot, minimumBotThink, telemetry] in
       let started = ContinuousClock.now
-      let uci: String?
+      let pick: (uci: String, why: String?)?
       do {
-        uci = try await telemetry.step("game.botTurn", metadata: ["ply": .int(ply)]) { _ in
-          try await bot.move(fen: fen)
+        pick = try await telemetry.step("game.botTurn", metadata: ["ply": .int(ply)]) { _ in
+          try await bot.explainedMove(fen: fen)
         }
       } catch {
-        uci = nil
+        pick = nil
       }
       let elapsed = ContinuousClock.now - started
       if elapsed < minimumBotThink { try? await Task.sleep(for: minimumBotThink - elapsed) }
-      self?.applyBotMove(uci, expectedPly: ply)
+      self?.botReasons[ply + 1] = pick?.why
+      self?.applyBotMove(pick?.uci, expectedPly: ply)
     }
   }
 

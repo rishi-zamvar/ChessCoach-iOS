@@ -38,6 +38,14 @@ public protocol BotPlayer: Sendable {
   var kind: String { get }
   /// Returns the bot's move in UCI for the position `fen`.
   func move(fen: String) async throws -> String
+  /// The move plus a learner-facing sentence on why it was played, when the bot has one.
+  func explainedMove(fen: String) async throws -> (uci: String, why: String?)
+}
+
+extension BotPlayer {
+  public func explainedMove(fen: String) async throws -> (uci: String, why: String?) {
+    (try await move(fen: fen), nil)
+  }
 }
 
 /// Human-like opponent: samples Maia's move probabilities at a rating.

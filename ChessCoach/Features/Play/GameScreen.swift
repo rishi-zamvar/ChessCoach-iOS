@@ -120,8 +120,10 @@ struct GameScreen: View {
     if game.viewPly > 0, game.viewPly <= history.count {
       let played = history[game.viewPly - 1]
       let who = played.color == game.userColor ? "You" : game.bot.name
-      let why = Explainer.reason(fen: game.session.fen(atPly: game.viewPly - 1), uci: played.uci) ?? played.san
-      Text("\(who): \(why)")
+      let why = played.color == game.userColor ? nil : game.botReasons[game.viewPly]
+        .map { "\(played.san). \($0)" }
+      let facts = Explainer.reason(fen: game.session.fen(atPly: game.viewPly - 1), uci: played.uci) ?? played.san
+      Text("\(who): \(why ?? facts)")
         .font(.system(size: 13, weight: .medium, design: .rounded))
         .foregroundStyle(ChessChrome.textSecondary)
         .frame(maxWidth: .infinity, alignment: .leading)

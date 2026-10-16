@@ -60,3 +60,44 @@ final class BotTests: XCTestCase {
     await host.shutdown()
   }
 }
+
+final class TeachingBotExplanationTests: XCTestCase {
+  let start = GameSession.standardFEN
+
+  func test_givenExplanationAboutRealSquares_whenChecked_thenAccepted() {
+    XCTAssertTrue(TeachingBot.isGrounded("I'm putting a pawn on e4 to take the centre.", fen: start, uci: "e2e4"))
+    XCTAssertTrue(TeachingBot.isGrounded("e4 opens lines for my bishop on f1.", fen: start, uci: "e2e4"))
+  }
+
+  func test_givenExplanationNamingAnotherMove_whenChecked_thenRejected() {
+    // Hints at a reply (Nf6) — never allowed.
+    XCTAssertFalse(TeachingBot.isGrounded("e4, and if you play Nf6 I attack it.", fen: start, uci: "e2e4"))
+  }
+
+  func test_givenExplanationAboutEmptySquare_whenChecked_thenRejected() {
+    XCTAssertFalse(TeachingBot.isGrounded("My queen on h5 is ready to strike.", fen: start, uci: "e2e4"))
+  }
+}
+
+@MainActor
+final class ExplainedBotTests: XCTestCase {
+  struct TalkingBot: BotPlayer {
+    var name: String { "Coach" }
+    var rating: Int { 500 }
+    var kind: String { "talking" }
+    func move(fen: String) async throws -> String { "e7e5" }
+    func explainedMove(fen: String) async throws -> (uci: String, why: String?) { ("e7e5", "I want my share of the centre.") }
+  }
+
+  func test_givenBotWithReason_whenItMoves_thenReasonKeptForThatPly() async {
+    let c = GameController(
+      config: PlayConfig(opponent: .teaching, userColor: .white, timeControl: .untimed),
+      bot: TalkingBot(), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(), minimumBotThink: .zero)
+    c.start()
+    c.tap(Square("e2"))
+    c.tap(Square("e4"))
+    for _ in 0..<200 where c.session.history.count < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+    XCTAssertEqual(c.botReasons[2], "I want my share of the centre.")
+    XCTAssertNil(c.botReasons[1])
+  }
+}
