@@ -90,6 +90,7 @@ public final class AppDatabase: Sendable {
         t.column("endedAt", .datetime).notNull().indexed()
       }
     }
+    TrainingStore.migrate(&migrator)
     return migrator
   }
 }

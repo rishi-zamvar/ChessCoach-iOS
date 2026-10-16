@@ -20,3 +20,6 @@ permissive fallback.
 
 ## Sounds (`Resources/Sounds`)
 Generated in-house by `scripts/make_sounds.py` (synthesized). No third-party audio.
+
+## Puzzles (`Resources/puzzles.sqlite`)
+- Lichess puzzle database (built by `scripts/build_puzzles.py`) — CC0, attribution https://database.lichess.org

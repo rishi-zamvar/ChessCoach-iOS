@@ -1,5 +1,5 @@
 {
-  "originHash" : "4230c3e0cee2a7d8011d39f7a21ebf641cdf015046e70fc38ac88c40078be978",
+  "originHash" : "a0af89bac972ef86ac324253b131f8040f64e29038e3909acfe4d36e522326cd",
   "pins" : [
     {
       "identity" : "chesskit-engine",
@@ -26,6 +26,15 @@
       "state" : {
         "revision" : "b83108d10f42680d78f23fe4d4d80fc88dab3212",
         "version" : "7.11.1"
+      }
+    },
+    {
+      "identity" : "swift-fsrs",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/open-spaced-repetition/swift-fsrs",
+      "state" : {
+        "branch" : "4fbaf20",
+        "revision" : "4fbaf20184d62f82a9f44f343337c61a2c5483e9"
       }
     }
   ],
