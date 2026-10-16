@@ -111,8 +111,7 @@ public struct BoardInteraction: Equatable, Sendable {
 
   /// Moves the piece could make if it were its side's turn (premove candidates).
   static func premoveTargets(from square: Square, session: GameSession) -> [Square] {
-    var position = session.position
-    position.toggleSideToMove()
+    guard let position = Position(fen: FENTools.passTurn(session.position.fen)) else { return [] }
     return Board(position: position).legalMoves(forPieceAt: square)
   }
 }
