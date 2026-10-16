@@ -16,6 +16,8 @@ struct PuzzleView: View {
   var hasSetupMove = true
   /// false for placement: no rating or review updates.
   var rated = true
+  /// Puzzle Rush: no hints; a solve or a wrong move ends the puzzle immediately.
+  var rush = false
   let onFinished: (PuzzleOutcome) -> Void
 
   @Environment(TrainingService.self) private var training
@@ -70,7 +72,7 @@ struct PuzzleView: View {
       }
       feedbackBar
       Spacer(minLength: 0)
-      controls
+      if !rush { controls }
     }
     .task(id: puzzle.id) { await start() }
   }
@@ -200,6 +202,10 @@ struct PuzzleView: View {
     switch result {
     case .ignored:
       return
+    case .wrong where rush:
+      env.sounds.play(.illegal)
+      session = s
+      onFinished(PuzzleOutcome(solvedCleanly: false, ratingChange: nil))
     case .wrong:
       var trial = before
       if case .applied(let played) = trial.apply(from: from, to: to, promotion: trial.isPromotion(from: from, to: to) ? .queen : nil) {
@@ -220,6 +226,12 @@ struct PuzzleView: View {
       annotations = AnnotationLayer()
       env.sounds.play(.gameEnd)
       record(s)
+      if rush {
+        Task {
+          try? await Task.sleep(for: .milliseconds(350))
+          onFinished(PuzzleOutcome(solvedCleanly: true, ratingChange: nil))
+        }
+      }
     }
   }
 

@@ -21,7 +21,10 @@ struct ChessCoachApp: App {
         .environment(analysis)
         .environment(training)
         .preferredColorScheme(.light)
-        .task { await env.server.refresh() }
+        .task {
+          await env.server.refresh()
+          analysis.startBackgroundAnalysis()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
           Task { await env.server.refresh() }
         }

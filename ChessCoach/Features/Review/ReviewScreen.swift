@@ -50,6 +50,8 @@ struct ReviewScreen: View {
     .background(ChessChrome.background.ignoresSafeArea())
     .preferredColorScheme(.dark)
     .task { await load() }
+    .onAppear { analysisService.beginForegroundEngineUse() }
+    .onDisappear { analysisService.endForegroundEngineUse() }
   }
 
   private var header: some View {

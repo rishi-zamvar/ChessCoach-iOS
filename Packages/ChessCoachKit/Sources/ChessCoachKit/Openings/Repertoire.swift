@@ -276,7 +276,10 @@ public struct Repertoire: Identifiable, Sendable {
 
 /// Bundled repertoires (Resources/repertoires/*.pgn).
 public enum RepertoireLibrary {
-  public static func all() -> [Repertoire] { all(bundle: .module) }
+  /// Parsed once (12 files); views read this freely.
+  private static let cached: [Repertoire] = all(bundle: .module)
+
+  public static func all() -> [Repertoire] { cached }
 
   static func all(bundle: Bundle) -> [Repertoire] {
     let urls = bundle.urls(forResourcesWithExtension: "pgn", subdirectory: "repertoires") ?? []

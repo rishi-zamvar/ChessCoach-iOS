@@ -74,6 +74,4 @@ schemes:
     test:
       targets:
         - ChessCoachTests
-        - name: ChessCoachUITests
-          # Real-data tour needs network + ~2 min; run on demand with -only-testing.
-          skippedTests: [TourUITests]
+        - ChessCoachUITests

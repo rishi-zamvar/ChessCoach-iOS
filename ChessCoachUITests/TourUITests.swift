@@ -5,6 +5,8 @@ import XCTest
 final class TourUITests: XCTestCase {
   @MainActor
   func test_tour_realGamesReviewLessonsOpenings() throws {
+    // Needs network + ~2 min: run with TEST_RUNNER_TOUR=1 xcodebuild test -only-testing:ChessCoachUITests/TourUITests
+    try XCTSkipUnless(ProcessInfo.processInfo.environment["TOUR"] == "1", "set TEST_RUNNER_TOUR=1")
     let app = XCUIApplication()
     app.launchArguments = ["-uiTesting"]
     app.launch()

@@ -285,6 +285,19 @@ final class TrainingStoreTests: XCTestCase {
     XCTAssertEqual(progress.attempts, 2)
   }
 
+  func test_givenAttemptsOnConsecutiveDays_whenStreak_thenCountsBackFromToday() throws {
+    let store = TrainingStore(database: try AppDatabase.inMemory())
+    for daysAgo in [0.0, 1, 2, 4] {
+      var s = PuzzleSession(puzzle: makePuzzle(id: "p\(daysAgo)", fen: backRankFEN, moves: ["g8h8", "d1d8"]))
+      s.playSetup()
+      _ = s.submit(uci: "d1d8")
+      try store.recordPuzzle(s, seconds: 5, now: now.addingTimeInterval(-daysAgo * 86_400))
+    }
+    XCTAssertEqual(try store.streak(now: now), 3)
+    XCTAssertEqual(try store.streak(now: now.addingTimeInterval(86_400)), 3, "yesterday still counts")
+    XCTAssertEqual(try store.streak(now: now.addingTimeInterval(3 * 86_400)), 0)
+  }
+
   func test_givenProfile_whenSaved_thenRoundTrips() throws {
     let store = TrainingStore(database: try AppDatabase.inMemory())
     XCTAssertNil(try store.profile())

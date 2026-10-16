@@ -9,6 +9,7 @@ struct PlayoutView: View {
   let onFinished: (_ wins: Int, _ total: Int) -> Void
 
   @Environment(AppEnvironment.self) private var env
+  @Environment(AnalysisService.self) private var analysis
   @AppStorage(BoardSettings.themeKey) private var themeID = BoardTheme.default.id
   @AppStorage(BoardSettings.piecesKey) private var pieceSetRaw = PieceSetID.default.rawValue
 
@@ -57,7 +58,11 @@ struct PlayoutView: View {
         .padding(Spacing.m)
       }
     }
-    .onAppear { reset() }
+    .onAppear {
+      analysis.beginForegroundEngineUse()
+      reset()
+    }
+    .onDisappear { analysis.endForegroundEngineUse() }
   }
 
   private var goalText: String {

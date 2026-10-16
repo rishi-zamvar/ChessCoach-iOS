@@ -36,7 +36,7 @@ struct RootView: View {
                 .tag(Tab.play)
         }
         .tint(Palette.primaryDeep)
-        .fullScreenCover(isPresented: .constant(training.needsOnboarding)) {
+        .fullScreenCover(isPresented: Binding(get: { training.needsOnboarding }, set: { _ in })) {
             OnboardingView()
         }
         .onAppear(perform: skipOnboardingInUITests)

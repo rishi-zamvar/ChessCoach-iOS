@@ -13,6 +13,7 @@ struct AskCoachSheet: View {
   @Environment(AppEnvironment.self) private var env
   @Environment(TrainingService.self) private var training
   @Environment(\.dismiss) private var dismiss
+  @Environment(AnalysisService.self) private var analysis
   @State private var question = ""
   @State private var exchanges: [(q: String, a: String, grounded: Bool)] = []
   @State private var thinking = false
@@ -75,6 +76,8 @@ struct AskCoachSheet: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
+    .onAppear { analysis.beginForegroundEngineUse() }
+    .onDisappear { analysis.endForegroundEngineUse() }
   }
 
   private func send(_ text: String) {

@@ -13,6 +13,8 @@ struct SettingsView: View {
   @AppStorage(BoardSettings.soundKey) private var soundOn = true
   @State private var username = ""
   @State private var confirmRetake = false
+  /// Asks the presenter to reset the profile once this sheet is gone.
+  var onRetake: () -> Void = {}
 
   var body: some View {
     NavigationStack {
@@ -66,11 +68,11 @@ struct SettingsView: View {
       .confirmationDialog("Retake onboarding?", isPresented: $confirmRetake, titleVisibility: .visible) {
         Button("Retake") {
           commit()
-          training.resetProfile()
+          onRetake()
           dismiss()
         }
       } message: {
-        Text("You'll pick your style and redo placement. Your games, ratings and reviews stay.")
+        Text("You'll pick your style and redo placement, which resets your overall puzzle rating. Games, reviews and skill ratings stay.")
       }
     }
   }
