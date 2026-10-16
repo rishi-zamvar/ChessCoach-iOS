@@ -80,6 +80,7 @@ public actor EngineHost {
   private var engine: Engine?
   private var running: EngineKind?
   private var currentMultiPV = 0
+  private var currentSkill = 20
   private var readerTask: Task<Void, Never>?
 
   private var pendingReady: CheckedContinuation<Void, Never>?
@@ -96,9 +97,10 @@ public actor EngineHost {
     _ kind: EngineKind,
     fen: String,
     limit: SearchLimit,
-    multipv: Int = 1
+    multipv: Int = 1,
+    skillLevel: Int? = nil
   ) async throws -> SearchResult {
-    try await prepare(kind, multipv: multipv)
+    try await prepare(kind, multipv: multipv, skillLevel: skillLevel)
     guard let engine else { throw EngineError.noBestMove }
 
     lines = [:]
@@ -123,16 +125,20 @@ public actor EngineHost {
 
   /// Stops whichever engine is running.
   public func shutdown() async {
-    await engine?.stop()
+    guard let engine else { return }
+    await engine.stop()
+    // chesskit-engine closes the pipes right after `quit`; give the C++ engine thread
+    // time to unwind before another engine (or process exit) reuses stdin/stdout.
+    try? await Task.sleep(for: .milliseconds(300))
     readerTask?.cancel()
     readerTask = nil
-    engine = nil
+    self.engine = nil
     running = nil
   }
 
   // MARK: - Lifecycle
 
-  private func prepare(_ kind: EngineKind, multipv: Int) async throws {
+  private func prepare(_ kind: EngineKind, multipv: Int, skillLevel: Int?) async throws {
     if case .maia(let rating) = kind, assets.maiaWeights[rating] == nil {
       throw EngineError.missingWeights(rating: rating)
     }
@@ -152,6 +158,12 @@ public actor EngineHost {
       }
       running = kind
       currentMultiPV = 0
+      currentSkill = 20
+    }
+    // Stockfish strength: nil means full strength (analysis).
+    if kind == .stockfish, (skillLevel ?? 20) != currentSkill {
+      currentSkill = skillLevel ?? 20
+      await engine?.send(command: .setoption(id: "Skill Level", value: "\(currentSkill)"))
     }
     if currentMultiPV != multipv {
       await engine?.send(command: .setoption(id: "MultiPV", value: "\(multipv)"))
