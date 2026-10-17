@@ -22,7 +22,7 @@ final class CoachVoiceTests: XCTestCase {
   func test_givenForkAvailable_whenPrompting_thenHintsWithoutNamingMove() {
     // Black's last move ...Ra8 walked into the fork.
     let line = CoachVoice.prompt(
-      fenBeforeOpponent: "4k3/r7/8/3N4/8/8/8/4K3 b - - 0 1", opponentMove: "a7a8", fenNow: forkFEN, best: "d5c7", turn: 1)
+      fenBeforeOpponent: "4k3/r7/8/3N4/8/8/8/4K3 b - - 0 1", opponentMove: "a7a8", fenNow: forkFEN, turn: 1)
     XCTAssertEqual(line, "I smell a fork. Which piece could hit two targets at once?")
     XCTAssertFalse(line!.contains("Nc7"))
   }
@@ -30,14 +30,14 @@ final class CoachVoiceTests: XCTestCase {
   func test_givenLoosePiece_whenPrompting_thenPointsAtIt() {
     let line = CoachVoice.prompt(
       fenBeforeOpponent: "4k3/8/8/1q6/8/8/8/3RK3 b - - 0 1", opponentMove: "b5d5", fenNow: "4k3/8/8/3q4/8/8/8/3RK3 w - - 0 1",
-      best: "d1d5", turn: 1)
+      turn: 1)
     XCTAssertEqual(line, "Their queen looks loose. Can you win it?")
   }
 
   func test_givenQuietPosition_whenPrompting_thenOnlyOccasionalAdvice() {
     let fen = "4k3/8/8/8/8/8/P7/4K3 w - - 0 1"
-    XCTAssertNil(CoachVoice.prompt(fenBeforeOpponent: "3k4/8/8/8/8/8/P7/4K3 b - - 0 1", opponentMove: "d8e8", fenNow: fen, best: "a2a3", turn: 3))
-    XCTAssertNotNil(CoachVoice.prompt(fenBeforeOpponent: "3k4/8/8/8/8/8/P7/4K3 b - - 0 1", opponentMove: "d8e8", fenNow: fen, best: "a2a3", turn: 5))
+    XCTAssertNil(CoachVoice.prompt(fenBeforeOpponent: "3k4/8/8/8/8/8/P7/4K3 b - - 0 1", opponentMove: "d8e8", fenNow: fen, turn: 3))
+    XCTAssertNotNil(CoachVoice.prompt(fenBeforeOpponent: "3k4/8/8/8/8/8/P7/4K3 b - - 0 1", opponentMove: "d8e8", fenNow: fen, turn: 5))
   }
 
   func test_givenLines_whenSpoken_thenEveryOneHasARecordingWithAUniqueName() {
@@ -49,6 +49,8 @@ final class CoachVoiceTests: XCTestCase {
     ].compactMap { $0 }
     for line in produced { XCTAssertTrue(all.contains(CoachVoice.spoken(line)), line) }
     XCTAssertEqual(CoachVoice.spoken("Hmm. You missed something. Nc7+ was a fork."), "Hmm. You missed something. You had a fork there.")
+    XCTAssertEqual(CoachVoice.spoken("Hold up. Your knight on d5 has no defender."), "Hold up. Your knight has no defender.")
+    XCTAssertTrue(all.contains("Hold up. Their bishop was free."))
     XCTAssertEqual(Set(all.map(CoachVoice.clipName)).count, Set(all).count)
   }
 

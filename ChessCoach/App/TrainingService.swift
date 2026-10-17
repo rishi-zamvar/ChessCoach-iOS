@@ -97,6 +97,8 @@ final class TrainingService {
       }
     }.joined(separator: ", ")
     env.learnerBrief = { "Puzzle rating about \(rating), chess.com rapid ~300, style \(style). Working on: \(focus)." }
+    let ratings = skillRatings.mapValues(\.rating)
+    env.puzzleRatings = { ratings }
     env.telemetry.event(
       "training.plan",
       metadata: ["items": .int(plan.count), "due": .int(due.count), "rating": .int(globalRating),

@@ -82,15 +82,14 @@ struct TrainView: View {
 
           SectionHeader(title: "Play Coach")
           Button {
-            coachGame = env.makeGame(
-              PlayConfig(opponent: .maia(rating: 1100), userColor: ColorChoice.random.resolve(), timeControl: .untimed), coached: true)
+            coachGame = env.makeGame(PlayConfig(opponent: .teaching, userColor: ColorChoice.random.resolve(), timeControl: .untimed))
           } label: {
             Card {
               HStack(spacing: Spacing.m) {
                 Image(systemName: "person.wave.2").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
                   Text("Play with the coach").font(Typography.titleSmall).foregroundStyle(Palette.ink)
-                  Text("A real game vs Maia. The coach stops you after mistakes, nudges you about threats, and gives hints.")
+                  Text("A game that trains \(env.coachFocus.title.lowercased()). The coach says \"Hold up\" before a mistake costs you.")
                     .font(Typography.callout).foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 }

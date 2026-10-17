@@ -28,8 +28,18 @@ struct GameScreen: View {
       VStack(spacing: 0) {
         header
         MoveStrip(history: game.session.history, currentPly: game.viewPly) { game.jump(toPly: $0) }
+        if let focus = game.focus {
+          Label("Focus: \(focus.title)", systemImage: "scope")
+            .font(.system(size: 12, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.accentGreen)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(Capsule().fill(ChessChrome.accentGreen.opacity(0.15)))
+            .padding(.top, Spacing.xs)
+            .accessibilityIdentifier("coach-focus")
+        }
         moveCaption
-        if let line = game.coachLine {
+        if let hint = game.hintText {
+          CoachBanner(text: hint, systemImage: "lightbulb.fill", tint: MoveClass.great.color)
+        } else if let line = game.coachLine {
           CoachLineBubble(
             text: line.text, speaking: CoachSpeaker.shared.isSpeaking,
             onReplay: CoachMode.current == .voice ? { CoachSpeaker.shared.say(line.text) } : nil)
@@ -37,8 +47,6 @@ struct GameScreen: View {
             .transition(.move(edge: .top).combined(with: .opacity))
         } else if let nudge = game.nudge {
           CoachBanner(text: nudge, systemImage: "exclamationmark.bubble.fill", tint: MoveClass.inaccuracy.color)
-        } else if let hint = game.hintText {
-          CoachBanner(text: hint, systemImage: "lightbulb.fill", tint: MoveClass.great.color)
         } else if game.phase == .coachChecking {
           CoachBanner(text: "Coach is looking at your move…", systemImage: "eye", tint: ChessChrome.textSecondary)
         }
@@ -336,14 +344,24 @@ private struct CoachPauseCard: View {
   let onShow: () -> Void
   let onContinue: () -> Void
 
+  private var isGraded: Bool { pause.kind == .mistake || pause.kind == .blunder }
+  private var tint: Color { isGraded ? pause.label.color : MoveClass.mistake.color }
+
   var body: some View {
     VStack(alignment: .leading, spacing: Spacing.m) {
       HStack(spacing: Spacing.s) {
-        Text(pause.label.glyph)
-          .font(.system(size: 12, weight: .heavy, design: .rounded)).foregroundStyle(.white)
-          .frame(width: 26, height: 26).background(Circle().fill(pause.label.color))
-        Text("\(pause.playedSAN) is a \(pause.label.displayName.lowercased())")
-          .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(pause.label.color)
+        Group {
+          if isGraded {
+            Text(pause.label.glyph).font(.system(size: 12, weight: .heavy, design: .rounded))
+          } else {
+            Image(systemName: "hand.raised.fill").font(.system(size: 12, weight: .bold))
+          }
+        }
+        .foregroundStyle(.white)
+        .frame(width: 26, height: 26).background(Circle().fill(tint))
+        Text(pause.title)
+          .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(tint)
+          .accessibilityIdentifier("coach-pause-title")
       }
       Text(pause.explanation)
         .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
@@ -356,7 +374,7 @@ private struct CoachPauseCard: View {
     }
     .padding(Spacing.l)
     .background(RoundedRectangle(cornerRadius: 16).fill(ChessChrome.bar))
-    .overlay(RoundedRectangle(cornerRadius: 16).stroke(pause.label.color.opacity(0.6), lineWidth: 1.5))
+    .overlay(RoundedRectangle(cornerRadius: 16).stroke(tint.opacity(0.6), lineWidth: 1.5))
     .shadow(color: .black.opacity(0.4), radius: 16, y: 6)
   }
 }

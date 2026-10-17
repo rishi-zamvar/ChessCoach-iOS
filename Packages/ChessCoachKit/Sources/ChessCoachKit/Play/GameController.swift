@@ -68,6 +68,12 @@ public final class GameController {
   public var hasVoiceCoach: Bool { voice != nil }
   /// The bot's own explanation per ply (1-based, as in `viewPly`), when it gave one.
   public private(set) var botReasons: [Int: String] = [:]
+  /// What this coach game trains (shown and said at the start).
+  public let focus: CoachFocus?
+  /// This game's slips, by kind (the app folds them into your weakness tally).
+  public private(set) var tally = WeaknessTally()
+  /// Called once when the game ends.
+  @ObservationIgnored public var onFinished: ((WeaknessTally) -> Void)?
 
   public let config: PlayConfig
   public let bot: BotPlayer
@@ -92,6 +98,7 @@ public final class GameController {
   @ObservationIgnored private var userTurns = 0
   /// Bumped by undo so engine/coach work started before it is dropped.
   @ObservationIgnored private var generation = 0
+  @ObservationIgnored private let reviewer: HoldUpReviewer?
 
   public init(
     config: PlayConfig,
@@ -103,8 +110,12 @@ public final class GameController {
     minimumBotThink: Duration = .milliseconds(450),
     coach: CoachAdvisor? = nil,
     voice: CoachAdvisor? = nil,
+    focus: CoachFocus? = nil,
+    reviewer: HoldUpReviewer? = nil,
     now: @escaping () -> Date = Date.init
   ) {
+    self.focus = focus
+    self.reviewer = reviewer
     self.coach = coach
     self.voice = voice
     self.config = config
@@ -145,6 +156,7 @@ public final class GameController {
       ])
     sounds.play(.gameStart)
     if config.timeControl.isTimed { clock.start(session.sideToMove, at: now()) }
+    if let focus, voice != nil { say(focus.intro) }
     advanceTurn()
   }
 
@@ -368,14 +380,29 @@ public final class GameController {
       let isBest = a.bestUCI == played.uci
       let loss = isBest ? 0 : max(0, bestEP - playedEP)
       let label = MoveClassifier.base(loss: loss, isBest: isBest)
-      guard label == .mistake || label == .blunder else { return self.advanceTurn() }
-      let sheet = FactExtractor.sheet(fen: before, played: played.uci, bestLine: [a.bestUCI], punishLine: [b.bestUCI], ply: self.session.history.count)
+      var hold = HoldUp.check(fenBefore: before, played: played.uci, label: label, focus: self.focus)
+      if hold == nil, let reviewer = self.reviewer, !isBest,
+        label == .inaccuracy || BoardScan.tactic(fen: before).map({ $0.uci != played.uci }) == true
+      {
+        let kind = await reviewer.review(fen: before, played: played.uci, best: a.bestUCI, label: label, focus: self.focus)
+        guard self.phase == .coachChecking, self.generation == gen else { return }
+        hold = kind.flatMap(HoldUp.reviewed)
+      }
+      guard let hold else { return self.advanceTurn() }
+      self.tally.record(hold.kind)
       let bestSAN = FactExtractor.sanLine(fen: before, ucis: [a.bestUCI]).first ?? a.bestUCI
+      var explanation = hold.line.replacingOccurrences(of: "Hold up. ", with: "")
+      if hold.kind == .mistake || hold.kind == .blunder {
+        let sheet = FactExtractor.sheet(fen: before, played: played.uci, bestLine: [a.bestUCI], punishLine: [b.bestUCI], ply: self.session.history.count)
+        explanation = sheet.map { Explainer.explain($0, as: label, isUser: true) } ?? "There was a better move."
+      }
       self.coachPause = CoachPause(
-        label: label, playedSAN: played.san, bestUCI: a.bestUCI, bestSAN: bestSAN,
-        explanation: sheet.map { Explainer.explain($0, as: label, isUser: true) } ?? "There was a better move.")
+        label: label, playedSAN: played.san, bestUCI: a.bestUCI, bestSAN: bestSAN, explanation: explanation, kind: hold.kind)
+      self.annotations.circles = hold.marks
+      self.coachLine = nil
+      self.say(hold.line)
       self.phase = .coachPaused
-      self.telemetry.event("coach.pause", metadata: ["label": .string(label.rawValue), "san": .string(played.san)])
+      self.telemetry.event("coach.pause", metadata: ["kind": .string(hold.kind.rawValue), "label": .string(label.rawValue), "san": .string(played.san)])
     }
   }
 
@@ -449,25 +476,24 @@ public final class GameController {
     telemetry.event("coach.voice", metadata: ["text": .string(text)])
   }
 
-  /// On your turn: find the engine's best move, then nudge toward the idea (never the move).
+  /// On your turn: a nudge toward the idea (never the move), said the moment their move lands.
+  /// The engine's best is fetched afterwards only for the reaction to your move.
   private func voicePrompt() {
     guard let voice else { return }
     userTurns += 1
     let ply = session.history.count
     let fen = session.position.fen
-    let last = session.lastMove
-    let before = session.fen(atPly: ply - 1)
-    let turn = userTurns
+    if let last = session.lastMove, last.color != userColor,
+      let line = CoachVoice.prompt(fenBeforeOpponent: session.fen(atPly: ply - 1), opponentMove: last.uci, fenNow: fen, turn: userTurns)
+    {
+      say(line)
+    }
+    guard coach == nil else { return }  // hold-ups cover misses in coach games
     let gen = generation
     Task { [weak self] in
       let best = try? await voice.assess(fen: fen).bestUCI
-      guard let self, self.generation == gen, self.session.history.count == ply, !self.isOver, let best else { return }
+      guard let self, self.generation == gen, self.session.history.count == ply, let best else { return }
       self.voiceBest = (ply, best)
-      // Play Coach's nudge banner already covers threats; the voice adds tactics and advice.
-      guard let last, last.color != self.userColor else { return }
-      if let line = CoachVoice.prompt(fenBeforeOpponent: before, opponentMove: last.uci, fenNow: fen, best: best, turn: turn) {
-        self.say(line)
-      }
     }
   }
 
@@ -477,7 +503,8 @@ public final class GameController {
     let best = voiceBest?.ply == ply ? voiceBest?.uci : nil
     // Play Coach pauses on real mistakes itself; the voice only praises or warns there.
     let line = CoachVoice.react(fenBefore: session.fen(atPly: ply), played: played.uci, bestBefore: coach == nil ? best : nil)
-    if let line { say(line) }
+    // In coach games a loose piece becomes a hold-up instead of a passing warning.
+    if let line, coach == nil || !line.hasPrefix("Careful.") { say(line) }
   }
 
   private func playPremoveIfAny() {
@@ -548,6 +575,8 @@ public final class GameController {
     viewPly = session.history.count
     sounds.play(.gameEnd)
     save(result)
+    onFinished?(tally)
+    onFinished = nil
   }
 
   private func save(_ result: GameResult) {

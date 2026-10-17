@@ -23,11 +23,24 @@ public struct StockfishCoach: CoachAdvisor {
   }
 }
 
-/// The coach stopped the game after a user mistake.
+/// The coach stopped the game ("Hold up") before the bot replies.
 public struct CoachPause: Equatable, Sendable {
   public var label: MoveClass
   public var playedSAN: String
   public var bestUCI: String
   public var bestSAN: String
   public var explanation: String
+  public var kind: HoldUpKind = .mistake
+
+  /// Card heading.
+  public var title: String {
+    switch kind {
+    case .hungPiece: "Hold up: your piece is loose"
+    case .missedMate: "Hold up: checkmate was there"
+    case .missedFree: "Hold up: a free piece"
+    case .missedTactic: "Hold up: a stronger idea"
+    case .allowsTactic: "Hold up: watch their reply"
+    case .mistake, .blunder: "\(playedSAN) is a \(label.displayName.lowercased())"
+    }
+  }
 }

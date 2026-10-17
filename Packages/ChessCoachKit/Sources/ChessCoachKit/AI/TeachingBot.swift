@@ -13,11 +13,14 @@ public struct TeachingBot: BotPlayer {
   /// Plain-language summary of the learner's weaknesses and level (from the app).
   let brief: @Sendable () -> String
   let gifts: GiftCounter
+  /// What this game trains (steers the bot's deliberate set-ups); nil = generic gifts.
+  let focus: @Sendable () -> CoachFocus?
 
   public init(
     host: EngineHost, client: AnthropicClient?, telemetry: Telemetry, random: RandomSource = SystemRandom(),
-    brief: @escaping @Sendable () -> String
+    brief: @escaping @Sendable () -> String, focus: @escaping @Sendable () -> CoachFocus? = { nil }
   ) {
+    self.focus = focus
     self.host = host
     self.client = client
     self.telemetry = telemetry
@@ -38,6 +41,8 @@ public struct TeachingBot: BotPlayer {
     public var maiaProbability: Double
     /// What the move leaves loose / allows (for "gift" moves).
     public var gives: String?
+    /// Sets up the game's focus for the learner (a loose piece, a mate in one, a tactic).
+    public var isGift = false
   }
 
   /// Loss caps: normal moves stay near Maia-level play; a gift may give up a piece.
@@ -53,8 +58,9 @@ public struct TeachingBot: BotPlayer {
     try await telemetry.step("bot.move", metadata: ["kind": .string(kind)]) { ctx in
       let candidates = try await candidates(fen: fen)
       guard let best = candidates.max(by: { $0.ep < $1.ep }) else { throw EngineError.noBestMove }
-      let giftAllowed = await gifts.allowed(every: Self.movesBetweenGifts)
-      let allowed = Self.allowed(candidates, best: best.ep, giftAllowed: giftAllowed)
+      let focus = focus()
+      let giftAllowed = await gifts.allowed(every: focus?.giftEvery ?? Self.movesBetweenGifts)
+      let allowed = Self.choices(candidates, fen: fen, best: best.ep, focus: focus, giftDue: giftAllowed)
       var chosen: Candidate?
       var reason = "maia"
       var why: String?
@@ -71,7 +77,7 @@ public struct TeachingBot: BotPlayer {
         chosen = allowed.first { $0.uci == MaiaBot.sample(policy, temperature: 1, random: random) } ?? allowed.first
       }
       guard let move = chosen else { throw EngineError.noBestMove }
-      if best.ep - move.ep > Self.normalCap { await gifts.used() } else { await gifts.tick() }
+      if move.isGift || (focus == nil && best.ep - move.ep > Self.normalCap) { await gifts.used() } else { await gifts.tick() }
       ctx.annotate("move", .string(move.uci))
       ctx.annotate("reason", .string(String(reason.prefix(200))))
       ctx.annotate("loss", .double(best.ep - move.ep))
@@ -93,6 +99,24 @@ public struct TeachingBot: BotPlayer {
     }
   }
 
+  /// The moves the bot may play. Code rules, in order:
+  /// 1. No mercy: a piece you left hanging gets taken.
+  /// 2. A set-up for the focus when one is due (a mate-in-one gift may cost the game; that's the lesson).
+  /// 3. Otherwise near-best human moves (with the old generic gifts only when there's no focus).
+  static func choices(_ candidates: [Candidate], fen: String, best: Double, focus: CoachFocus?, giftDue: Bool) -> [Candidate] {
+    if let me = Position(fen: fen)?.sideToMove {
+      let loose = Set(FactExtractor.hangingPieces(fen: fen, of: me.opposite).map(\.square.notation))
+      let takes = candidates.filter { loose.contains(String($0.uci.dropFirst(2).prefix(2))) && best - $0.ep <= normalCap }
+      if !takes.isEmpty { return takes.sorted { $0.ep > $1.ep } }
+    }
+    if let focus, giftDue {
+      let cap = focus == .mates ? 1.0 : giftCap
+      let gifts = candidates.filter { $0.isGift && best - $0.ep <= cap + 1e-9 }
+      if !gifts.isEmpty { return gifts }
+    }
+    return allowed(candidates.filter { !$0.isGift }, best: best, giftAllowed: focus == nil && giftDue)
+  }
+
   static func allowed(_ candidates: [Candidate], best: Double, giftAllowed: Bool) -> [Candidate] {
     let cap = giftAllowed ? giftCap : normalCap
     let list = candidates.filter { best - $0.ep <= cap + 1e-9 }
@@ -107,6 +131,10 @@ public struct TeachingBot: BotPlayer {
     // Include Maia's top human moves too (they may not be in Stockfish's top 5).
     var ucis = sf.lines.compactMap(\.pv.first)
     for (uci, _) in maia.sorted(by: { $0.value > $1.value }).prefix(4) where !ucis.contains(uci) { ucis.append(uci) }
+    // Taking what you left loose, and set-ups for the game's focus.
+    if let take = BoardScan.freeCapture(fen: fen)?.uci, !ucis.contains(take) { ucis.append(take) }
+    let giftMoves = focus().map { BoardScan.gifts(fen: fen, focus: $0) } ?? []
+    for uci in giftMoves where !ucis.contains(uci) { ucis.append(uci) }
     var result: [Candidate] = []
     for uci in ucis {
       var session = GameSession(startFEN: fen)
@@ -121,7 +149,8 @@ public struct TeachingBot: BotPlayer {
       let loose = FactExtractor.hangingPieces(fen: session.position.fen, of: played.color).first
       result.append(
         Candidate(uci: uci, san: played.san, ep: ep, maiaProbability: maia[uci] ?? 0,
-          gives: loose.map { "leaves its \(FactExtractor.name(of: $0.kind)) on \($0.square.notation) loose" }))
+          gives: loose.map { "leaves its \(FactExtractor.name(of: $0.kind)) on \($0.square.notation) loose" },
+          isGift: giftMoves.contains(uci)))
     }
     return result
   }
@@ -130,7 +159,8 @@ public struct TeachingBot: BotPlayer {
     You are a chess coach playing a training game against a beginner. Each turn you pick the move that best TEACHES them, \
     from a list of candidate moves that were already checked by an engine. Play like a natural human opponent most of the time. \
     When a candidate "gives" something (a loose piece) and it matches a weakness the learner is practicing, you may choose it \
-    occasionally so the learner gets to spot and punish it.
+    occasionally so the learner gets to spot and punish it. When every candidate is a set-up for the learner's focus, \
+    pick the one that looks most natural.
     Call the play_move tool exactly once with one of the candidate moves, a short private reason, and an `explanation`: \
     one friendly sentence (under 20 words) the learner sees, saying what your move is trying to do as their opponent \
     (e.g. "I'm bringing my knight toward your king."). The explanation must never reveal a deliberate gift, hint at \
@@ -143,7 +173,7 @@ public struct TeachingBot: BotPlayer {
     }.joined(separator: "\n")
     let user = """
       Position (FEN): \(fen)
-      Learner: \(brief())
+      Learner: \(brief())\(focus().map { "\nThis game's focus: \($0.title)." } ?? "")
       Candidates:
       \(list)
       Pick one with play_move.
@@ -162,7 +192,7 @@ public struct TeachingBot: BotPlayer {
       ]))
     // One call: read the play_move tool_use directly (no need to send a tool_result back).
     let turn = try await client.send(
-      model: AnthropicClient.coachModel, system: Self.system,
+      model: AnthropicClient.explainModel, system: Self.system,
       messages: [.object(["role": .string("user"), "content": .string(user)])], tools: [tool], maxTokens: 400, effort: "low",
       purpose: "teaching-bot")
     guard let call = turn.toolUses.first(where: { $0.name == "play_move" }), let uci = call.input["move"]?.stringValue,

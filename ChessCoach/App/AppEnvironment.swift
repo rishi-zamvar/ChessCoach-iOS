@@ -78,19 +78,46 @@ final class AppEnvironment {
     }
   }
 
-  func makeGame(_ config: PlayConfig, coached: Bool = false) -> GameController? {
+  /// Puzzle skill ratings (set by TrainingService): the coach's focus falls back to them.
+  @ObservationIgnored var puzzleRatings: () -> [String: Double] = { [:] }
+
+  /// Your slips in coach games (decayed), which pick each game's focus.
+  var coachWeakness: WeaknessTally {
+    get {
+      UserDefaults.standard.data(forKey: "coach.weakness").flatMap { try? JSONDecoder().decode(WeaknessTally.self, from: $0) } ?? WeaknessTally()
+    }
+    set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: "coach.weakness") }
+  }
+
+  var coachFocus: CoachFocus { coachWeakness.focus(puzzleRatings: puzzleRatings()) }
+
+  /// Coach bot games get the focused coach: set-ups for your focus, hold-ups before mistakes
+  /// cost you (untimed), and the voice. In timed games the bot plays without AI (an API wait
+  /// would burn its clock) and there are no hold-ups.
+  func makeGame(_ config: PlayConfig) -> GameController? {
     guard let engineHost else { return nil }
-    // In timed games the coach bot plays without Claude (an API wait would burn its clock).
+    let coached = config.opponent == .teaching
+    let timed = config.timeControl.isTimed
+    let focus = coached ? coachFocus : nil
     let bot: BotPlayer? =
-      config.opponent == .teaching && config.timeControl.isTimed
-      ? TeachingBot(host: engineHost, client: nil, telemetry: telemetry, brief: learnerBrief)
+      coached
+      ? TeachingBot(host: engineHost, client: timed ? nil : ai, telemetry: telemetry, brief: learnerBrief, focus: { focus })
       : self.bot(for: config.opponent)
     guard let bot else { return nil }
-    return GameController(
+    let game = GameController(
       config: config, bot: bot, telemetry: telemetry, store: gameStore, sounds: sounds,
-      coach: coached ? StockfishCoach(host: engineHost) : nil,
-      voice: CoachMode.current == .off ? nil : StockfishCoach(host: engineHost))
+      coach: coached && !timed ? StockfishCoach(host: engineHost) : nil,
+      voice: CoachMode.current == .off ? nil : StockfishCoach(host: engineHost),
+      focus: focus, reviewer: coached && !timed ? HaikuHoldUpReviewer(client: ai) : nil)
+    if coached {
+      game.onFinished = { [weak self] slips in
+        guard let self else { return }
+        self.coachWeakness = self.coachWeakness.adding(slips)
+      }
+    }
+    return game
   }
+
 }
 
 /// User display preferences (board theme, pieces, sound).

@@ -31,24 +31,25 @@ public enum CoachVoice {
     return nil
   }
 
-  /// A nudge for your turn after the opponent's move. `best` is the engine's best for you now;
+  /// A nudge for your turn after the opponent's move. Engine-free (board scans only), so it's
+  /// ready the instant their move lands. Points at the idea, never the move.
   /// `turn` rotates the occasional general advice.
-  public static func prompt(fenBeforeOpponent: String, opponentMove: String, fenNow: String, best: String?, turn: Int) -> String? {
+  public static func prompt(fenBeforeOpponent: String, opponentMove: String, fenNow: String, turn: Int) -> String? {
     guard let me = Position(fen: fenNow)?.sideToMove else { return nil }
-    let bestFacts = best.flatMap { FactExtractor.moveFacts(fen: fenNow, uci: $0) }
-    let theirs = FactExtractor.moveFacts(fen: fenBeforeOpponent, uci: opponentMove)
-    if bestFacts?.motifs.contains(.mate) == true { return "There's a checkmate here. Look at every check." }
-    if theirs?.motifs.contains(.mateThreat) == true { return "Careful. They're threatening mate." }
-    if let best, let target = FactExtractor.hangingPieces(fen: fenNow, of: me.opposite).first(where: { String(best.dropFirst(2).prefix(2)) == $0.square.notation }) {
-      return "Their \(FactExtractor.name(of: target.kind)) looks loose. Can you win it?"
+    if BoardScan.mateInOne(fen: fenNow) != nil { return "There's a checkmate here. Look at every check." }
+    if FactExtractor.moveFacts(fen: fenBeforeOpponent, uci: opponentMove)?.motifs.contains(.mateThreat) == true {
+      return "Careful. They're threatening mate."
     }
-    if bestFacts?.motifs.contains(.fork) == true { return "I smell a fork. Which piece could hit two targets at once?" }
-    if bestFacts.map({ $0.motifs.contains(.pin) || $0.motifs.contains(.skewer) }) == true {
-      return "Look along the lines. Is there a pin or a skewer?"
+    if let free = BoardScan.freeCapture(fen: fenNow) {
+      return "Their \(FactExtractor.name(of: free.piece.kind)) looks loose. Can you win it?"
     }
-    if bestFacts?.motifs.contains(.discoveredAttack) == true { return "What happens if you move a piece out of the way?" }
     if let mine = FactExtractor.hangingPieces(fen: fenNow, of: me).first {
       return "Your \(FactExtractor.name(of: mine.kind)) on \(mine.square.notation) is under attack."
+    }
+    switch BoardScan.tactic(fen: fenNow)?.motif {
+    case .fork?: return "I smell a fork. Which piece could hit two targets at once?"
+    case .pin?, .skewer?: return "Look along the lines. Is there a pin or a skewer?"
+    default: break
     }
     guard turn > 0, turn.isMultiple(of: 5) else { return nil }
     return advice[(turn / 5) % advice.count]
@@ -80,7 +81,8 @@ public enum CoachVoice {
       let what = line[was.upperBound...].dropLast()  // "a fork"
       return missed + (what == "winning material" ? "You could have won material there." : "You had \(what) there.")
     }
-    return line
+    // Squares are marked on the board and written in the bubble; the voice keeps it short.
+    return line.replacingOccurrences(of: #" on [a-h][1-8]"#, with: "", options: .regularExpression)
   }
 
   /// Bundled audio file name (without extension) for a spoken line.
@@ -91,27 +93,26 @@ public enum CoachVoice {
   /// Sample line for Settings → "Hear the coach".
   public static let sample = advice[1]
 
-  /// Every line `spoken(_:)` can produce from `react` and `prompt`: the render script records these.
+  /// Every line `spoken(_:)` can produce from `react`, `prompt`, hold-ups and focus intros:
+  /// the render script records these.
   public static var allSpokenLines: [String] {
-    var lines = advice + [
+    var lines = advice + CoachFocus.allCases.map(\.intro) + [
       "Checkmate. Beautifully done.", "Ah. You had checkmate there.",
       "Lovely fork. Two targets, one move.", "Good. That wins material.", "Nice. That piece is stuck now.",
       "There's a checkmate here. Look at every check.", "Careful. They're threatening mate.",
       "I smell a fork. Which piece could hit two targets at once?", "Look along the lines. Is there a pin or a skewer?",
-      "What happens if you move a piece out of the way?",
+      "Hold up. You had checkmate in one. Can you find it?", "Hold up. That move is a blunder.", "Hold up. That move is a mistake.",
     ]
-    lines += tactics.filter { $0 != .mate }.map { spoken("Hmm. You missed something. X was \(article($0)).") }
-    let kinds: [Piece.Kind] = [.pawn, .knight, .bishop, .rook, .queen]
-    for kind in kinds {
+    lines += [HoldUpKind.missedTactic, .allowsTactic].compactMap { HoldUp.reviewed($0)?.line }
+    lines += tactics.filter { $0 != .mate }.map { "Hmm. You missed something. X was \(article($0))." }
+    for kind in [Piece.Kind.pawn, .knight, .bishop, .rook, .queen] {
       let name = FactExtractor.name(of: kind)
-      lines.append("Their \(name) looks loose. Can you win it?")
-      for file in "abcdefgh" {
-        for rank in 1...8 where kind != .pawn || (2...7).contains(rank) {
-          lines.append("Careful. Your \(name) on \(file)\(rank) can be taken now.")
-          lines.append("Your \(name) on \(file)\(rank) is under attack.")
-        }
-      }
+      lines += [
+        "Their \(name) looks loose. Can you win it?", "Careful. Your \(name) on e4 can be taken now.",
+        "Your \(name) on e4 is under attack.", "Hold up. Your \(name) on e4 has no defender.", "Hold up. Their \(name) on e4 was free.",
+      ]
     }
-    return lines
+    var seen = Set<String>()
+    return lines.map(spoken).filter { seen.insert($0).inserted }
   }
 }

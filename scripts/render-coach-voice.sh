@@ -12,6 +12,6 @@ rm -rf "$OUT" && mkdir -p "$OUT"
 export OUT
 tr '\n' '\0' <"$LINES" | xargs -0 -P 8 -n 1 sh -c '
   name="${0%%	*}"; text="${0#*	}"
-  say -v Aman -r 168 -o "$OUT/$name.aiff" "$text"
+  say -v Aman -r 185 -o "$OUT/$name.aiff" "$text"
   afconvert -f m4af -d aac -b 32000 "$OUT/$name.aiff" "$OUT/coach-$name.m4a" && rm "$OUT/$name.aiff"'
 echo "$(ls "$OUT" | wc -l | tr -d " ") clips, $(du -sh "$OUT" | cut -f1)"

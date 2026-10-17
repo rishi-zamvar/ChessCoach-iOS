@@ -63,6 +63,31 @@ final class PlayCoachTests: XCTestCase {
     XCTAssertEqual(c.session.history.map(\.san), ["f3", "e5"])
   }
 
+  func test_givenFreePieceSkipped_whenCoachChecks_thenHoldUpMarksItSpeaksAndCounts() async {
+    let fen = "4k3/8/8/3b4/8/8/8/3RK3 w - - 0 1"
+    let coach = FakeCoach()
+    var s = GameSession(startFEN: fen)
+    s.apply(uci: "e1e2")
+    coach.wins[FENTools.key(s.position.fen)] = 80
+    coach.best[FENTools.key(fen)] = "d1d5"
+    let c = GameController(
+      config: PlayConfig(opponent: .teaching, userColor: .white, timeControl: .untimed),
+      bot: ScriptedBot(["e8e7"]), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(),
+      startFEN: fen, minimumBotThink: .zero, coach: coach, voice: coach, focus: .freePieces)
+    c.start()
+    XCTAssertEqual(c.coachLine?.text, CoachFocus.freePieces.intro)
+    c.tap(Square("e1"))
+    c.tap(Square("e2"))
+    await waitUntil { c.phase == .coachPaused }
+    XCTAssertEqual(c.coachPause?.kind, .missedFree)
+    XCTAssertEqual(c.coachPause?.title, "Hold up: a free piece")
+    XCTAssertEqual(c.annotations.circles[Square("d5")], .green)
+    XCTAssertEqual(c.coachLine?.text, "Hold up. Their bishop on d5 was free.")
+    XCTAssertEqual(c.tally.missedFree, 1)
+    c.takeBack()
+    XCTAssertEqual(c.session.history.count, 0)
+  }
+
   func test_givenGoodMove_whenCoachChecks_thenNoPauseAndBotReplies() async {
     let (c, _, _) = make(FakeCoach(), bot: ["e7e5"])
     c.start()
