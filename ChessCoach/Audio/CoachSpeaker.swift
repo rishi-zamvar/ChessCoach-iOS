@@ -1,20 +1,20 @@
 import AVFoundation
+import ChessCoachKit
 import Observation
 
-/// Speaks the in-game coach's lines. Uses the most natural installed English voice
-/// (Premium, then Enhanced) at normal pace and pitch — pitch-shifting is what makes
-/// system voices sound robotic.
+/// Speaks the in-game coach's lines in Aman's voice from recordings bundled with the app
+/// (scripts/render-coach-voice.sh), so no phone needs to download a voice. A line without a
+/// recording falls back to the best installed system voice.
 @MainActor
 @Observable
-final class CoachSpeaker: NSObject, AVSpeechSynthesizerDelegate {
+final class CoachSpeaker: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
   static let shared = CoachSpeaker()
   private(set) var isSpeaking = false
   @ObservationIgnored private let synth = AVSpeechSynthesizer()
+  @ObservationIgnored private var player: AVAudioPlayer?
   @ObservationIgnored private(set) lazy var voice = Self.naturalVoice()
 
-  /// True when a Premium/Enhanced voice is installed (otherwise Settings suggests downloading one).
-  var hasNaturalVoice: Bool { (voice?.quality ?? .default) != .default }
-  var voiceName: String { voice.map { "\($0.name) (\($0.quality == .premium ? "Premium" : $0.quality == .enhanced ? "Enhanced" : "Standard"))" } ?? "System" }
+  let voiceName = "Aman (English, India)"
 
   override private init() {
     super.init()
@@ -25,6 +25,15 @@ final class CoachSpeaker: NSObject, AVSpeechSynthesizerDelegate {
     // Spoken audio plays even on silent (it's the point of the feature) and ducks music.
     try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers, .duckOthers])
     synth.stopSpeaking(at: .word)
+    player?.stop()
+    if let url = Bundle.main.url(forResource: "coach-" + CoachVoice.clipName(CoachVoice.spoken(text)), withExtension: "m4a"),
+      let clip = try? AVAudioPlayer(contentsOf: url)
+    {
+      clip.delegate = self
+      player = clip
+      isSpeaking = clip.play()
+      return
+    }
     let utterance = AVSpeechUtterance(string: text)
     utterance.voice = voice
     // A touch slower than default reads as calm, not drawn out.
@@ -37,17 +46,24 @@ final class CoachSpeaker: NSObject, AVSpeechSynthesizerDelegate {
   }
 
   func stop() {
+    player?.stop()
     synth.stopSpeaking(at: .immediate)
     isSpeaking = false
   }
 
+  nonisolated func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully flag: Bool) {
+    Task { @MainActor in self.finished() }
+  }
+
   nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-    Task { @MainActor in
-      guard !self.synth.isSpeaking else { return }
-      self.isSpeaking = false
-      // Back to move sounds that respect the silent switch.
-      try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
-    }
+    Task { @MainActor in self.finished() }
+  }
+
+  private func finished() {
+    guard !synth.isSpeaking, player?.isPlaying != true else { return }
+    isSpeaking = false
+    // Back to move sounds that respect the silent switch.
+    try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
   }
 
   /// Quality dominates (a Premium voice of any accent beats a Standard one), then a

@@ -74,6 +74,24 @@ final class TrainUITests: XCTestCase {
     app.buttons["open-openings"].tap()
     XCTAssertTrue(app.staticTexts["Your repertoire"].waitForExistence(timeout: 5))
     shot(app, "19-openings")
+
+    // Learn: after your move the reply waits for a tap, so the idea stays readable.
+    app.buttons["Learn"].firstMatch.tap()
+    let board = app.descendants(matching: .any)["board"]
+    XCTAssertTrue(board.waitForExistence(timeout: 5))
+    func square(_ file: Int, _ rank: Int) -> XCUICoordinate {
+      board.coordinate(withNormalizedOffset: CGVector(dx: (Double(file) + 0.5) / 8, dy: (8 - Double(rank) + 0.5) / 8))
+    }
+    square(4, 2).tap()
+    square(4, 4).tap()
+    let coach = app.descendants(matching: .any)["opening-coach"]
+    XCTAssertTrue(app.buttons["opening-continue"].waitForExistence(timeout: 3))
+    sleep(3)
+    XCTAssertTrue(coach.label.hasPrefix("e4"), coach.label)
+    shot(app, "19b-opening-wait")
+    app.buttons["opening-continue"].tap()
+    XCTAssertFalse(app.buttons["opening-continue"].exists)
+    XCTAssertTrue(coach.label.hasPrefix("e5"), coach.label)
   }
 
   @MainActor

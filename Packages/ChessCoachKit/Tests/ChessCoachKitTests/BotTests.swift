@@ -121,11 +121,17 @@ final class ExplainedBotTests: XCTestCase {
     XCTAssertEqual(c.session.history.map(\.san), ["d4", "e5"])
   }
 
-  func test_givenTimedGame_whenCheckingUndo_thenNotAllowed() {
+  func test_givenTimedGame_whenUndo_thenBackBeforeYourMoveAndYourClockRuns() async {
     let c = GameController(
       config: PlayConfig(opponent: .teaching, userColor: .white, timeControl: TimeControl.presets.first { $0.isTimed }!),
       bot: TalkingBot(), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(), minimumBotThink: .zero)
     c.start()
-    XCTAssertFalse(c.canUndo)
+    c.tap(Square("e2"))
+    c.tap(Square("e4"))
+    for _ in 0..<200 where c.session.history.count < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+    XCTAssertTrue(c.canUndo)
+    c.undoMove()
+    XCTAssertEqual(c.session.history.count, 0)
+    XCTAssertEqual(c.clock.running, .white)
   }
 }

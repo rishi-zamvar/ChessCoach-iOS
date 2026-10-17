@@ -202,7 +202,7 @@ struct GameScreen: View {
         ToolbarButton(title: "Resign", systemImage: "flag") { confirmResign = true }
           .accessibilityIdentifier("toolbar-resign")
       }
-      if !game.config.timeControl.isTimed, !game.isOver {
+      if !game.isOver {
         ToolbarButton(title: "Undo", systemImage: "arrow.uturn.backward", enabled: game.canUndo) {
           Haptics.medium()
           withAnimation(.easeOut(duration: 0.2)) { game.undoMove() }

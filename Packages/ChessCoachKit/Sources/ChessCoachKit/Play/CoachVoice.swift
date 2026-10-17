@@ -68,4 +68,50 @@ public enum CoachVoice {
     default: "a " + motif.displayName.lowercased()
     }
   }
+
+  // MARK: - Pre-recorded speech
+
+  /// What the coach says aloud for a line. Same words, minus move names (those stay on screen),
+  /// so every spoken line can ship pre-recorded in the coach's voice.
+  public static func spoken(_ line: String) -> String {
+    if line.hasPrefix("Ah. You had checkmate there") { return "Ah. You had checkmate there." }
+    let missed = "Hmm. You missed something. "
+    if line.hasPrefix(missed), let was = line.range(of: " was ") {
+      let what = line[was.upperBound...].dropLast()  // "a fork"
+      return missed + (what == "winning material" ? "You could have won material there." : "You had \(what) there.")
+    }
+    return line
+  }
+
+  /// Bundled audio file name (without extension) for a spoken line.
+  public static func clipName(_ spoken: String) -> String {
+    spoken.lowercased().split { !($0.isASCII && ($0.isLetter || $0.isNumber)) }.joined(separator: "-")
+  }
+
+  /// Sample line for Settings → "Hear the coach".
+  public static let sample = advice[1]
+
+  /// Every line `spoken(_:)` can produce from `react` and `prompt`: the render script records these.
+  public static var allSpokenLines: [String] {
+    var lines = advice + [
+      "Checkmate. Beautifully done.", "Ah. You had checkmate there.",
+      "Lovely fork. Two targets, one move.", "Good. That wins material.", "Nice. That piece is stuck now.",
+      "There's a checkmate here. Look at every check.", "Careful. They're threatening mate.",
+      "I smell a fork. Which piece could hit two targets at once?", "Look along the lines. Is there a pin or a skewer?",
+      "What happens if you move a piece out of the way?",
+    ]
+    lines += tactics.filter { $0 != .mate }.map { spoken("Hmm. You missed something. X was \(article($0)).") }
+    let kinds: [Piece.Kind] = [.pawn, .knight, .bishop, .rook, .queen]
+    for kind in kinds {
+      let name = FactExtractor.name(of: kind)
+      lines.append("Their \(name) looks loose. Can you win it?")
+      for file in "abcdefgh" {
+        for rank in 1...8 where kind != .pawn || (2...7).contains(rank) {
+          lines.append("Careful. Your \(name) on \(file)\(rank) can be taken now.")
+          lines.append("Your \(name) on \(file)\(rank) is under attack.")
+        }
+      }
+    }
+    return lines
+  }
 }

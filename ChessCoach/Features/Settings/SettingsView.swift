@@ -58,11 +58,7 @@ struct SettingsView: View {
           }
           if coachModeRaw == CoachMode.voice.rawValue {
             LabeledContent("Coach voice", value: CoachSpeaker.shared.voiceName)
-            Button("Hear the coach") { CoachSpeaker.shared.say("Take your time. Checks, captures, threats. What is their last move up to?") }
-            if !CoachSpeaker.shared.voiceName.hasPrefix("Aman") || !CoachSpeaker.shared.hasNaturalVoice {
-              Text("The coach speaks as Aman. For the best quality, download it on this iPhone: Settings → Accessibility → Spoken Content → Voices → English → India → Aman (Enhanced).")
-                .font(.footnote).foregroundStyle(.secondary)
-            }
+            Button("Hear the coach") { CoachSpeaker.shared.say(CoachVoice.sample) }
           }
         }
         if env.server.hasKey {

@@ -265,9 +265,9 @@ public final class GameController {
 
   // MARK: - Undo
 
-  /// Untimed games only: a clock can't be rewound fairly.
+  /// Any game in progress. Clocks keep the time already spent (they aren't rewound).
   public var canUndo: Bool {
-    !isOver && phase != .notStarted && !config.timeControl.isTimed && session.history.contains { $0.color == userColor }
+    !isOver && phase != .notStarted && session.history.contains { $0.color == userColor }
   }
 
   /// Takes back your last move and anything the bot played after it.
@@ -289,6 +289,10 @@ public final class GameController {
     botReasons = botReasons.filter { $0.key <= session.history.count }
     viewPly = session.history.count
     phase = .userTurn
+    if config.timeControl.isTimed, clock.running != userColor {
+      clock.pause(at: now())
+      clock.start(userColor, at: now())
+    }
     telemetry.event("game.undo", metadata: ["ply": .int(session.history.count)])
   }
 

@@ -39,4 +39,24 @@ final class CoachVoiceTests: XCTestCase {
     XCTAssertNil(CoachVoice.prompt(fenBeforeOpponent: "3k4/8/8/8/8/8/P7/4K3 b - - 0 1", opponentMove: "d8e8", fenNow: fen, best: "a2a3", turn: 3))
     XCTAssertNotNil(CoachVoice.prompt(fenBeforeOpponent: "3k4/8/8/8/8/8/P7/4K3 b - - 0 1", opponentMove: "d8e8", fenNow: fen, best: "a2a3", turn: 5))
   }
+
+  func test_givenLines_whenSpoken_thenEveryOneHasARecordingWithAUniqueName() {
+    let all = CoachVoice.allSpokenLines
+    let produced = [
+      CoachVoice.react(fenBefore: forkFEN, played: "e1d2", bestBefore: "d5c7"),
+      CoachVoice.react(fenBefore: "4k3/8/4p3/8/8/2N5/8/4K3 w - - 0 1", played: "c3d5", bestBefore: nil),
+      "Ah. You had checkmate there with Qh7#.", CoachVoice.sample,
+    ].compactMap { $0 }
+    for line in produced { XCTAssertTrue(all.contains(CoachVoice.spoken(line)), line) }
+    XCTAssertEqual(CoachVoice.spoken("Hmm. You missed something. Nc7+ was a fork."), "Hmm. You missed something. You had a fork there.")
+    XCTAssertEqual(Set(all.map(CoachVoice.clipName)).count, Set(all).count)
+  }
+
+  /// `scripts/render-coach-voice.sh` runs this to get the lines to record.
+  func test_dumpSpokenLines() throws {
+    guard let out = ProcessInfo.processInfo.environment["COACH_LINES_OUT"] else { throw XCTSkip("render script only") }
+    let rows = Set(CoachVoice.allSpokenLines).sorted().map { "\(CoachVoice.clipName($0))\t\($0)" }
+    try rows.joined(separator: "\n").write(toFile: out, atomically: true, encoding: .utf8)
+  }
 }
+

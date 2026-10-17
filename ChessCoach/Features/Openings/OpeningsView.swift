@@ -102,6 +102,8 @@ struct OpeningTrainerView: View {
   @State private var finishedLine = false
   @State private var askingCoach = false
   @State private var coachArrows: [Arrow] = []
+  /// The opponent's reply, held until you tap so you can read why your move was played.
+  @State private var pendingReply: RepertoireNode?
 
   var body: some View {
     VStack(spacing: 0) {
@@ -123,6 +125,12 @@ struct OpeningTrainerView: View {
           }
         },
         onDragCancelled: { interaction.dragCancelled() })
+      .overlay {
+        if pendingReply != nil {
+          Color.clear.contentShape(Rectangle()).onTapGesture(perform: showReply)
+            .accessibilityIdentifier("opening-board-continue")
+        }
+      }
       Spacer(minLength: 0)
       controls
     }
@@ -176,6 +184,10 @@ struct OpeningTrainerView: View {
           .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("opening-coach")
+        if pendingReply != nil {
+          Text("Tap the board when you're ready for their reply.")
+            .font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(Spacing.m)
@@ -187,7 +199,10 @@ struct OpeningTrainerView: View {
 
   private var controls: some View {
     HStack(spacing: Spacing.s) {
-      if finishedLine {
+      if pendingReply != nil {
+        PuzzleButton(title: "Their move", systemImage: "arrow.right", prominent: true, action: showReply)
+          .accessibilityIdentifier("opening-continue")
+      } else if finishedLine {
         PuzzleButton(title: mode == .learn && lineIndex + 1 < repertoire.lines.count ? "Next line" : "Again", systemImage: "arrow.right", prominent: true) {
           if mode == .learn { lineIndex = (lineIndex + 1) % max(1, repertoire.lines.count) }
           startLine()
@@ -237,6 +252,7 @@ struct OpeningTrainerView: View {
     wrong = nil
     showAnswer = false
     finishedLine = false
+    pendingReply = nil
     interaction.reset()
     message = mode == .learn ? "Play the blue arrow. I'll explain each move." : "Play your repertoire. I'll play the replies you'll meet."
     advanceOpponent()
@@ -257,7 +273,7 @@ struct OpeningTrainerView: View {
       showAnswer = false
       if mode == .drill { correct += 1 }
       play(node)
-      advanceOpponent()
+      advanceOpponent(waitForTap: true)
     } else {
       wrong = played.san
       env.sounds.play(.illegal)
@@ -279,7 +295,7 @@ struct OpeningTrainerView: View {
     if options.isEmpty { endLine() }
   }
 
-  private func advanceOpponent() {
+  private func advanceOpponent(waitForTap: Bool = false) {
     guard !options.isEmpty, game.sideToMove != repertoire.side else { return }
     let next: RepertoireNode?
     if mode == .learn {
@@ -290,10 +306,18 @@ struct OpeningTrainerView: View {
       next = opts.count == 1 || Double.random(in: 0..<1) < 0.5 ? opts.first : opts.dropFirst().randomElement()
     }
     guard let next else { return endLine() }
+    if waitForTap { return pendingReply = next }
     Task {
       try? await Task.sleep(for: .milliseconds(450))
       play(next)
     }
+  }
+
+  private func showReply() {
+    guard let next = pendingReply else { return }
+    pendingReply = nil
+    Haptics.light()
+    play(next)
   }
 
   private func endLine() {
