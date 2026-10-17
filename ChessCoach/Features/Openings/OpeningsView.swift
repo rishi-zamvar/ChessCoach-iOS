@@ -194,6 +194,13 @@ struct OpeningTrainerView: View {
   /// Learn: replaying the line just learned, from memory (no arrows), to lock it in.
   @State private var recall = false
   @State private var recallMisses = 0
+  /// Learn: clean, fast from-memory runs of this line in a row (3 unlock the next line).
+  @State private var mastery = LineMastery()
+  /// When it became your turn (from-memory timing) and the slowest move so far this run.
+  @State private var turnStart: Date?
+  @State private var slowest: Double = 0
+  /// Lines you've locked in, as "<repertoire>#<line>", kept across sessions.
+  @AppStorage("openings.mastered") private var masteredRaw = ""
 
   var body: some View {
     VStack(spacing: 0) {
@@ -225,7 +232,11 @@ struct OpeningTrainerView: View {
       controls
     }
     .background(ChessChrome.background.ignoresSafeArea())
-    .onAppear { startLine() }
+    .onAppear {
+      // Pick up at the first line you haven't locked in yet.
+      if mode == .learn { lineIndex = repertoire.lines.indices.first { !isMastered($0) } ?? 0 }
+      startLine()
+    }
     .onChange(of: game.history.count) { _, _ in coachArrows = [] }
     .sheet(isPresented: $askingCoach) {
       AskCoachSheet(
@@ -246,11 +257,29 @@ struct OpeningTrainerView: View {
       Spacer()
       VStack(spacing: 2) {
         Text(repertoire.name).font(.system(size: 15, weight: .bold, design: .rounded)).lineLimit(1)
-        Text(mode == .learn ? "Learn · line \(lineIndex + 1) of \(repertoire.lines.count)\(recall ? " · from memory" : "")" : "Drill · \(correct) right · \(misses) missed")
+        Text(mode == .learn ? "Learn · line \(lineIndex + 1) of \(repertoire.lines.count)\(recall ? " · from memory \(mastery.streak)/\(LineMastery.required)" : "")" : "Drill · \(correct) right · \(misses) missed")
           .font(.system(size: 12, design: .rounded))
       }
       Spacer()
-      Color.clear.frame(width: 44, height: 44)
+      if mode == .learn {
+        // Jump to the mainline or any line, any time.
+        Menu {
+          ForEach(Array(repertoire.lines.enumerated()), id: \.offset) { i, line in
+            Button {
+              select(line: i)
+            } label: {
+              Label(
+                "\(i == 0 ? "Mainline" : "Line \(i + 1)"): \(line.prefix(6).map(\.san).joined(separator: " "))",
+                systemImage: isMastered(i) ? "checkmark.circle.fill" : (i == lineIndex ? "circle.inset.filled" : "circle"))
+            }
+          }
+        } label: {
+          Image(systemName: "list.bullet").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44)
+        }
+        .accessibilityIdentifier("opening-lines")
+      } else {
+        Color.clear.frame(width: 44, height: 44)
+      }
     }
     .foregroundStyle(ChessChrome.textSecondary)
     .background(ChessChrome.bar)
@@ -291,21 +320,24 @@ struct OpeningTrainerView: View {
       if pendingReply != nil {
         PuzzleButton(title: "Their move", systemImage: "arrow.right", prominent: true, action: showReply)
           .accessibilityIdentifier("opening-continue")
-      } else if finishedLine {
-        if mode == .learn, !recall || recallMisses > 0 {
-          PuzzleButton(title: recall ? "Try again" : "Repeat it", systemImage: "arrow.counterclockwise", prominent: true) {
-            startLine(recall: true)
-          }
+      } else if finishedLine, mode == .learn {
+        let unlocked = isMastered(lineIndex)
+        PuzzleButton(title: "", systemImage: "arrow.triangle.branch") { startLine() }
+          .frame(maxWidth: 56)
+          .accessibilityIdentifier("opening-arrows-again")
+        PuzzleButton(title: "From memory", systemImage: "brain.head.profile", prominent: !unlocked) { startLine(recall: true) }
           .accessibilityIdentifier("opening-repeat")
-        }
         PuzzleButton(
-          title: mode == .learn && lineIndex + 1 < repertoire.lines.count ? "Next line" : "Again", systemImage: "arrow.right",
-          prominent: mode == .drill || (recall && recallMisses == 0)
+          title: lineIndex + 1 < repertoire.lines.count ? (unlocked ? "Next line" : "Next \(mastery.streak)/\(LineMastery.required)") : "Start over",
+          systemImage: unlocked ? "arrow.right" : "lock.fill", prominent: unlocked
         ) {
-          if mode == .learn { lineIndex = (lineIndex + 1) % max(1, repertoire.lines.count) }
-          startLine()
+          select(line: (lineIndex + 1) % max(1, repertoire.lines.count))
         }
+        .disabled(!unlocked)
         .accessibilityIdentifier("opening-next")
+      } else if finishedLine {
+        PuzzleButton(title: "Again", systemImage: "arrow.right", prominent: true) { startLine() }
+          .accessibilityIdentifier("opening-next")
       } else if isUserTurn {
         PuzzleButton(title: showAnswer ? "Hide" : "Show move", systemImage: "eye") { showAnswer.toggle() }
       }
@@ -348,6 +380,8 @@ struct OpeningTrainerView: View {
   private func startLine(recall: Bool = false) {
     self.recall = recall
     recallMisses = 0
+    slowest = 0
+    turnStart = nil
     game = GameSession(startFEN: repertoire.startFEN)
     cursor = nil
     wrong = nil
@@ -359,6 +393,7 @@ struct OpeningTrainerView: View {
       recall ? "Now play the same line from memory. No arrows this time."
       : mode == .learn ? "Play the blue arrow. I'll explain each move." : "Play your repertoire. I'll play the replies you'll meet."
     advanceOpponent()
+    if isUserTurn { turnStart = Date() }
   }
 
   private func tap(_ square: Square) {
@@ -375,8 +410,10 @@ struct OpeningTrainerView: View {
       wrong = nil
       showAnswer = false
       if mode == .drill { correct += 1 }
+      if recall, let started = turnStart { slowest = max(slowest, Date().timeIntervalSince(started)) }
       play(node)
-      advanceOpponent(waitForTap: true)
+      // From memory it's a timed run, so their reply comes straight away.
+      advanceOpponent(waitForTap: !recall)
     } else {
       wrong = played.san
       env.sounds.play(.illegal)
@@ -399,7 +436,18 @@ struct OpeningTrainerView: View {
     }
     cursor = node.id
     message = node.idea.isEmpty ? node.san : "\(node.san): \(node.idea)"
+    if isUserTurn { turnStart = Date() }
     if options.isEmpty { endLine() }
+  }
+
+  private func masteryKey(_ line: Int) -> String { "\(repertoire.fileName)#\(line)" }
+  private func isMastered(_ line: Int) -> Bool { masteredRaw.split(separator: ",").contains { $0 == masteryKey(line) } }
+
+  /// Switches to a line (fresh streak) and plays it with arrows.
+  private func select(line: Int) {
+    lineIndex = line
+    mastery = LineMastery()
+    startLine()
   }
 
   private func advanceOpponent(waitForTap: Bool = false) {
@@ -429,11 +477,19 @@ struct OpeningTrainerView: View {
 
   private func endLine() {
     finishedLine = true
-    if mode == .learn {
+    if mode == .learn, recall {
+      let counted = mastery.record(slips: recallMisses, slowestMove: slowest)
+      if mastery.isMastered, !isMastered(lineIndex) {
+        masteredRaw = (masteredRaw.split(separator: ",").map(String.init) + [masteryKey(lineIndex)]).joined(separator: ",")
+      }
+      let need = LineMastery.required
       message +=
-        recall
-        ? (recallMisses == 0 ? "\n\nLocked in: you played the whole line from memory." : "\n\n\(recallMisses) slip\(recallMisses == 1 ? "" : "s"). Once more to lock it in.")
-        : "\n\nNow repeat it from memory to lock it in."
+        mastery.isMastered ? "\n\nLocked in: \(need) fast runs from memory. On to the next line, or keep repeating."
+        : counted ? "\n\nClean and fast: \(mastery.streak)/\(need). Again from memory."
+        : recallMisses > 0 ? "\n\n\(recallMisses) slip\(recallMisses == 1 ? "" : "s"): back to 0/\(need)."
+        : "\n\nClean, but one move took \(Int(slowest.rounded())) seconds. Every move under \(Int(LineMastery.fastSeconds)) seconds to count: 0/\(need)."
+    } else if mode == .learn {
+      message += "\n\nNow play it from memory, \(LineMastery.required) times fast, to unlock the next line."
     }
     env.telemetry.event("opening.line", metadata: ["rep": .string(repertoire.fileName), "mode": .string(mode == .learn ? (recall ? "recall" : "learn") : "drill"),
       "misses": .int(mode == .drill ? misses : recallMisses)])

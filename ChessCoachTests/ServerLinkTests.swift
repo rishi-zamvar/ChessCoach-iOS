@@ -28,4 +28,12 @@ final class ServerLinkTests: XCTestCase {
     XCTAssertEqual(positions[1].lines.first?.score, .mate(-2))
     XCTAssertEqual(positions[0].lines.first?.depth, 22)
   }
+
+  /// Must match public_app/main.py `attested`: method, path, then the exact body bytes.
+  func test_givenPublicRequest_whenSigning_thenClientDataIsMethodPathBody() {
+    XCTAssertEqual(
+      PublicServer.clientData(method: "POST", path: "/v1/analysis/jobs", body: Data("{\"a\":1}".utf8)),
+      Data("POST\n/v1/analysis/jobs\n{\"a\":1}".utf8))
+    XCTAssertEqual(PublicServer.clientData(method: "GET", path: "/v1/analysis/jobs/x", body: Data()), Data("GET\n/v1/analysis/jobs/x\n".utf8))
+  }
 }

@@ -66,6 +66,10 @@ class JobStore:
     def get(self, job_id: str) -> Job | None:
         return self._jobs.get(job_id)
 
+    def active_count(self) -> int:
+        """Jobs waiting or running."""
+        return sum(1 for j in self._jobs.values() if j.status in ("queued", "running"))
+
     async def submit(
         self,
         *,

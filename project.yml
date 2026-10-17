@@ -34,6 +34,7 @@ targets:
       path: ChessCoach/ChessCoach.entitlements
       properties:
         com.apple.developer.applesignin: [Default]
+        com.apple.developer.devicecheck.appattest-environment: production
     info:
       path: ChessCoach/Info.plist
       properties:
@@ -45,6 +46,8 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         CFBundleDisplayName: ChessCoach
+        # The public server: Cloudflare Tunnel to the home PC (only the isolated public service).
+        PublicServerURL: "https://chess.zamvar.io"
         ITSAppUsesNonExemptEncryption: false
         NSLocalNetworkUsageDescription: ChessCoach talks to your home PC over Tailscale for deep analysis and to receive its AI key.
     settings:

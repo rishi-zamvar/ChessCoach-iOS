@@ -51,3 +51,22 @@ public struct OpeningGuide: Sendable {
     return reps.count == 1 ? reps[0].repertoire.summary : nil
   }
 }
+
+/// Learn mode's gate: a line is locked in after `required` clean, fast runs from memory in a row.
+public struct LineMastery: Equatable, Sendable {
+  public static let required = 3
+  /// Every move of a run must come within this many seconds for the run to count.
+  public static let fastSeconds = 6.0
+  public private(set) var streak = 0
+  public var isMastered: Bool { streak >= Self.required }
+
+  public init() {}
+
+  /// Records one from-memory run; a slip or a slow move resets the streak. Returns whether it counted.
+  @discardableResult
+  public mutating func record(slips: Int, slowestMove: Double) -> Bool {
+    let counted = slips == 0 && slowestMove <= Self.fastSeconds
+    streak = counted ? streak + 1 : 0
+    return counted
+  }
+}

@@ -115,24 +115,40 @@ final class ServerLink {
     var lines: [EngineLine]
   }
 
+  /// Deep analysis is possible: the home PC over Tailscale, or the public server for everyone else.
+  var canDeepAnalyze: Bool { isOnline || PublicServer.shared.isAvailable }
+
   /// Submits a deep-analysis job and polls until done. Returns engine lines per position.
+  /// Uses the home PC when it's reachable over Tailscale, else the public (App Attest) server.
   func deepAnalysis(gameID: String, pgn: String, userColor: String, progress: @escaping (Int, Int) -> Void) async throws -> [DeepPosition] {
-    guard let base = baseURL else { throw URLError(.notConnectedToInternet) }
+    let send: (String, String, Data) async throws -> Data
+    if let base = baseURL {
+      send = { method, path, body in
+        var request = URLRequest(url: base.appendingPathComponent(path))
+        request.httpMethod = method
+        if method == "POST" {
+          request.httpBody = body
+          request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        request.timeoutInterval = 10
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) == true else { throw URLError(.badServerResponse) }
+        return data
+      }
+    } else if PublicServer.shared.isAvailable {
+      send = { method, path, body in try await PublicServer.shared.send(method, "/v1/" + path, body: body) }
+    } else {
+      throw URLError(.notConnectedToInternet)
+    }
     let jobID = UUID().uuidString
-    var request = URLRequest(url: base.appendingPathComponent("analysis/jobs"))
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try JSONEncoder().encode(JSON.object([
+    let body = try JSONEncoder().encode(JSON.object([
       "job_id": .string(jobID), "game_id": .string(gameID), "pgn": .string(pgn), "user_color": .string(userColor),
       "depth": .number(22), "multipv": .number(3),
     ]))
-    request.timeoutInterval = 10
-    let (_, response) = try await URLSession.shared.data(for: request)
-    guard (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) == true else { throw URLError(.badServerResponse) }
-    let statusURL = base.appendingPathComponent("analysis/jobs/\(jobID)")
+    _ = try await send("POST", "analysis/jobs", body)
     for _ in 0..<600 {
       try await Task.sleep(for: .seconds(2))
-      let (data, _) = try await URLSession.shared.data(from: statusURL)
+      let data = try await send("GET", "analysis/jobs/\(jobID)", Data())
       let job = try JSONDecoder().decode(JSON.self, from: data)
       if let done = job["progress"]?["done"]?.numberValue, let total = job["progress"]?["total"]?.numberValue {
         progress(Int(done), Int(total))

@@ -112,6 +112,23 @@ final class StageCoachTests: XCTestCase {
     XCTAssertEqual(c.coachLine?.text, CoachFocus.freePieces.intro)
   }
 
+  func test_givenCoachGame_whenSteppingBack_thenShowsWhatTheCoachSaidAtThatMove() async throws {
+    let guide = OpeningGuide(repertoires: [try Repertoire(pgn: straightLine, fileName: "t")])
+    let c = game(guide: guide)
+    c.start()
+    let intro = c.coachLine?.text
+    play(c, "e2e4")
+    await waitUntil { c.session.history.count == 2 }
+    play(c, "g1f3")
+    XCTAssertEqual(c.coachLine?.text, "Nf3: Hit e5.")
+    c.jump(toPly: 1)
+    XCTAssertEqual(c.shownCoachLine?.text, "e4: Grab the centre.")
+    c.jump(toPly: 0)
+    XCTAssertEqual(c.shownCoachLine?.text, intro)
+    c.jumpToLatest()
+    XCTAssertEqual(c.shownCoachLine?.text, "Nf3: Hit e5.")
+  }
+
   func test_givenEndgameWithForcedMate_whenYourTurn_thenCoachAsksYouToFindIt() async {
     let fen = "4k3/8/8/8/8/8/P7/4K3 w - - 0 1"
     let coach = FakeCoach()
@@ -172,5 +189,18 @@ final class StageCoachTests: XCTestCase {
       LLMCoachWriter.checked("Their rook and king sit on the same rank. Which of your pieces can reach both?", facts: facts),
       "Their rook and king sit on the same rank. Which of your pieces can reach both?")
     XCTAssertNotNil(LLMCoachWriter.checked("Your knight on d5 is your best piece.", facts: facts))
+  }
+
+  func test_givenFromMemoryRuns_whenRecorded_thenThreeCleanFastRunsInARowLockTheLineIn() {
+    var m = LineMastery()
+    XCTAssertTrue(m.record(slips: 0, slowestMove: 2))
+    XCTAssertTrue(m.record(slips: 0, slowestMove: 5.9))
+    XCTAssertFalse(m.record(slips: 1, slowestMove: 1), "a slip resets")
+    XCTAssertEqual(m.streak, 0)
+    m.record(slips: 0, slowestMove: 3)
+    m.record(slips: 0, slowestMove: 3)
+    XCTAssertFalse(m.record(slips: 0, slowestMove: 9), "too slow resets")
+    for _ in 0..<3 { m.record(slips: 0, slowestMove: 4) }
+    XCTAssertTrue(m.isMastered)
   }
 }

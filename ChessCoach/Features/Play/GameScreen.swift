@@ -141,7 +141,14 @@ struct GameScreen: View {
   /// Hint, coach line, nudge or "checking" — one at a time.
   @ViewBuilder
   private var coachMessage: some View {
-    if let hint = game.hintText {
+    if !game.isViewingLatest {
+      // Stepping back through the game: what the coach said at that move.
+      if let line = game.shownCoachLine {
+        CoachLineBubble(headline: line.headline == line.text ? nil : line.headline, text: line.text, speaking: false, onReplay: nil)
+          .id(line.id)
+          .accessibilityIdentifier("coach-history")
+      }
+    } else if let hint = game.hintText {
       CoachBanner(text: hint, systemImage: "lightbulb.fill", tint: MoveClass.great.color)
     } else if let line = game.coachLine {
       CoachLineBubble(

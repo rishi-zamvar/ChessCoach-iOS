@@ -21,15 +21,15 @@ struct ReviewScreen: View {
       if let controller {
         if analysisService.progress?.gameID == game.id {
           ProgressView(value: analysisService.progress?.fraction ?? 0) {
-            Text("Deep analysis on your home PC…").font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+            Text(env.server.isOnline ? "Deep analysis on your home PC…" : "Deep analysis…").font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
           }
           .tint(ChessChrome.accentGreen)
           .padding(.horizontal, Spacing.m)
-        } else if env.server.isOnline, !controller.analysis.engine.contains("pc") {
+        } else if env.server.canDeepAnalyze, !controller.analysis.engine.contains("pc") {
           Button {
             Task { await deepen() }
           } label: {
-            Label("Deeper analysis on your home PC", systemImage: "desktopcomputer")
+            Label(env.server.isOnline ? "Deeper analysis on your home PC" : "Deeper analysis", systemImage: env.server.isOnline ? "desktopcomputer" : "cpu")
               .font(.system(size: 13, weight: .semibold, design: .rounded))
               .foregroundStyle(ChessChrome.accentGreen)
           }

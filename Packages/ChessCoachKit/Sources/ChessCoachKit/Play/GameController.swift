@@ -71,7 +71,22 @@ public final class GameController {
   public private(set) var hintLevel = 0
   public var isCoached: Bool { coach != nil }
   /// The latest line from the coach in your corner (spoken by the app). `id` changes per line.
-  public private(set) var coachLine: CoachLine?
+  public private(set) var coachLine: CoachLine? {
+    didSet {
+      // Remember what the coach said at each ply, so stepping back shows it again.
+      let ply = session.history.count
+      coachLog = coachLog.filter { $0.key <= ply }
+      if let coachLine { coachLog[ply] = coachLine }
+    }
+  }
+  /// Coach lines by the ply they were said at (moves played so far).
+  private var coachLog: [Int: CoachLine] = [:]
+
+  /// The coach line for the move on screen: the live one, or what the coach said back then.
+  public var shownCoachLine: CoachLine? {
+    if isViewingLatest { return coachLine }
+    return coachLog.filter { $0.key <= viewPly }.max { $0.key < $1.key }?.value
+  }
   /// Coach games: opening (following your repertoire) → middlegame → endgame.
   public private(set) var stage: GamePhaseKind = .opening
   /// Your repertoire line, once the game has picked one.

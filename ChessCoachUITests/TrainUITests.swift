@@ -88,6 +88,7 @@ final class TrainUITests: XCTestCase {
     app.buttons["Learn"].firstMatch.tap()
     let board = app.descendants(matching: .any)["board"]
     XCTAssertTrue(board.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["opening-lines"].exists, "any line can be picked from Learn")
     func square(_ file: Int, _ rank: Int) -> XCUICoordinate {
       board.coordinate(withNormalizedOffset: CGVector(dx: (Double(file) + 0.5) / 8, dy: (8 - Double(rank) + 0.5) / 8))
     }
