@@ -1,3 +1,4 @@
+import AuthenticationServices
 import ChessCoachKit
 import SwiftUI
 
@@ -14,6 +15,8 @@ struct SettingsView: View {
   @AppStorage(BoardSettings.paceKey) private var paceRaw = ReplyPace.normal.rawValue
   @AppStorage(BoardSettings.coachModeKey) private var coachModeRaw = CoachMode.voice.rawValue
   @State private var username = ""
+  @State private var appleUserID = AppleAccount.userID
+  @Environment(\.colorScheme) private var colorScheme
   @State private var confirmRetake = false
   /// Asks the presenter to reset the profile once this sheet is gone.
   var onRetake: () -> Void = {}
@@ -29,11 +32,33 @@ struct SettingsView: View {
           Button("Retake onboarding") { confirmRetake = true }
             .accessibilityIdentifier("settings-retake")
         }
-        Section("chess.com") {
-          TextField("Username", text: $username)
+        Section {
+          TextField("chess.com username", text: $username)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .onSubmit { analysis.username = username.trimmingCharacters(in: .whitespaces) }
+            .accessibilityIdentifier("settings-username")
+          if appleUserID == nil {
+            SignInWithAppleButton(.signIn) { $0.requestedScopes = [] } onCompletion: { result in
+              if case .success(let auth) = result, let credential = auth.credential as? ASAuthorizationAppleIDCredential {
+                AppleAccount.userID = credential.user
+                appleUserID = credential.user
+              }
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 44)
+            .accessibilityIdentifier("settings-apple")
+          } else {
+            LabeledContent("Apple ID", value: "Signed in")
+            Button("Sign out of Apple", role: .destructive) {
+              AppleAccount.userID = nil
+              appleUserID = nil
+            }
+          }
+        } header: {
+          Text("Account")
+        } footer: {
+          Text("Your chess.com username is your account. Games, ratings and progress stay on this phone; nothing is stored in the cloud.")
         }
         Section("Board") {
           Picker("Theme", selection: $themeID) {

@@ -38,6 +38,7 @@ struct GameScreen: View {
           .padding(.top, Spacing.xs)
         }
         // Everything that changes per move lives in this scroll area, so the board never shifts.
+        // Capped so the board keeps the full width: long coach text scrolls instead.
         ScrollView {
           VStack(spacing: 0) {
             moveCaption
@@ -45,18 +46,20 @@ struct GameScreen: View {
           }
         }
         .scrollBounceBehavior(.basedOnSize)
-        .frame(maxHeight: .infinity)
+        .frame(minHeight: 56, maxHeight: 112)
         PlayerBar(
           name: name(for: topColor), rating: rating(for: topColor), color: topColor,
           captured: game.session.captured(by: topColor), advantage: advantage(for: topColor),
           clock: clockText(topColor), clockActive: clockActive(topColor), lowTime: game.isLowTime(topColor),
           thinking: game.phase == .botThinking && topColor != game.userColor, pieceSet: pieceSet)
         board
+          .layoutPriority(1)
         PlayerBar(
           name: name(for: bottomColor), rating: rating(for: bottomColor), color: bottomColor,
           captured: game.session.captured(by: bottomColor), advantage: advantage(for: bottomColor),
           clock: clockText(bottomColor), clockActive: clockActive(bottomColor), lowTime: game.isLowTime(bottomColor),
           thinking: game.phase == .botThinking && bottomColor != game.userColor, pieceSet: pieceSet)
+        Spacer(minLength: 0)
         toolbar
       }
       .onChange(of: context.date) { _, _ in game.tick() }

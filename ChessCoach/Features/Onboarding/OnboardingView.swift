@@ -3,13 +3,10 @@ import ChessCoachKit
 import ChessKit
 import SwiftUI
 
-/// First-run flow: Sign in with Apple → chess.com username (skipped when the account already
-/// has one) → style → instinct quiz → placement (skipped when chess.com gives a rating) → result.
+/// First-run flow: Sign in with Apple (on-device only) → chess.com username → style → instinct quiz → placement (skipped when chess.com gives a rating) → result.
 struct OnboardingView: View {
   @Environment(TrainingService.self) private var training
   @Environment(AnalysisService.self) private var analysis
-  @Environment(AppEnvironment.self) private var env
-  @State private var signingIn = false
   @State private var step: Step = .welcome
   @State private var username = ""
   @State private var style: LearnerProfile.Style = .allRounder
@@ -74,7 +71,6 @@ struct OnboardingView: View {
       .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
       .frame(height: 52)
       .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerMedium))
-      .disabled(signingIn)
       .accessibilityIdentifier("onboarding-apple")
       Button("Continue without an account") { step = .username }
         .font(Typography.callout).foregroundStyle(Palette.textSecondary).frame(maxWidth: .infinity)
@@ -99,7 +95,6 @@ struct OnboardingView: View {
       Spacer()
       PrimaryButton(title: "Continue", action: {
         useUsername(username)
-        if !analysis.username.isEmpty { Task { await env.server.linkChessCom(analysis.username) } }
         step = .style
       }, icon: "arrow.right")
       Button("Skip") { step = .style }
@@ -221,21 +216,10 @@ struct OnboardingView: View {
 
   // MARK: - Actions
 
-  /// Apple's identity token (a JWT) goes to the home PC once, which returns its own session token
-  /// and any chess.com username this Apple ID already linked.
+  /// Signing in only remembers the Apple ID on this phone; nothing is sent anywhere.
   private func signedIn(_ result: Result<ASAuthorization, Error>) async {
     guard case .success(let auth) = result, let credential = auth.credential as? ASAuthorizationAppleIDCredential else { return }
-    signingIn = true
-    defer { signingIn = false }
-    UserDefaults.standard.set(credential.user, forKey: "apple.userID")
-    if let data = credential.identityToken, let jwt = String(data: data, encoding: .utf8) {
-      let account = await env.server.signIn(appleIdentityToken: jwt)
-      if let linked = account.username, !linked.isEmpty {
-        useUsername(linked)
-        step = .style
-        return
-      }
-    }
+    AppleAccount.userID = credential.user
     step = .username
   }
 

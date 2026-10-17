@@ -3,8 +3,7 @@ import Foundation
 import Observation
 import Security
 
-/// API keys, one Keychain item per provider (never typed for the owner: the home PC fills Claude's),
-/// plus the session token from Sign in with Apple.
+/// API keys, one Keychain item per provider (never typed for the owner: the home PC fills Claude's).
 enum KeyStore {
   /// Claude keeps the original service name so keys saved by older builds still load.
   private static func service(_ p: LLMProvider) -> String {
@@ -14,12 +13,6 @@ enum KeyStore {
   static func read(_ p: LLMProvider) -> String? { read(service: service(p)) }
   @discardableResult
   static func save(_ key: String, for p: LLMProvider) -> Bool { save(key, service: service(p)) }
-
-  /// The home PC's session JWT for this phone's Apple ID (Sign in with Apple, once at onboarding).
-  static var session: String? {
-    get { read(service: "com.rishizamvar.chesscoach.session") }
-    set { save(newValue ?? "", service: "com.rishizamvar.chesscoach.session") }
-  }
 
   private static func read(service: String) -> String? {
     let query: [String: Any] = [
@@ -94,5 +87,15 @@ final class AISettings {
     func opt(_ k: String) -> String? { d.string(forKey: "llm.\(p.rawValue).\(k)").flatMap { $0.isEmpty ? nil : $0 } }
     return LLMConfig(
       provider: p, apiKey: key, baseURL: opt("baseURL").flatMap(URL.init(string:)), fastModel: opt("fast"), smartModel: opt("smart"))
+  }
+}
+
+/// Sign in with Apple, kept on this phone only: nothing about the account leaves the device.
+/// Your chess.com username is what the app actually keys your data to.
+enum AppleAccount {
+  static let userIDKey = "apple.userID"
+  static var userID: String? {
+    get { UserDefaults.standard.string(forKey: userIDKey) }
+    set { UserDefaults.standard.set(newValue, forKey: userIDKey) }
   }
 }

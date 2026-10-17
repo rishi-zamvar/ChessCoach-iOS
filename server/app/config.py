@@ -30,8 +30,6 @@ class Settings:
     lc0_path: str = r"C:\ZeeCloud\Tools\lc0\lc0.exe"
     maia_1100_weights_path: str = r"C:\ZeeCloud\Tools\lc0\weights\maia-1100.pb.gz"
     stockfish_threads: int = max(1, (os.cpu_count() or 4) - 2)
-    apple_bundle_id: str = "com.rishizamvar.chesscoach"
-    data_dir: str = r"C:\ProgramData\zee-platform\chesscoach"
 
 
 def get_settings() -> Settings:
@@ -48,8 +46,6 @@ def get_settings() -> Settings:
             r"C:\ZeeCloud\Tools\lc0\weights\maia-1100.pb.gz",
         ),
         stockfish_threads=max(1, (os.cpu_count() or 4) - 2),
-        apple_bundle_id=_env_path("CHESSCOACH_APPLE_BUNDLE_ID", "com.rishizamvar.chesscoach"),
-        data_dir=_env_path("CHESSCOACH_DATA_DIR", r"C:\ProgramData\zee-platform\chesscoach"),
     )
 
 

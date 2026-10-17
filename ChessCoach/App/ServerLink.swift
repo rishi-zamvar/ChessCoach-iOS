@@ -108,41 +108,6 @@ final class ServerLink {
     SHA256.hash(data: Data(key.utf8)).prefix(4).map { String(format: "%02x", $0) }.joined()
   }
 
-  // MARK: - Account (Sign in with Apple, once at onboarding)
-
-  /// Trades Apple's identity token (a JWT) for this server's session JWT. Returns the chess.com
-  /// username already linked to this Apple ID (a reinstall or a new phone), if any.
-  /// False when the PC isn't reachable: the phone stays signed in to Apple only.
-  func signIn(appleIdentityToken: String) async -> (ok: Bool, username: String?) {
-    if baseURL == nil { await refresh() }
-    guard let base = baseURL,
-      let reply = try? await sendJSON("POST", base.appendingPathComponent("auth/apple"), ["identity_token": .string(appleIdentityToken)]),
-      let token = reply["token"]?.stringValue
-    else { return (false, nil) }
-    KeyStore.session = token
-    telemetry.event("auth.apple", metadata: ["linked": .bool(reply["chesscom_username"]?.stringValue != nil)])
-    return (true, reply["chesscom_username"]?.stringValue)
-  }
-
-  /// Links the chess.com username to the signed-in Apple ID.
-  func linkChessCom(_ username: String) async {
-    guard let base = baseURL, let token = KeyStore.session else { return }
-    _ = try? await sendJSON("PUT", base.appendingPathComponent("account"), ["chesscom_username": .string(username)], bearer: token)
-  }
-
-  private func sendJSON(_ method: String, _ url: URL, _ body: [String: JSON], bearer: String? = nil) async throws -> JSON {
-    var request = URLRequest(url: url)
-    request.httpMethod = method
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
-    request.httpBody = try JSONEncoder().encode(JSON.object(body))
-    // Apple's keys may need fetching on the PC: allow longer than a health check.
-    request.timeoutInterval = 8
-    let (data, response) = try await URLSession.shared.data(for: request)
-    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-    return try JSONDecoder().decode(JSON.self, from: data)
-  }
-
   // MARK: - Deep analysis (chesscoach-server /analysis/jobs)
 
   struct DeepPosition {

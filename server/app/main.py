@@ -1,9 +1,8 @@
 """FastAPI app factory for chesscoach-server.
 
 Endpoints per PLAN.md: /health, /key, /analysis/jobs (POST),
-/analysis/jobs/{job_id} (GET), /maia/predict (POST), plus Sign in with
-Apple: /auth/apple (POST) and /account (PUT, bearer session JWT). Every
-endpoint is whois-gated (owner login only).
+/analysis/jobs/{job_id} (GET), /maia/predict (POST). Every endpoint is
+whois-gated (owner login only, no bearer token).
 """
 from __future__ import annotations
 
@@ -12,13 +11,9 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from pathlib import Path
-
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 
 from app import models
-from app.auth.accounts import AccountStore, SessionError
-from app.auth.apple_signin import AppleSignInError, verify_identity_token
 from app.config import Settings, engine_available, get_settings
 from app.engines.maia import MaiaEngine
 from app.engines.stockfish import StockfishEngine
@@ -65,7 +60,6 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     )
     app.state.job_store = JobStore(app.state.stockfish_engine)
     app.state.maia_engine = MaiaEngine(settings.lc0_path, settings.maia_1100_weights_path)
-    app.state.accounts = AccountStore(Path(settings.data_dir))
 
     def require_owner(request: Request) -> None:
         request.app.state.whois_auth(request)
@@ -94,38 +88,6 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         return models.KeyResponse(
             key=anthropic_key, key_id=kid, monthly_cap_usd=s.monthly_cap_usd
         )
-
-    @app.post("/auth/apple", response_model=models.AccountResponse)
-    def auth_apple(
-        request: Request, body: models.AppleSignInRequest, _: None = Depends(require_owner)
-    ) -> models.AccountResponse:
-        try:
-            claims = verify_identity_token(body.identity_token, request.app.state.settings)
-        except AppleSignInError as e:
-            _log.info("apple sign-in rejected: %s", e)
-            raise HTTPException(status_code=401, detail={"error": "invalid_apple_token"}) from e
-        accounts: AccountStore = request.app.state.accounts
-        account = accounts.upsert(claims["sub"])
-        StepEvent(step="auth.apple", phase="done", run_id=new_id(), metadata={"linked": account.chesscom_username is not None}).emit()
-        return models.AccountResponse(token=accounts.mint(account.apple_sub), chesscom_username=account.chesscom_username)
-
-    @app.put("/account", response_model=models.AccountResponse)
-    def link_account(
-        request: Request,
-        body: models.LinkChessComRequest,
-        authorization: str = Header(default=""),
-        _: None = Depends(require_owner),
-    ) -> models.AccountResponse:
-        accounts: AccountStore = request.app.state.accounts
-        scheme, _, token = authorization.partition(" ")
-        try:
-            if scheme.lower() != "bearer" or not token:
-                raise SessionError("missing bearer token")
-            account = accounts.verify(token)
-        except SessionError as e:
-            raise HTTPException(status_code=401, detail={"error": "invalid_session"}) from e
-        account = accounts.link_chesscom(account.apple_sub, body.chesscom_username or None)
-        return models.AccountResponse(chesscom_username=account.chesscom_username)
 
     @app.post("/analysis/jobs", response_model=models.AnalysisJobAccepted)
     async def create_job(
