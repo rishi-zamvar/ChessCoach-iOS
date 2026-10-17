@@ -204,3 +204,35 @@ def test_public_code_never_touches_the_secrets():
     for forbidden in ["secrets_service", "SecretsService", "dpapi", "app.main", "app.security", "anthropic"]:
         assert not any(forbidden in line for line in imports), forbidden
     assert not any("SecretsService" in p.read_text() for p in Path(public_main.__file__).parent.glob("*.py"))
+
+
+def test_given_huge_or_malformed_requests_when_sent_then_refused_before_reading(client, apple):
+    register(client, apple)
+    big = b'{"job_id":"j","game_id":"g","user_color":"white","pgn":"' + b"x" * (70 * 1024) + b'"}'
+    r = client.post("/v1/analysis/jobs", content=big, headers=apple.headers("POST", "/v1/analysis/jobs", big))
+    assert r.status_code == 413
+    assert client.post("/v1/attest/challenge", content=b"x", headers={"content-length": "abc"}).status_code in (400, 413)
+    bad_id = post(client, apple, "/v1/analysis/jobs", {"job_id": "j", "game_id": "<script>", "pgn": PGN, "user_color": "white"})
+    assert bad_id.status_code == 422
+    short_key = {"x-attest-key": base64.b64encode(b"short").decode(), "x-attest-assertion": "AA=="}
+    assert client.get("/v1/analysis/jobs/j", headers=short_key).status_code == 401
+    huge_header = {"x-attest-key": "A" * 5000, "x-attest-assertion": "AA=="}
+    assert client.get("/v1/analysis/jobs/j", headers=huge_header).status_code == 400
+
+
+def test_given_any_response_then_security_headers_are_set(client):
+    r = client.get("/v1/health")
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["cache-control"] == "no-store"
+    assert r.headers["x-frame-options"] == "DENY"
+
+
+def test_given_many_finished_jobs_when_pruning_then_oldest_go_first():
+    from app.jobs import Job, JobStore
+
+    store = JobStore(FakeAnalysisEngine())
+    for i in range(5):
+        store._jobs[f"j{i}"] = Job(job_id=f"j{i}", game_id="g", pgn="", user_color="white", depth=1, multipv=1, status="done")
+    store._jobs["running"] = Job(job_id="running", game_id="g", pgn="", user_color="white", depth=1, multipv=1, status="running")
+    store.prune_finished(keep=3)
+    assert list(store._jobs) == ["j3", "j4", "running"]

@@ -40,6 +40,8 @@ MAX_PLIES = 300
 MAX_DEPTH = 18
 MAX_MULTIPV = 3
 MAX_QUEUED_JOBS = 4
+MAX_BODY_BYTES = 64 * 1024
+MAX_STORED_JOBS = 200
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,8 @@ class RateLimiter:
     """Sliding-window counts per key."""
     # ponytail: in memory, so limits reset when the service restarts; fine for a home PC.
 
+    MAX_KEYS = 50_000
+
     def __init__(self) -> None:
         self._hits: dict[str, collections.deque[float]] = collections.defaultdict(collections.deque)
         self._lock = threading.Lock()
@@ -59,6 +63,10 @@ class RateLimiter:
     def allow(self, key: str, limit: int, per_seconds: float, now: float | None = None) -> bool:
         now = time.monotonic() if now is None else now
         with self._lock:
+            if len(self._hits) > self.MAX_KEYS:
+                # Many callers: forget the ones idle for an hour so memory stays bounded.
+                for k in [k for k, q in self._hits.items() if not q or q[-1] <= now - 3600]:
+                    del self._hits[k]
             q = self._hits[key]
             while q and q[0] <= now - per_seconds:
                 q.popleft()
@@ -104,7 +112,7 @@ class RegisterRequest(BaseModel):
 
 class PublicJobRequest(BaseModel):
     job_id: str = Field(max_length=64, pattern=r"^[A-Za-z0-9-]+$")
-    game_id: str = Field(max_length=128)
+    game_id: str = Field(max_length=128, pattern=r"^[A-Za-z0-9._:/-]+$")
     pgn: str = Field(max_length=MAX_PGN_CHARS)
     user_color: str = Field(pattern=r"^(white|black)$")
     depth: int = Field(default=MAX_DEPTH, ge=1, le=60)
@@ -115,11 +123,50 @@ class MaiaRequest(BaseModel):
     fen: str = Field(max_length=100)
 
 
-def b64(s: str) -> bytes:
+def b64(s: str, max_bytes: int = 16_384) -> bytes:
+    if len(s) > max_bytes * 4 // 3 + 4:
+        raise HTTPException(status_code=400, detail="too long")
     try:
         return base64.b64decode(s, validate=True)
     except Exception as e:
         raise HTTPException(status_code=400, detail="bad base64") from e
+
+
+class BodyLimit:
+    """Refuses request bodies over `limit` bytes before they're read into memory (pure ASGI)."""
+
+    def __init__(self, app, limit: int) -> None:
+        self.app, self.limit = app, limit
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        length = dict(scope.get("headers") or []).get(b"content-length")
+        if length is not None and (not length.isdigit() or int(length) > self.limit):
+            return await self._refuse(send)
+        seen = 0
+
+        async def capped():
+            nonlocal seen
+            message = await receive()
+            seen += len(message.get("body", b""))
+            if seen > self.limit:
+                raise _TooLarge()
+            return message
+
+        try:
+            await self.app(scope, capped, send)
+        except _TooLarge:
+            await self._refuse(send)
+
+    @staticmethod
+    async def _refuse(send):
+        await send({"type": "http.response.start", "status": 413, "headers": [(b"content-type", b"application/json")]})
+        await send({"type": "http.response.body", "body": b'{"detail":"request too large"}'})
+
+
+class _TooLarge(Exception):
+    pass
 
 
 def create_public_app(
@@ -151,6 +198,16 @@ def create_public_app(
     app.state.verifier = verifier or AppAttestVerifier(APP_ID)
     app.state.limits = RateLimiter()
     app.state.challenges: dict[bytes, float] = {}
+    app.add_middleware(BodyLimit, limit=MAX_BODY_BYTES)
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
 
     def client_ip(request: Request) -> str:
         # Only cloudflared can reach 127.0.0.1, so its header is the real caller.
@@ -162,8 +219,10 @@ def create_public_app(
 
     async def attested(request: Request) -> bytes:
         """Verifies the App Attest assertion over method, path and body; returns the key id."""
-        key_id = b64(request.headers.get("x-attest-key", ""))
-        assertion = b64(request.headers.get("x-attest-assertion", ""))
+        key_id = b64(request.headers.get("x-attest-key", ""), max_bytes=32)
+        assertion = b64(request.headers.get("x-attest-assertion", ""), max_bytes=4096)
+        if len(key_id) != 32:
+            raise HTTPException(status_code=401, detail="unknown device")
         key = request.app.state.keys.get(key_id)
         if key is None:
             raise HTTPException(status_code=401, detail="unknown device")
@@ -227,6 +286,7 @@ def create_public_app(
             plies = len(list(game.mainline_moves())) if game else 0
             if not 1 <= plies <= MAX_PLIES:
                 raise HTTPException(status_code=400, detail="game must have 1-300 moves")
+        jobs.prune_finished(keep=MAX_STORED_JOBS)
         job = await jobs.submit(
             job_id=job_key(key_id, body.job_id), game_id=body.game_id, pgn=body.pgn, user_color=body.user_color,
             depth=min(body.depth, MAX_DEPTH), multipv=min(body.multipv, MAX_MULTIPV))

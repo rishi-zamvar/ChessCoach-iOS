@@ -30,7 +30,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>ChessCoach talks to your home PC over Tailscale for deep analysis and to receive its AI key.</string>
 	<key>PublicServerURL</key>
-	<string></string>
+	<string>https://chess.zamvar.io</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

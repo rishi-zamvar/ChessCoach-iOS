@@ -66,6 +66,12 @@ class JobStore:
     def get(self, job_id: str) -> Job | None:
         return self._jobs.get(job_id)
 
+    def prune_finished(self, keep: int) -> None:
+        """Drops the oldest finished jobs once more than `keep` are stored (results live in memory only)."""
+        finished = [jid for jid, j in self._jobs.items() if j.status in ("done", "failed")]
+        for jid in finished[: max(0, len(self._jobs) - keep)]:
+            del self._jobs[jid]
+
     def active_count(self) -> int:
         """Jobs waiting or running."""
         return sum(1 for j in self._jobs.values() if j.status in ("queued", "running"))

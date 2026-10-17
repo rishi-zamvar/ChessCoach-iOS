@@ -14,6 +14,11 @@ enum KeyStore {
   @discardableResult
   static func save(_ key: String, for p: LLMProvider) -> Bool { save(key, service: service(p)) }
 
+  /// Any other small secret by name (same protections as the API keys).
+  static func read(named name: String) -> String? { read(service: "com.rishizamvar.chesscoach.\(name)") }
+  @discardableResult
+  static func save(_ value: String, named name: String) -> Bool { save(value, service: "com.rishizamvar.chesscoach.\(name)") }
+
   private static func read(service: String) -> String? {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
@@ -93,9 +98,15 @@ final class AISettings {
 /// Sign in with Apple, kept on this phone only: nothing about the account leaves the device.
 /// Your chess.com username is what the app actually keys your data to.
 enum AppleAccount {
-  static let userIDKey = "apple.userID"
+  /// Kept in the Keychain (this device only), not in plain preferences.
   static var userID: String? {
-    get { UserDefaults.standard.string(forKey: userIDKey) }
-    set { UserDefaults.standard.set(newValue, forKey: userIDKey) }
+    get {
+      if let legacy = UserDefaults.standard.string(forKey: "apple.userID") {  // move from older builds
+        KeyStore.save(legacy, named: "apple.userID")
+        UserDefaults.standard.removeObject(forKey: "apple.userID")
+      }
+      return KeyStore.read(named: "apple.userID")
+    }
+    set { KeyStore.save(newValue ?? "", named: "apple.userID") }
   }
 }

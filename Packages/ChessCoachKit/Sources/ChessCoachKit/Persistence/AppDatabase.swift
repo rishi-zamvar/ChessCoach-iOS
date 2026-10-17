@@ -18,7 +18,22 @@ public final class AppDatabase: Sendable {
     let url = folder.appendingPathComponent(name)
     var config = Configuration()
     config.foreignKeysEnabled = true
-    return try AppDatabase(DatabasePool(path: url.path, configuration: config))
+    let db = try AppDatabase(DatabasePool(path: url.path, configuration: config))
+    protect(folder: folder, prefix: name)
+    return db
+  }
+
+  /// Your games and progress are encrypted by iOS Data Protection: unreadable while the phone is
+  /// locked, except files already open (so a background analysis can finish after locking).
+  static func protect(folder: URL, prefix: String) {
+    #if os(iOS)
+      let fm = FileManager.default
+      let attributes: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUnlessOpen]
+      try? fm.setAttributes(attributes, ofItemAtPath: folder.path)  // new files inherit it
+      for file in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? [] where file.hasPrefix(prefix) {
+        try? fm.setAttributes(attributes, ofItemAtPath: folder.appendingPathComponent(file).path)
+      }
+    #endif
   }
 
   public static func inMemory() throws -> AppDatabase {
