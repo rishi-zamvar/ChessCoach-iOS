@@ -48,6 +48,14 @@ final class PlayUITests: XCTestCase {
     start.tap()
     XCTAssertTrue(app.staticTexts["coach-text"].waitForExistence(timeout: 5))
     snapshot(app, "08-review-moment")
+    // Your own mistakes come with why + playable lines (only when this short game has one).
+    if app.descendants(matching: .any)["review-insight"].waitForExistence(timeout: 2) {
+      app.buttons["review-line-better"].tap()
+      app.buttons["review-line-forward"].tap()
+      snapshot(app, "09-review-better-line")
+      app.buttons["review-line-end"].tap()
+      XCTAssertTrue(app.descendants(matching: .any)["review-insight"].waitForExistence(timeout: 2))
+    }
   }
 
   private func tap(_ board: XCUIElement, column: Int, row: Int) {

@@ -69,7 +69,9 @@ struct TrainingRunnerView: View {
     case .puzzle(let puzzle):
       PuzzleView(puzzle: puzzle) { advance(clean: $0.solvedCleanly) }
     case .review(let item, let puzzle):
-      PuzzleView(puzzle: puzzle, review: item, hasSetupMove: item.kind == .puzzle) { advance(clean: $0.solvedCleanly) }
+      PuzzleView(puzzle: puzzle, review: item, hasSetupMove: item.kind == .puzzle, insight: training.insight(for: item)) {
+        advance(clean: $0.solvedCleanly)
+      }
     case .drill(let kind):
       VisionDrillView(kind: kind) { correct, total in
         advance(clean: correct * 10 >= total * 7)

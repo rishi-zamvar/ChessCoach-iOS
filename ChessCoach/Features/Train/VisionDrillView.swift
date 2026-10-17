@@ -28,6 +28,8 @@ struct VisionDrillView: View {
   // safe move
   @State private var questions: [BoardVision.SafetyQuestion] = []
   @State private var answer: Bool?
+  /// After answering: how many moves of the question's line are played out on the board.
+  @State private var lineStep = 0
 
   private var total: Int {
     switch kind {
@@ -41,6 +43,7 @@ struct VisionDrillView: View {
     VStack(spacing: 0) {
       prompt
       board
+      if kind == .safeMove { explanation }
       footer
       Spacer(minLength: 0)
     }
@@ -90,6 +93,28 @@ struct VisionDrillView: View {
     }
   }
 
+  /// Below the board (so the board never shifts): why it's a blunder / safe, and the played-out move.
+  private var explanation: some View {
+    ScrollView {
+      VStack(spacing: 4) {
+        if answer != nil, round < questions.count {
+          Text(questions[round].why)
+            .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+            .accessibilityIdentifier("drill-why")
+          if let caption = lineCaption {
+            Text(caption).font(.system(size: 13, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+              .accessibilityIdentifier("drill-line-caption")
+          }
+        }
+      }
+      .multilineTextAlignment(.center)
+      .frame(maxWidth: .infinity)
+      .padding(.horizontal, Spacing.m)
+      .padding(.top, Spacing.s)
+    }
+    .frame(height: 84)
+  }
+
   // MARK: - Board
 
   @ViewBuilder
@@ -126,8 +151,10 @@ struct VisionDrillView: View {
       if round < questions.count {
         let q = questions[round]
         let position = Position(fen: q.fen) ?? .standard
+        let shown = playedOut(q)
         BoardView(
-          position: position,
+          position: shown.position,
+          highlights: BoardHighlights(lastMove: shown.history.last.map { [$0.move.start, $0.move.end] } ?? []),
           annotations: safeAnnotations(q),
           theme: BoardTheme.named(themeID), pieceSet: PieceSetID(rawValue: pieceSetRaw) ?? .default,
           flipped: position.sideToMove == .black, interactive: false)
@@ -155,6 +182,16 @@ struct VisionDrillView: View {
           PuzzleButton(title: "Blunder", systemImage: "exclamationmark.triangle") { answerSafe(false) }
             .accessibilityIdentifier("drill-blunder")
         } else {
+          let q = questions[round]
+          PuzzleButton(title: "", systemImage: "chevron.left") { lineStep = max(0, lineStep - 1) }
+            .frame(maxWidth: 56).disabled(lineStep == 0)
+            .accessibilityIdentifier("drill-line-back")
+          PuzzleButton(title: lineStep == 0 ? "Play it out" : "Next move", systemImage: "play.fill") {
+            lineStep = min(q.line.count, lineStep + 1)
+            if let last = playedOut(q).history.last { env.sounds.play(SoundEvent.forMove(last, gameOver: false)) }
+          }
+          .disabled(lineStep >= q.line.count)
+          .accessibilityIdentifier("drill-line-forward")
           PuzzleButton(title: "Next", systemImage: "arrow.right", prominent: true) { next() }
         }
       }
@@ -223,9 +260,30 @@ struct VisionDrillView: View {
 
   private func safeAnnotations(_ q: BoardVision.SafetyQuestion) -> AnnotationLayer {
     var a = AnnotationLayer()
-    if let m = UCIMove(q.move) { a.arrows.append(Arrow(from: m.from, to: m.to, color: .blue)) }
-    if answer != nil, let r = q.refutation.flatMap(UCIMove.init) { a.arrows.append(Arrow(from: r.from, to: r.to, color: .red)) }
+    if lineStep == 0 {
+      if let m = UCIMove(q.move) { a.arrows.append(Arrow(from: m.from, to: m.to, color: .blue)) }
+      if answer != nil, let r = q.refutation.flatMap(UCIMove.init) { a.arrows.append(Arrow(from: r.from, to: r.to, color: .red)) }
+    } else if lineStep < q.line.count, let m = UCIMove(q.line[lineStep]) {
+      // Playing it out: the arrow shows what comes next.
+      a.arrows.append(Arrow(from: m.from, to: m.to, color: lineStep % 2 == 0 ? .blue : .red))
+    }
     return a
+  }
+
+  /// The question's position with the first `lineStep` moves of its line played.
+  private func playedOut(_ q: BoardVision.SafetyQuestion) -> GameSession {
+    var game = GameSession(startFEN: q.fen)
+    for uci in q.line.prefix(lineStep) { game.apply(uci: uci) }
+    return game
+  }
+
+  /// What the last played-out move did, e.g. "Rd8# is checkmate."
+  private var lineCaption: String? {
+    guard lineStep > 0, round < questions.count else { return nil }
+    let q = questions[round]
+    var before = GameSession(startFEN: q.fen)
+    for uci in q.line.prefix(lineStep - 1) { before.apply(uci: uci) }
+    return Explainer.reason(fen: before.position.fen, uci: q.line[lineStep - 1])
   }
 
   private func answerSafe(_ safe: Bool) {
@@ -240,6 +298,7 @@ struct VisionDrillView: View {
     tapped = []
     revealed = false
     answer = nil
+    lineStep = 0
     if round + 1 >= total {
       training.recordDrill(kind, correct: correct, total: total, seconds: Date().timeIntervalSince(started))
       onFinished(correct, total)

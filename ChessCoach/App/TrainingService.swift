@@ -186,17 +186,46 @@ final class TrainingService {
 
   func reviewTasks(kind: ReviewKind?, limit: Int, now: Date) -> [TrainingTask] {
     let due = ((try? store.dueReviews(at: now)) ?? []).filter { kind == nil || $0.kind == kind }
-    return due.prefix(limit).compactMap { item -> TrainingTask? in
-      switch item.kind {
-      case .puzzle:
-        let id = String(item.id.dropFirst("puzzle:".count))
-        return (try? puzzles?.puzzle(id: id)).flatMap { $0 }.map { TrainingTask.review(item, $0) }
-      case .mistake, .lesson:
-        let puzzle = Puzzle(
-          id: item.id, fen: item.fen, moves: item.solution, rating: globalRating, rd: 100, popularity: 100,
-          themes: [item.skillID ?? "mistake"], primaryTheme: item.skillID ?? "mistake", opening: nil)
-        return .review(item, puzzle)
+    return due.prefix(limit).compactMap(task(for:))
+  }
+
+  /// Positions from your games where you made the same kind of mistake, taken one game at a
+  /// time (newest games first) so a session spreads across games instead of one bad game.
+  func patternTasks(key: String, limit: Int = 6) -> [TrainingTask] {
+    let mistakes = ((try? env.analysisStore.mistakes(inPattern: key)) ?? []).filter { $0.bestUCI != nil }
+    var queues = Dictionary(grouping: mistakes, by: \.gameID).values.map { $0.sorted { $0.ply < $1.ply } }
+      .sorted { ($0.first?.endedAt ?? .distantPast) > ($1.first?.endedAt ?? .distantPast) }
+    var picked: [MistakeRecord] = []
+    while picked.count < limit, queues.contains(where: { !$0.isEmpty }) {
+      for i in queues.indices where !queues[i].isEmpty && picked.count < limit {
+        picked.append(queues[i].removeFirst())
       }
+    }
+    _ = try? store.addMistakeReviews(picked, now: Date())
+    let items = Dictionary(((try? store.reviewItems()) ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    return picked.compactMap { items["mistake:\($0.gameID):\($0.ply)"] }.compactMap(task(for:))
+  }
+
+  /// For a review from your own game: why the move you played was a mistake.
+  func insight(for item: ReviewItem) -> MoveInsight? {
+    guard item.kind == .mistake, let colon = item.id.lastIndex(of: ":"), let ply = Int(item.id[item.id.index(after: colon)...]) else { return nil }
+    let gameID = String(item.id["mistake:".endIndex..<colon])
+    guard let analysis = try? env.analysisStore.analysis(gameID: gameID), ply >= 1, ply <= analysis.moves.count else { return nil }
+    return MoveInsight.make(analysis.moves[ply - 1])
+  }
+
+  private func task(for item: ReviewItem) -> TrainingTask? {
+    switch item.kind {
+    case .puzzle:
+      let id = String(item.id.dropFirst("puzzle:".count))
+      return (try? puzzles?.puzzle(id: id)).flatMap { $0 }.map { TrainingTask.review(item, $0) }
+    case .mistake, .lesson:
+      // The theme feeds the first hint, so it must be a real tactic name, never the skill code ("D1").
+      let theme = item.skillID.flatMap { SkillCatalog.skill($0)?.themes.first } ?? ""
+      let puzzle = Puzzle(
+        id: item.id, fen: item.fen, moves: item.solution, rating: globalRating, rd: 100, popularity: 100,
+        themes: theme.isEmpty ? [] : [theme], primaryTheme: theme, opening: nil)
+      return .review(item, puzzle)
     }
   }
 

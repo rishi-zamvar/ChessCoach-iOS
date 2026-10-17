@@ -144,6 +144,13 @@ private struct ReviewContent: View {
   @State private var aiText: [Int: String] = [:]
   @State private var askingCoach = false
   @State private var coachArrows: [Arrow] = []
+  @State private var practice: PracticeRun?
+
+  struct PracticeRun: Identifiable {
+    let id = UUID()
+    let title: String
+    let tasks: [TrainingTask]
+  }
   let flipped: Bool
   let theme: BoardTheme
   let pieceSet: PieceSetID
@@ -195,8 +202,8 @@ private struct ReviewContent: View {
             moves: controller.analysis.moves
           ) { controller.goTo(ply: $0) }
           .frame(height: 64)
-          if controller.retryState == nil, controller.currentMove?.label.isError == true, !controller.followUpLine.isEmpty, controller.showingFollowUp {
-            FollowUpRow(line: controller.followUpLine)
+          if controller.retryState == nil, controller.line == nil, let insight = userInsight {
+            insightBlock(insight)
           }
           ReviewMoveList(moves: controller.analysis.moves, current: controller.ply) { controller.goTo(ply: $0) }
           if let note = repertoireNote {
@@ -223,6 +230,9 @@ private struct ReviewContent: View {
     .task(id: controller.ply) {
       coachArrows = []
       await loadAIExplanation()
+    }
+    .fullScreenCover(item: $practice) { run in
+      TrainingRunnerView(title: run.title, tasks: run.tasks)
     }
     .sheet(isPresented: $askingCoach) {
       AskCoachSheet(
@@ -260,7 +270,7 @@ private struct ReviewContent: View {
   }
 
   private var bubbleText: String {
-    if controller.retryState == nil, let ai = aiText[controller.ply] { return ai }
+    if controller.retryState == nil, controller.line == nil, let ai = aiText[controller.ply] { return ai }
     return controller.coachText
   }
 
@@ -281,6 +291,67 @@ private struct ReviewContent: View {
     }
   }
 
+  /// Why your move was a mistake (your own moves only).
+  private var userInsight: MoveInsight? {
+    guard controller.currentMove?.color == controller.analysis.userColor else { return nil }
+    return controller.insight
+  }
+
+  /// This kind of mistake across your analyzed games: (count, games).
+  private func repeats(_ type: MistakeType) -> (count: Int, games: Int) {
+    let ms = (try? env.analysisStore.mistakes(inPattern: AnalysisStore.typeKey(type))) ?? []
+    return (ms.count, Set(ms.map(\.gameID)).count)
+  }
+
+  @ViewBuilder
+  private func insightBlock(_ insight: MoveInsight) -> some View {
+    let type = controller.currentMove?.mistakeType ?? .positional
+    let seen = repeats(type)
+    VStack(alignment: .leading, spacing: Spacing.s) {
+      insightRow("Your move", insight.played, color: MoveClass.mistake.color)
+      insightRow("Why the better move is better", insight.better, color: ChessChrome.accentGreen)
+      insightRow("Why you missed it", insight.habit, color: ChessChrome.textSecondary)
+      HStack(spacing: Spacing.s) {
+        lineButton("Your line", better: false).accessibilityIdentifier("review-line-yours")
+        lineButton("Better line", better: true).accessibilityIdentifier("review-line-better")
+      }
+      if seen.games >= 2 {
+        Button {
+          practice = PracticeRun(
+            title: type.displayName, tasks: training.patternTasks(key: AnalysisStore.typeKey(type)))
+        } label: {
+          Label("\(type.displayName): \(seen.count) times in \(seen.games) games. Practice them", systemImage: "repeat")
+            .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.accentGreen)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("review-practice-pattern")
+      }
+    }
+    .padding(Spacing.m)
+    .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.bar))
+    // .contain keeps the buttons' own identifiers.
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("review-insight")
+  }
+
+  private func insightRow(_ title: String, _ text: String, color: Color) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(title.uppercased()).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundStyle(color)
+      Text(text).font(.system(size: 14, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+  }
+
+  private func lineButton(_ title: String, better: Bool) -> some View {
+    Button { controller.playLine(better: better) } label: {
+      Label(title, systemImage: "play.fill")
+        .font(.system(size: 13, weight: .bold, design: .rounded))
+        .foregroundStyle(better ? ChessChrome.accentGreen : MoveClass.mistake.color)
+        .frame(maxWidth: .infinity).padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 8).stroke(better ? ChessChrome.accentGreen : MoveClass.mistake.color))
+    }
+  }
+
   private var displayedPly: Int { controller.retryState.map { $0.ply - 1 } ?? controller.ply }
 
   private var badge: SquareBadge? {
@@ -296,7 +367,15 @@ private struct ReviewContent: View {
           .frame(maxWidth: 56)
           .accessibilityIdentifier("review-ask")
       }
-      if let retry = controller.retryState {
+      if let line = controller.line {
+        ControlButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endLine() }
+          .accessibilityIdentifier("review-line-end")
+        ControlButton(title: "", systemImage: "chevron.left") { controller.lineBack() }
+          .frame(maxWidth: 56).disabled(line.step == 0)
+        ControlButton(title: line.step == 0 ? "Play" : "Next move", systemImage: "play.fill", prominent: true) { controller.lineForward() }
+          .disabled(line.step >= line.moves.count)
+          .accessibilityIdentifier("review-line-forward")
+      } else if let retry = controller.retryState {
         ControlButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endRetry() }
         if !retry.solved && !retry.revealed {
           ControlButton(title: "Hint", systemImage: "lightbulb") { controller.hint() }
@@ -316,8 +395,8 @@ private struct ReviewContent: View {
         if controller.canRetry {
           ControlButton(title: "Retry", systemImage: "arrow.counterclockwise", prominent: true) { controller.retry() }
             .accessibilityIdentifier("review-retry")
-          ControlButton(title: controller.showingFollowUp ? "Hide" : "Follow-up", systemImage: "arrow.right.circle") {
-            controller.toggleFollowUp()
+          if userInsight == nil {
+            ControlButton(title: "Next Moment", systemImage: "forward.fill") { controller.nextMoment() }
           }
         } else {
           ControlButton(title: "Next Moment", systemImage: "forward.fill", prominent: true) { controller.nextMoment() }
@@ -478,22 +557,6 @@ struct EvalGraph: View {
         })
     }
     .accessibilityIdentifier("eval-graph")
-  }
-}
-
-private struct FollowUpRow: View {
-  let line: [String]
-
-  var body: some View {
-    HStack(spacing: 6) {
-      Image(systemName: "arrow.turn.down.right").foregroundStyle(ChessChrome.lowTime)
-      Text(line.prefix(6).joined(separator: "  "))
-        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-        .foregroundStyle(ChessChrome.textPrimary)
-      Spacer()
-    }
-    .padding(Spacing.m)
-    .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
   }
 }
 

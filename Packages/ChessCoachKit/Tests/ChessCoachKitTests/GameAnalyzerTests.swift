@@ -70,6 +70,8 @@ final class GameAnalyzerTests: XCTestCase {
     let patterns = try store.recurringPatterns()
     XCTAssertTrue(patterns.contains { $0.key == "type:allowedTactic" && $0.count == 1 })
     XCTAssertTrue(patterns.contains { $0.key == "time" })
+    XCTAssertEqual(try store.mistakes(inPattern: AnalysisStore.typeKey(.allowedTactic)).count, 1)
+    XCTAssertTrue(try store.mistakes(inPattern: AnalysisStore.typeKey(.endgameError)).isEmpty)
   }
 
   func test_givenUnreadablePGN_whenAnalyzed_thenThrows() async {

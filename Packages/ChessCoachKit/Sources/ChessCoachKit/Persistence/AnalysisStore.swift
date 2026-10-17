@@ -122,19 +122,31 @@ public struct AnalysisStore: Sendable {
     }
   }
 
+  /// The pattern keys (and titles) a mistake belongs to.
+  public static func patternKeys(_ m: MistakeRecord) -> [(key: String, title: String)] {
+    let type = MistakeType(rawValue: m.mistakeType) ?? .positional
+    var keys = [(typeKey(type), type.displayName)]
+    for motif in m.motifs.split(separator: ",").compactMap({ Motif(rawValue: String($0)) })
+    where [.fork, .pin, .skewer, .discoveredAttack, .mate, .mateThreat, .backRankMate].contains(motif) {
+      keys.append(("motif:\(motif.rawValue)", "\(motif.displayName)s"))
+    }
+    if m.timeTrouble { keys.append(("time", "Time trouble")) }
+    return keys
+  }
+
+  public static func typeKey(_ type: MistakeType) -> String { "type:\(type.rawValue)" }
+
+  /// Your mistakes of one pattern, newest first.
+  public func mistakes(inPattern key: String) throws -> [MistakeRecord] {
+    try mistakes().filter { Self.patternKeys($0).contains { $0.key == key } }
+  }
+
   /// Most frequent mistake types and motifs across the user's analyzed games.
   public func recurringPatterns(limit: Int = 6) throws -> [MistakePattern] {
     let all = try mistakes()
     var byKey: [String: (title: String, count: Int, games: Set<String>)] = [:]
     for m in all {
-      let type = MistakeType(rawValue: m.mistakeType) ?? .positional
-      var keys = [("type:\(type.rawValue)", type.displayName)]
-      for motif in m.motifs.split(separator: ",").compactMap({ Motif(rawValue: String($0)) })
-      where [.fork, .pin, .skewer, .discoveredAttack, .mate, .mateThreat, .backRankMate].contains(motif) {
-        keys.append(("motif:\(motif.rawValue)", "\(motif.displayName)s"))
-      }
-      if m.timeTrouble { keys.append(("time", "Time trouble")) }
-      for (key, title) in keys {
+      for (key, title) in Self.patternKeys(m) {
         var entry = byKey[key] ?? (title, 0, [])
         entry.count += 1
         entry.games.insert(m.gameID)

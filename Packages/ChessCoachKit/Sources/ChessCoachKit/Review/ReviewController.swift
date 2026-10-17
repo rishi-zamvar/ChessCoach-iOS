@@ -28,7 +28,15 @@ public final class ReviewController {
   public private(set) var mode: Mode = .browse
   public private(set) var interaction = BoardInteraction()
   public private(set) var momentIndex: Int?
-  public private(set) var showingFollowUp = false
+
+  /// Playing a line out on the board from the position before the current move:
+  /// your move and its punishment, or the better move and its line.
+  public struct LinePreview: Equatable {
+    public var moves: [String]
+    public var step: Int
+    public var isBetter: Bool
+  }
+  public private(set) var line: LinePreview?
 
   @ObservationIgnored private let telemetry: Telemetry
 
@@ -49,8 +57,19 @@ public final class ReviewController {
     return nil
   }
 
+  /// Why the current move was a mistake (nil for good moves).
+  public var insight: MoveInsight? { currentMove.flatMap(MoveInsight.make) }
+
+  /// The line position after `step` moves.
+  private func lineGame(_ l: LinePreview) -> GameSession {
+    var g = GameSession(startFEN: session.fen(atPly: ply - 1))
+    for uci in l.moves.prefix(l.step) { g.apply(uci: uci) }
+    return g
+  }
+
   /// FEN shown on the board.
   public var displayedFEN: String {
+    if let line { return lineGame(line).position.fen }
     if let retry = retryState {
       if retry.solved || retry.revealed, let best = analysis.moves[retry.ply - 1].bestUCI {
         var s = GameSession(startFEN: session.fen(atPly: retry.ply - 1))
@@ -63,6 +82,11 @@ public final class ReviewController {
   }
 
   public var highlights: BoardHighlights {
+    if let line {
+      var h = BoardHighlights()
+      if let last = lineGame(line).history.last { h.lastMove = [last.move.start, last.move.end] }
+      return h
+    }
     if let retry = retryState {
       var h = BoardHighlights()
       if let retryMoveFrom = retry.revealed || retry.solved ? analysis.moves[retry.ply - 1].bestUCI.flatMap(UCIMove.init) : nil {
@@ -78,6 +102,13 @@ public final class ReviewController {
   /// Arrows: green = the better move, red = how the played move gets punished.
   public var annotations: AnnotationLayer {
     var layer = AnnotationLayer()
+    if let line {
+      if line.step < line.moves.count, let next = UCIMove(line.moves[line.step]) {
+        let mine = line.step % 2 == 0
+        layer.arrows.append(Arrow(from: next.from, to: next.to, color: line.isBetter ? (mine ? .green : .blue) : (mine ? .blue : .red)))
+      }
+      return layer
+    }
     if let retry = retryState {
       let move = analysis.moves[retry.ply - 1]
       if retry.hintLevel >= 2, !retry.revealed, !retry.solved, let best = move.bestUCI.flatMap(UCIMove.init) {
@@ -97,6 +128,15 @@ public final class ReviewController {
 
   /// The coach bubble text for what's on screen.
   public var coachText: String {
+    if let line {
+      guard line.step > 0 else {
+        return line.isBetter ? "The better move, step by step. Tap ▶ to play it." : "Your move and how it gets punished. Tap ▶ to play it."
+      }
+      var before = GameSession(startFEN: session.fen(atPly: ply - 1))
+      for uci in line.moves.prefix(line.step - 1) { before.apply(uci: uci) }
+      let text = Explainer.reason(fen: before.position.fen, uci: line.moves[line.step - 1]) ?? ""
+      return line.step == line.moves.count ? text + " That's the end of the line." : text
+    }
     if let retry = retryState {
       let move = analysis.moves[retry.ply - 1]
       if retry.solved { return "That's it! \(move.facts?.best?.san ?? "That move") was the move. \(move.explanation)" }
@@ -115,8 +155,8 @@ public final class ReviewController {
 
   public func goTo(ply newPly: Int) {
     endRetry()
+    line = nil
     ply = max(0, min(analysis.moves.count, newPly))
-    showingFollowUp = false
     momentIndex = keyMoments.firstIndex(of: ply)
   }
 
@@ -142,13 +182,30 @@ public final class ReviewController {
     if let previous = keyMoments.last(where: { $0 < ply }) { goTo(ply: previous) }
   }
 
-  public func toggleFollowUp() { showingFollowUp.toggle() }
 
-  /// SAN line shown by "Show Follow-up": how the mistake gets punished, or the better line.
-  public var followUpLine: [String] {
-    guard let move = currentMove else { return [] }
-    return move.label.isError ? (move.facts?.punishLineSAN ?? []) : move.bestLine
+  // MARK: - Lines
+
+  /// Plays your move and its punishment (`better: false`) or the better line from the position before the move.
+  public func playLine(better: Bool) {
+    guard let insight else { return }
+    endRetry()
+    line = LinePreview(moves: better ? insight.betterLine : insight.playedLine, step: 0, isBetter: better)
+    telemetry.event("review.line", metadata: ["ply": .int(ply), "better": .bool(better)])
   }
+
+  public func lineForward() {
+    guard var l = line, l.step < l.moves.count else { return }
+    l.step += 1
+    line = l
+  }
+
+  public func lineBack() {
+    guard var l = line, l.step > 0 else { return }
+    l.step -= 1
+    line = l
+  }
+
+  public func endLine() { line = nil }
 
   // MARK: - Retry
 
@@ -160,6 +217,7 @@ public final class ReviewController {
 
   public func retry() {
     guard canRetry else { return }
+    line = nil
     interaction.reset()
     mode = .retry(RetryState(ply: ply))
     telemetry.event("review.retry", metadata: ["ply": .int(ply)])
@@ -211,7 +269,8 @@ public final class ReviewController {
       state.lastWrong = nil
     } else {
       state.lastWrong = played.san
-      state.hintLevel = max(state.hintLevel, min(2, state.attempts))
+      // A wrong try earns the idea hint, never the piece: that one is only shown when asked for.
+      state.hintLevel = max(state.hintLevel, 1)
     }
     telemetry.event("review.attempt", metadata: ["ply": .int(state.ply), "move": .string(played.uci), "ok": .bool(state.solved)])
     mode = .retry(state)
@@ -224,6 +283,7 @@ public final class ReviewController {
     case 1:
       if let motif = best?.motifs.first(where: { $0 != .check }) { return "Hint: look for a \(motif.displayName.lowercased())." }
       if !(move.facts?.hangingAfter.isEmpty ?? true) { return "Hint: something of yours is loose — keep it safe." }
+      if move.mistakeType == .positional { return "Hint: no tactic here. Which of your pieces is doing the least?" }
       return "Hint: check every check, capture and threat first."
     default:
       if let from = move.bestUCI?.prefix(2) { return "Hint: move the piece on \(from)." }

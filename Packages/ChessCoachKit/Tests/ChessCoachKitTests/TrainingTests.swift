@@ -226,6 +226,15 @@ final class BoardVisionTests: XCTestCase {
     let qs = BoardVision.safetyQuestions(from: makePuzzle(fen: backRankFEN, moves: ["g8h8", "d1d8"]))
     XCTAssertEqual(qs.map(\.isSafe), [false, true])
     XCTAssertEqual(qs[0].refutation, "d1d8")
+    XCTAssertEqual(qs[0].line, ["g8h8", "d1d8"], "the blunder plays out with its punishment")
+    XCTAssertTrue(qs[0].why.hasSuffix("But Rd8# is checkmate."), qs[0].why)
+    // A grab that loses more than it wins: the line's net cost is spelled out.
+    let grab = BoardVision.blunderWhy(fen: "r3k3/8/8/8/8/8/1q6/R3K3 b - - 0 1", line: ["b2a1", "e1d2", "a1a2"])
+    XCTAssertTrue(grab.hasPrefix("Qxa1+ wins the rook on a1."), grab)
+    let hang = BoardVision.blunderWhy(fen: "r3k3/8/8/8/8/8/8/R3K3 b - - 0 1", line: ["e8e7", "a1a8"])
+    XCTAssertTrue(hang.hasSuffix("But Rxa8 wins the rook on a8. You end up a rook down."), hang)
+    XCTAssertEqual(qs[1].line, ["d1d8"])
+    XCTAssertTrue(qs[1].why.hasPrefix("Rd8# is checkmate."), qs[1].why)
   }
 
   func test_givenSeededRandom_whenCoordinateTargets_thenDeterministic() {

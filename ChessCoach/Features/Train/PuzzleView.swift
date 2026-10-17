@@ -14,6 +14,8 @@ struct PuzzleView: View {
   /// Nil for normal puzzles; set when this is a spaced-repetition review.
   var review: ReviewItem? = nil
   var hasSetupMove = true
+  /// For a position from your own game: why your move was a mistake (shown once solved or revealed).
+  var insight: MoveInsight? = nil
   /// false for placement: no rating or review updates.
   var rated = true
   /// Puzzle Rush: no hints; a solve or a wrong move ends the puzzle immediately.
@@ -90,6 +92,9 @@ struct PuzzleView: View {
       }
       feedbackBar
       if !rush { moveCaption }
+      if let insight, feedback == .solved || feedback == .revealed {
+        InsightCard(insight: insight)
+      }
       Spacer(minLength: 0)
       if !rush { controls }
     }
@@ -352,7 +357,8 @@ struct PuzzleView: View {
     guard ready, var s = session, let h = s.nextHint() else { return }
     session = s
     switch h {
-    case .theme(let name): hintText = "Hint: look for a \(name.lowercased())."
+    case .theme(let name):
+      hintText = name.isEmpty ? "Hint: list every check, capture and threat first." : "Hint: look for a \(name.lowercased())."
     case .piece(let square):
       hintText = "Hint: move the highlighted piece."
       annotations.circles = [square: .blue]
@@ -438,6 +444,35 @@ struct PuzzleButton: View {
         .frame(maxWidth: .infinity, minHeight: 48)
         .foregroundStyle(prominent ? .white : ChessChrome.textPrimary)
         .background(RoundedRectangle(cornerRadius: 10).fill(prominent ? ChessChrome.accentGreen : ChessChrome.card))
+    }
+  }
+}
+
+/// Your move vs the better one, and the habit that catches it (scrolls inside a fixed height).
+struct InsightCard: View {
+  let insight: MoveInsight
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: Spacing.s) {
+        row("Your move", insight.played, color: MoveClass.mistake.color)
+        row("Better", insight.better, color: ChessChrome.accentGreen)
+        row("Why it was easy to miss", insight.habit, color: ChessChrome.textSecondary)
+      }
+      .padding(Spacing.m)
+    }
+    .frame(height: 150)
+    .background(RoundedRectangle(cornerRadius: 12).fill(ChessChrome.card))
+    .padding(.horizontal, Spacing.m)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("insight-card")
+  }
+
+  private func row(_ title: String, _ text: String, color: Color) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(title.uppercased()).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundStyle(color)
+      Text(text).font(.system(size: 14, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+        .fixedSize(horizontal: false, vertical: true)
     }
   }
 }

@@ -28,6 +28,13 @@ final class TourUITests: XCTestCase {
     start.tap()
     sleep(1)
     shot(app, "33-review-real-moment")
+    if app.descendants(matching: .any)["review-insight"].exists {
+      app.buttons["review-line-yours"].tap()
+      app.buttons["review-line-forward"].tap()
+      app.buttons["review-line-forward"].tap()
+      shot(app, "33b-review-your-line")
+      app.buttons["review-line-end"].tap()
+    }
     if app.buttons["review-retry"].exists {
       app.buttons["review-retry"].tap()
       sleep(1)

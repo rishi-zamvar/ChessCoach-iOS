@@ -104,6 +104,29 @@ final class TrainUITests: XCTestCase {
   }
 
   @MainActor
+  func test_givenBlunderCheck_whenAnswered_thenSaysWhyAndPlaysTheLineOut() throws {
+    let app = XCUIApplication()
+    app.launchArguments = ["-uiTesting"]
+    app.launch()
+    app.tabBars.buttons["Train"].tap()
+    let skill = app.buttons["skill-D1"]
+    for _ in 0..<4 where !skill.isHittable { app.swipeUp() }
+    skill.tap()
+    XCTAssertTrue(app.buttons["drill-blunder"].waitForExistence(timeout: 10))
+    app.buttons["drill-blunder"].tap()
+    let why = app.staticTexts["drill-why"]
+    XCTAssertTrue(why.waitForExistence(timeout: 3))
+    XCTAssertFalse(why.label.isEmpty)
+    app.buttons["drill-line-forward"].tap()
+    let caption = app.staticTexts["drill-line-caption"]
+    XCTAssertTrue(caption.waitForExistence(timeout: 3))
+    XCTAssertFalse(caption.label.isEmpty)
+    shot(app, "20-blunder-check-why")
+    app.buttons["drill-line-back"].tap()
+    XCTAssertFalse(caption.exists)
+  }
+
+  @MainActor
   private func shot(_ app: XCUIApplication, _ name: String) {
     let a = XCTAttachment(screenshot: app.screenshot())
     a.name = name

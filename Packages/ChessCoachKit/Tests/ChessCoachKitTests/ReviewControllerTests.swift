@@ -107,10 +107,41 @@ final class ReviewControllerTests: XCTestCase {
     XCTAssertEqual(c.ply, 6)
   }
 
-  func test_givenBlunder_whenFollowUp_thenPunishLine() {
+  func test_givenBlunder_whenInsightAndLines_thenExplainsAndPlaysYourLineAndTheBetterOne() throws {
     let c = makeController()
     c.goTo(ply: 6)
-    XCTAssertEqual(c.followUpLine.first, "Qxf7#")
+    let insight = try XCTUnwrap(c.insight)
+    XCTAssertTrue(insight.played.contains("Qxf7#"), insight.played)
+    XCTAssertFalse(insight.better.isEmpty)
+    XCTAssertFalse(insight.habit.isEmpty)
+
+    c.playLine(better: false)
+    XCTAssertEqual(c.displayedFEN, c.session.fen(atPly: 5), "lines start from the position before your move")
+    c.lineForward()
+    XCTAssertEqual(c.displayedFEN, c.session.fen(atPly: 6), "first your move")
+    c.lineForward()
+    XCTAssertTrue(c.coachText.contains("checkmate"), c.coachText)
+    c.lineBack()
+    XCTAssertEqual(c.displayedFEN, c.session.fen(atPly: 6))
+
+    c.playLine(better: true)
+    c.lineForward()
+    XCTAssertNotEqual(c.displayedFEN, c.session.fen(atPly: 6), "the better move, not yours")
+    c.goTo(ply: 7)
+    XCTAssertNil(c.line, "moving on ends the line")
+  }
+
+  func test_givenWrongRetries_whenHinting_thenNeverGivesThePieceAwayUnasked() {
+    let c = makeController()
+    c.goTo(ply: 6)
+    c.retry()
+    let move = c.analysis.moves[5]
+    let wrong = BoardScan.legalUCIs(fen: c.session.fen(atPly: 5)).first { $0 != move.bestUCI && !move.goodMoves.contains($0) }!
+    let (from, to) = (Square(String(wrong.prefix(2))), Square(String(wrong.dropFirst(2).prefix(2))))
+    c.retryDrag(from: from, to: to)
+    c.retryDrag(from: from, to: to)
+    XCTAssertEqual(c.retryState?.attempts, 2)
+    XCTAssertEqual(c.retryState?.hintLevel, 1)
   }
 
   func test_givenReview_whenStartedAndRetried_thenLogged() {
