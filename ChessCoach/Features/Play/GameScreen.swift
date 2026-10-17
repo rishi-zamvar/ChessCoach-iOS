@@ -60,7 +60,6 @@ struct GameScreen: View {
       .onChange(of: context.date) { _, _ in game.tick() }
     }
     .background(ChessChrome.background.ignoresSafeArea())
-    .preferredColorScheme(.dark)
     .overlay(alignment: .bottom) {
       if let pause = game.coachPause {
         CoachPauseCard(pause: pause, onTakeBack: game.takeBack, onShow: game.showBetterMove, onContinue: game.continueGame)

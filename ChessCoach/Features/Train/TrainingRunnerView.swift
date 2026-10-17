@@ -31,7 +31,6 @@ struct TrainingRunnerView: View {
       }
     }
     .background(ChessChrome.background.ignoresSafeArea())
-    .preferredColorScheme(.dark)
     .onAppear { startRating = training.globalRating }
   }
 

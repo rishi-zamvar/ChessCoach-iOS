@@ -36,7 +36,6 @@ struct OnboardingView: View {
         .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
       }
     }
-    .preferredColorScheme(step == .placement ? .dark : .light)
     .animation(.spring(response: 0.4, dampingFraction: 0.9), value: step)
   }
 

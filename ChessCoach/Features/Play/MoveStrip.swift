@@ -27,7 +27,7 @@ struct MoveStrip: View {
                 .padding(.vertical, 4)
                 .background(
                   RoundedRectangle(cornerRadius: 4)
-                    .fill(ply == currentPly ? Color.white.opacity(0.18) : .clear))
+                    .fill(ply == currentPly ? Color.primary.opacity(0.18) : .clear))
             }
             .buttonStyle(.plain)
             .id(ply)

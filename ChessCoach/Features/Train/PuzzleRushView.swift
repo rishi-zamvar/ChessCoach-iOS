@@ -64,7 +64,6 @@ struct PuzzleRushView: View {
       .onChange(of: left <= 0) { _, timeUp in if timeUp, !over { finish() } }
     }
     .background(ChessChrome.background.ignoresSafeArea())
-    .preferredColorScheme(.dark)
     .onAppear {
       startedAt = Date()
       next()

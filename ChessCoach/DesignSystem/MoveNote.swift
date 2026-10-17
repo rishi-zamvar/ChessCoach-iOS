@@ -12,7 +12,7 @@ struct MoveNote: View {
   var body: some View {
     HStack(alignment: .top, spacing: 10) {
       ZStack {
-        Circle().fill(isYou ? ChessChrome.accentGreen.opacity(0.22) : Color.white.opacity(0.08))
+        Circle().fill(isYou ? ChessChrome.accentGreen.opacity(0.22) : Color.primary.opacity(0.08))
         Image(systemName: isYou ? "person.fill" : "cpu")
           .font(.system(size: 13, weight: .semibold))
           .foregroundStyle(isYou ? ChessChrome.accentGreen : ChessChrome.textSecondary)
@@ -27,7 +27,7 @@ struct MoveNote: View {
             .font(.system(size: 13, weight: .bold, design: .rounded))
             .foregroundStyle(ChessChrome.textPrimary)
             .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(Capsule().fill(isYou ? ChessChrome.accentGreen.opacity(0.35) : Color.white.opacity(0.14)))
+            .background(Capsule().fill(isYou ? ChessChrome.accentGreen.opacity(0.35) : Color.primary.opacity(0.14)))
         }
         Text(Self.body(text, san: san))
           .font(.system(size: compact ? 14 : 15, weight: .medium, design: .rounded))
@@ -38,7 +38,7 @@ struct MoveNote: View {
       Spacer(minLength: 0)
     }
     .padding(.horizontal, 12).padding(.vertical, 10)
-    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06)))
+    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.06)))
     .accessibilityElement(children: .combine)
   }
 

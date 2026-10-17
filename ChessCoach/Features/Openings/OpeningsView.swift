@@ -135,7 +135,6 @@ struct OpeningTrainerView: View {
       controls
     }
     .background(ChessChrome.background.ignoresSafeArea())
-    .preferredColorScheme(.dark)
     .onAppear { startLine() }
     .onChange(of: game.history.count) { _, _ in coachArrows = [] }
     .sheet(isPresented: $askingCoach) {

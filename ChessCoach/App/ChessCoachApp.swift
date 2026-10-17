@@ -20,7 +20,6 @@ struct ChessCoachApp: App {
         .environment(env)
         .environment(analysis)
         .environment(training)
-        .preferredColorScheme(.light)
         .task {
           analysis.onImported = { training.anchorToRealRating() }
           training.anchorToRealRating()
