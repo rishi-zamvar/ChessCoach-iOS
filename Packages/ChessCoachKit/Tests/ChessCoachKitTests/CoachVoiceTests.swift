@@ -19,12 +19,12 @@ final class CoachVoiceTests: XCTestCase {
     XCTAssertEqual(line, "Careful. Your knight on d5 can be taken now.")
   }
 
-  func test_givenForkAvailable_whenPrompting_thenHintsWithoutNamingMove() {
-    // Black's last move ...Ra8 walked into the fork.
-    let line = CoachVoice.prompt(
-      fenBeforeOpponent: "4k3/r7/8/3N4/8/8/8/4K3 b - - 0 1", opponentMove: "a7a8", fenNow: forkFEN, turn: 1)
-    XCTAssertEqual(line, "I smell a fork. Which piece could hit two targets at once?")
-    XCTAssertFalse(line!.contains("Nc7"))
+  func test_givenForkOrAttackedPiece_whenPrompting_thenCoachStaysQuiet() {
+    // Black's last move ...Ra8 walked into the fork: the coach doesn't call out tactics or the obvious.
+    XCTAssertNil(CoachVoice.prompt(fenBeforeOpponent: "4k3/r7/8/3N4/8/8/8/4K3 b - - 0 1", opponentMove: "a7a8", fenNow: forkFEN, turn: 1))
+    // Their rook attacks your undefended queen: obvious, so nothing is said.
+    XCTAssertNil(
+      CoachVoice.prompt(fenBeforeOpponent: "r3k3/8/8/8/8/1p6/8/Q3K3 b - - 0 1", opponentMove: "a8a2", fenNow: "4k3/8/8/8/8/1p6/r7/Q3K3 w - - 0 1", turn: 1))
   }
 
   func test_givenLoosePiece_whenPrompting_thenPointsAtIt() {
@@ -46,7 +46,7 @@ final class CoachVoiceTests: XCTestCase {
       CoachVoice.react(fenBefore: forkFEN, played: "e1d2", bestBefore: "d5c7"),
       CoachVoice.react(fenBefore: "4k3/8/4p3/8/8/2N5/8/4K3 w - - 0 1", played: "c3d5", bestBefore: nil),
       "Ah. You had checkmate there with Qh7#.", CoachVoice.sample,
-    ].compactMap { $0 }
+    ].compactMap { $0 } + CoachVoice.headlines + HoldUpKind.vettable.compactMap { HoldUp.reviewed($0)?.line } + [HoldUp.leftBook.line]
     for line in produced { XCTAssertTrue(all.contains(CoachVoice.spoken(line)), line) }
     XCTAssertEqual(CoachVoice.spoken("Hmm. You missed something. Nc7+ was a fork."), "Hmm. You missed something. You had a fork there.")
     XCTAssertEqual(CoachVoice.spoken("Hold up. Your knight on d5 has no defender."), "Hold up. Your knight has no defender.")

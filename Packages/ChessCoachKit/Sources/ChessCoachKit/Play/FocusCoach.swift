@@ -39,12 +39,30 @@ public struct WeaknessTally: Codable, Equatable, Sendable {
   public var missedFree = 0.0
   public var missedMate = 0.0
   public var missedTactic = 0.0
+  /// Chances taken (the other side of the ledger: is the learner improving?).
+  public var foundFree = 0.0
+  public var foundMate = 0.0
+  public var games = 0.0
 
-  public init(hung: Double = 0, missedFree: Double = 0, missedMate: Double = 0, missedTactic: Double = 0) {
+  public init(
+    hung: Double = 0, missedFree: Double = 0, missedMate: Double = 0, missedTactic: Double = 0,
+    foundFree: Double = 0, foundMate: Double = 0, games: Double = 0
+  ) {
     self.hung = hung
     self.missedFree = missedFree
     self.missedMate = missedMate
     self.missedTactic = missedTactic
+    self.foundFree = foundFree
+    self.foundMate = foundMate
+    self.games = games
+  }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    func v(_ k: CodingKeys) -> Double { (try? c.decode(Double.self, forKey: k)) ?? 0 }
+    self.init(
+      hung: v(.hung), missedFree: v(.missedFree), missedMate: v(.missedMate), missedTactic: v(.missedTactic),
+      foundFree: v(.foundFree), foundMate: v(.foundMate), games: v(.games))
   }
 
   public var isEmpty: Bool { hung + missedFree + missedMate + missedTactic == 0 }
@@ -53,7 +71,19 @@ public struct WeaknessTally: Codable, Equatable, Sendable {
   public func adding(_ game: WeaknessTally) -> WeaknessTally {
     WeaknessTally(
       hung: hung * 0.7 + game.hung, missedFree: missedFree * 0.7 + game.missedFree,
-      missedMate: missedMate * 0.7 + game.missedMate, missedTactic: missedTactic * 0.7 + game.missedTactic)
+      missedMate: missedMate * 0.7 + game.missedMate, missedTactic: missedTactic * 0.7 + game.missedTactic,
+      foundFree: foundFree * 0.7 + game.foundFree, foundMate: foundMate * 0.7 + game.foundMate, games: games + 1)
+  }
+
+  /// The long-run picture, in words, for the AI coach.
+  public var summary: String {
+    guard games > 0 || !isEmpty else { return "No coach games yet." }
+    func n(_ x: Double) -> String { String(format: "%.1f", x) }
+    return """
+      Over \(Int(games)) coach games (recent games weigh more): left pieces hanging \(n(hung)); \
+      missed free pieces \(n(missedFree)), took them \(n(foundFree)); missed mates \(n(missedMate)), found them \(n(foundMate)); \
+      missed tactics \(n(missedTactic)).
+      """
   }
 
   mutating func record(_ kind: HoldUpKind) {
@@ -61,8 +91,8 @@ public struct WeaknessTally: Codable, Equatable, Sendable {
     case .hungPiece: hung += 1
     case .missedFree: missedFree += 1
     case .missedMate: missedMate += 1
-    case .missedTactic, .allowsTactic: missedTactic += 1
-    case .mistake, .blunder: break
+    case .missedTactic, .allowsTactic, .ignoredThreat: missedTactic += 1
+    case .mistake, .blunder, .leftBook, .aimless, .passiveKing: break
     }
   }
 
@@ -157,6 +187,13 @@ public enum BoardScan {
 
 public enum HoldUpKind: String, Codable, Sendable {
   case hungPiece, missedMate, missedFree, missedTactic, allowsTactic, mistake, blunder
+  /// Left the repertoire line.
+  case leftBook
+  /// AI-vetted: didn't answer the opponent's threat / a move without a purpose / king idle in an endgame.
+  case ignoredThreat, aimless, passiveKing
+
+  /// Kinds the AI coach may ask for when vetting a move.
+  public static let vettable: [HoldUpKind] = [.missedTactic, .allowsTactic, .ignoredThreat, .aimless, .passiveKing]
 }
 
 /// Why the coach stopped you, in fixed words, with squares to mark.
@@ -197,12 +234,22 @@ public struct HoldUp: Equatable, Sendable {
     return nil
   }
 
-  /// Fixed lines for the kinds the AI reviewer may ask for.
+  /// Fixed lines for the kinds the AI coach may ask for.
   public static func reviewed(_ kind: HoldUpKind) -> HoldUp? {
-    switch kind {
-    case .missedTactic: HoldUp(kind: kind, line: "Hold up. There was a stronger idea here. Take another look.", marks: [:])
-    case .allowsTactic: HoldUp(kind: kind, line: "Hold up. Check what their pieces can do after this move.", marks: [:])
-    default: nil
-    }
+    let line: String? =
+      switch kind {
+      case .missedTactic: "Hold up. There was a stronger idea here. Take another look."
+      case .allowsTactic: "Hold up. Check what their pieces can do after this move."
+      case .ignoredThreat: "Hold up. What did their last move threaten?"
+      case .aimless: "Hold up. What's the plan behind this move?"
+      case .passiveKing: "Hold up. In the endgame, your king should join the fight."
+      default: nil
+      }
+    return line.map { HoldUp(kind: kind, line: $0, marks: [:]) }
   }
+
+  /// Left the repertoire line.
+  public static let leftBook = HoldUp(kind: .leftBook, line: "Hold up. That's not your line.", marks: [:])
+  /// A forced mate longer than one move was there.
+  public static let missedForcedMate = HoldUp(kind: .missedMate, line: "Hold up. You had a forced checkmate. Can you find it?", marks: [:])
 }

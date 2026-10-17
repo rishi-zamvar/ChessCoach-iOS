@@ -29,28 +29,23 @@ struct GameScreen: View {
         header
         MoveStrip(history: game.session.history, currentPly: game.viewPly) { game.jump(toPly: $0) }
         if let focus = game.focus {
-          Label("Focus: \(focus.title)", systemImage: "scope")
-            .font(.system(size: 12, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.accentGreen)
-            .padding(.horizontal, 10).padding(.vertical, 4)
-            .background(Capsule().fill(ChessChrome.accentGreen.opacity(0.15)))
-            .padding(.top, Spacing.xs)
-            .accessibilityIdentifier("coach-focus")
+          HStack(spacing: Spacing.xs) {
+            chip(stageTitle, systemImage: stageIcon, tint: ChessChrome.textSecondary).accessibilityIdentifier("coach-stage")
+            chip(focus.title, systemImage: "scope", tint: ChessChrome.accentGreen).accessibilityIdentifier("coach-focus")
+          }
+          .lineLimit(1)
+          .padding(.horizontal, Spacing.m)
+          .padding(.top, Spacing.xs)
         }
-        moveCaption
-        if let hint = game.hintText {
-          CoachBanner(text: hint, systemImage: "lightbulb.fill", tint: MoveClass.great.color)
-        } else if let line = game.coachLine {
-          CoachLineBubble(
-            text: line.text, speaking: CoachSpeaker.shared.isSpeaking,
-            onReplay: CoachMode.current == .voice ? { CoachSpeaker.shared.say(line.text) } : nil)
-            .id(line.id)
-            .transition(.move(edge: .top).combined(with: .opacity))
-        } else if let nudge = game.nudge {
-          CoachBanner(text: nudge, systemImage: "exclamationmark.bubble.fill", tint: MoveClass.inaccuracy.color)
-        } else if game.phase == .coachChecking {
-          CoachBanner(text: "Coach is looking at your move…", systemImage: "eye", tint: ChessChrome.textSecondary)
+        // Everything that changes per move lives in this scroll area, so the board never shifts.
+        ScrollView {
+          VStack(spacing: 0) {
+            moveCaption
+            coachMessage
+          }
         }
-        Spacer(minLength: Spacing.s)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxHeight: .infinity)
         PlayerBar(
           name: name(for: topColor), rating: rating(for: topColor), color: topColor,
           captured: game.session.captured(by: topColor), advantage: advantage(for: topColor),
@@ -62,7 +57,6 @@ struct GameScreen: View {
           captured: game.session.captured(by: bottomColor), advantage: advantage(for: bottomColor),
           clock: clockText(bottomColor), clockActive: clockActive(bottomColor), lowTime: game.isLowTime(bottomColor),
           thinking: game.phase == .botThinking && bottomColor != game.userColor, pieceSet: pieceSet)
-        Spacer(minLength: Spacing.s)
         toolbar
       }
       .onChange(of: context.date) { _, _ in game.tick() }
@@ -96,8 +90,9 @@ struct GameScreen: View {
       CoachSpeaker.shared.stop()
     }
     .onChange(of: game.coachLine?.id) { _, _ in
-      guard let text = game.coachLine?.text else { return }
-      if CoachMode.current == .voice { CoachSpeaker.shared.say(text) }
+      guard let line = game.coachLine else { return }
+      // Only the fixed headline is spoken (bundled Aman clips); the coach's own words show on screen.
+      if let headline = line.headline, CoachMode.current == .voice { CoachSpeaker.shared.say(headline) }
       Haptics.soft()
     }
     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: game.coachLine?.id)
@@ -138,6 +133,48 @@ struct GameScreen: View {
         .transition(.opacity)
         .accessibilityIdentifier("game-move-caption")
     }
+  }
+
+  /// Hint, coach line, nudge or "checking" — one at a time.
+  @ViewBuilder
+  private var coachMessage: some View {
+    if let hint = game.hintText {
+      CoachBanner(text: hint, systemImage: "lightbulb.fill", tint: MoveClass.great.color)
+    } else if let line = game.coachLine {
+      CoachLineBubble(
+        headline: line.headline == line.text ? nil : line.headline, text: line.text, speaking: CoachSpeaker.shared.isSpeaking,
+        onReplay: CoachMode.current == .voice ? line.headline.map { h in { CoachSpeaker.shared.say(h) } } : nil)
+        .animation(.easeOut(duration: 0.2), value: line.text)
+        .id(line.id)
+        .transition(.move(edge: .top).combined(with: .opacity))
+    } else if let nudge = game.nudge {
+      CoachBanner(text: nudge, systemImage: "exclamationmark.bubble.fill", tint: MoveClass.inaccuracy.color)
+    } else if game.phase == .coachChecking {
+      CoachBanner(text: "Coach is looking at your move…", systemImage: "eye", tint: ChessChrome.textSecondary)
+    }
+  }
+
+  private var stageTitle: String {
+    switch game.stage {
+    case .opening: game.openingName.map { "Opening · \($0)" } ?? "Opening"
+    case .middlegame: "Middlegame"
+    case .endgame: "Endgame"
+    }
+  }
+
+  private var stageIcon: String {
+    switch game.stage {
+    case .opening: "book.closed"
+    case .middlegame: "figure.fencing"
+    case .endgame: "flag.checkered"
+    }
+  }
+
+  private func chip(_ title: String, systemImage: String, tint: Color) -> some View {
+    Label(title, systemImage: systemImage)
+      .font(.system(size: 12, weight: .bold, design: .rounded)).foregroundStyle(tint)
+      .padding(.horizontal, 10).padding(.vertical, 4)
+      .background(Capsule().fill(tint.opacity(0.15)))
   }
 
   private var coachTitle: String { game.isCoached ? "Play Coach" : (game.config.timeControl.isTimed ? game.config.timeControl.label : "Casual") }

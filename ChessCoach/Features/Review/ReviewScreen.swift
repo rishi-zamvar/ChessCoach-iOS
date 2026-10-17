@@ -150,10 +150,15 @@ private struct ReviewContent: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      CoachBubble(text: bubbleText, move: controller.retryState == nil ? controller.currentMove : nil)
-        .padding(.horizontal, Spacing.m)
-        .padding(.vertical, Spacing.s)
-        .animation(.easeOut(duration: 0.2), value: controller.coachText)
+      // Fixed height: long explanations scroll inside, so the board never shifts.
+      ScrollView {
+        CoachBubble(text: bubbleText, move: controller.retryState == nil ? controller.currentMove : nil)
+          .padding(.horizontal, Spacing.m)
+          .padding(.vertical, Spacing.s)
+      }
+      .scrollBounceBehavior(.basedOnSize)
+      .frame(height: 132)
+      .animation(.easeOut(duration: 0.2), value: controller.coachText)
       HStack(spacing: 0) {
         EvalBar(whiteWin: controller.analysis.whiteWin[safe: displayedPly] ?? 50, flipped: flipped)
           .frame(width: 14)

@@ -6,8 +6,10 @@ import XCTest
 final class FakeCoach: CoachAdvisor, @unchecked Sendable {
   var wins: [String: Double] = [:]
   var best: [String: String] = [:]
-  func assess(fen: String) async throws -> (bestUCI: String, winPercent: Double) {
-    (best[FENTools.key(fen)] ?? "e2e4", wins[FENTools.key(fen)] ?? 50)
+  var mates: [String: Int] = [:]
+  func assess(fen: String) async throws -> CoachAssessment {
+    let key = FENTools.key(fen)
+    return CoachAssessment(bestUCI: best[key] ?? "e2e4", winPercent: wins[key] ?? 50, mate: mates[key])
   }
 }
 
@@ -75,7 +77,9 @@ final class PlayCoachTests: XCTestCase {
       bot: ScriptedBot(["e8e7"]), telemetry: Telemetry(sinks: []), store: nil, sounds: RecordingSoundSink(),
       startFEN: fen, minimumBotThink: .zero, coach: coach, voice: coach, focus: .freePieces)
     c.start()
-    XCTAssertEqual(c.coachLine?.text, CoachFocus.freePieces.intro)
+    // A position with few pieces starts straight in the endgame.
+    XCTAssertEqual(c.stage, .endgame)
+    XCTAssertEqual(c.coachLine?.headline, CoachVoice.endgameStart)
     c.tap(Square("e1"))
     c.tap(Square("e2"))
     await waitUntil { c.phase == .coachPaused }

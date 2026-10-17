@@ -54,6 +54,7 @@ struct MoveNote: View {
 
 /// The coach in your corner, as a speech bubble with a replay button.
 struct CoachLineBubble: View {
+  var headline: String?
   let text: String
   var speaking = false
   var onReplay: (() -> Void)?
@@ -71,6 +72,12 @@ struct CoachLineBubble: View {
         Text("COACH")
           .font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1)
           .foregroundStyle(ChessChrome.accentGreen)
+        if let headline {
+          Text(headline)
+            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .foregroundStyle(ChessChrome.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
         Text(text)
           .font(.system(size: 16, weight: .semibold, design: .serif))
           .italic()

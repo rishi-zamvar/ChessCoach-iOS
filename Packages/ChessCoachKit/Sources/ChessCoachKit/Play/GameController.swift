@@ -44,6 +44,13 @@ public enum GamePhase: Equatable, Sendable {
   case over(GameResult)
 }
 
+/// A line from the coach: `headline` is spoken (a fixed, pre-recorded line); `text` is shown.
+public struct CoachLine: Equatable, Sendable {
+  public var id: Int
+  public var headline: String?
+  public var text: String
+}
+
 /// Runs one game against a bot: input, rules, clock, bot replies, premoves,
 /// sounds, logging and saving. Views only render its state and forward gestures.
 @MainActor
@@ -64,7 +71,11 @@ public final class GameController {
   public private(set) var hintLevel = 0
   public var isCoached: Bool { coach != nil }
   /// The latest line from the coach in your corner (spoken by the app). `id` changes per line.
-  public private(set) var coachLine: (id: Int, text: String)?
+  public private(set) var coachLine: CoachLine?
+  /// Coach games: opening (following your repertoire) → middlegame → endgame.
+  public private(set) var stage: GamePhaseKind = .opening
+  /// Your repertoire line, once the game has picked one.
+  public var openingName: String? { openingDone ? nil : guide?.name(ucis) }
   public var hasVoiceCoach: Bool { voice != nil }
   /// The bot's own explanation per ply (1-based, as in `viewPly`), when it gave one.
   public private(set) var botReasons: [Int: String] = [:]
@@ -98,7 +109,19 @@ public final class GameController {
   @ObservationIgnored private var userTurns = 0
   /// Bumped by undo so engine/coach work started before it is dropped.
   @ObservationIgnored private var generation = 0
-  @ObservationIgnored private let reviewer: HoldUpReviewer?
+  @ObservationIgnored private let writer: CoachWriter?
+  @ObservationIgnored private let guide: OpeningGuide?
+  /// The learner's long-run record, in words (for the AI coach).
+  @ObservationIgnored private let growth: String
+  /// Left the repertoire, or its line ended.
+  @ObservationIgnored private var openingDone = false
+  /// Your win% right after your last move (to spot the opponent slipping).
+  @ObservationIgnored private var afterMoveWin: (ply: Int, win: Double)?
+  /// Mid-way through a forced mate the coach pointed at.
+  @ObservationIgnored private var mateRun = false
+  /// Interruption budget: the AI coach's own hold-ups are spaced out, and "they slipped" is rare.
+  @ObservationIgnored private var lastVetPausePly = -99
+  @ObservationIgnored private var opportunitiesLeft = 2
 
   public init(
     config: PlayConfig,
@@ -111,11 +134,15 @@ public final class GameController {
     coach: CoachAdvisor? = nil,
     voice: CoachAdvisor? = nil,
     focus: CoachFocus? = nil,
-    reviewer: HoldUpReviewer? = nil,
+    writer: CoachWriter? = nil,
+    opening: OpeningGuide? = nil,
+    growth: String = "",
     now: @escaping () -> Date = Date.init
   ) {
     self.focus = focus
-    self.reviewer = reviewer
+    self.writer = writer
+    self.guide = opening
+    self.growth = growth
     self.coach = coach
     self.voice = voice
     self.config = config
@@ -156,7 +183,7 @@ public final class GameController {
       ])
     sounds.play(.gameStart)
     if config.timeControl.isTimed { clock.start(session.sideToMove, at: now()) }
-    if let focus, voice != nil { say(focus.intro) }
+    if focus != nil { gameIntro() }
     advanceTurn()
   }
 
@@ -300,6 +327,8 @@ public final class GameController {
     pendingPromotion = nil
     botReasons = botReasons.filter { $0.key <= session.history.count }
     viewPly = session.history.count
+    mateRun = false
+    openingDone = guide.map { $0.follow(ucis).isEmpty } ?? true
     phase = .userTurn
     if config.timeControl.isTimed, clock.running != userColor {
       clock.pause(at: now())
@@ -324,7 +353,8 @@ public final class GameController {
 
   /// Keep the move and let the game go on.
   public func continueGame() {
-    guard coachPause != nil, !isOver else { return }
+    guard let pause = coachPause, !isOver else { return }
+    if pause.kind == .leftBook { openingDone = true }
     coachPause = nil
     annotations = AnnotationLayer()
     advanceTurn()
@@ -342,6 +372,9 @@ public final class GameController {
     hinting = true
     defer { hinting = false }
     let ply = session.history.count
+    if hintBest == nil, focus != nil, !openingDone, let book = guide?.nextMoves(ucis).first {
+      hintBest = book.uci
+    }
     if hintBest == nil {
       let best = try? await coach.assess(fen: session.position.fen).bestUCI
       // The user may have moved while the engine thought; drop a stale answer.
@@ -367,7 +400,8 @@ public final class GameController {
   private func coachCheck(_ played: PlayedMove) {
     guard let coach else { return advanceTurn() }
     phase = .coachChecking
-    let before = session.fen(atPly: session.history.count - 1)
+    let ply = session.history.count
+    let before = session.fen(atPly: ply - 1)
     let after = session.position.fen
     let gen = generation
     Task { [weak self] in
@@ -380,30 +414,168 @@ public final class GameController {
       let isBest = a.bestUCI == played.uci
       let loss = isBest ? 0 : max(0, bestEP - playedEP)
       let label = MoveClassifier.base(loss: loss, isBest: isBest)
+      self.afterMoveWin = (ply, playedEP * 100)
       var hold = HoldUp.check(fenBefore: before, played: played.uci, label: label, focus: self.focus)
-      if hold == nil, let reviewer = self.reviewer, !isBest,
-        label == .inaccuracy || BoardScan.tactic(fen: before).map({ $0.uci != played.uci }) == true
-      {
-        let kind = await reviewer.review(fen: before, played: played.uci, best: a.bestUCI, label: label, focus: self.focus)
+      // A longer forced mate the engine saw and the move threw away (the opponent isn't getting mated now).
+      let stillMating = (b.mate ?? 0) < 0
+      if hold == nil || hold?.kind == .mistake || hold?.kind == .blunder, let m = a.mate, m > 1, !stillMating {
+        hold = HoldUp.missedForcedMate
+      }
+      // The AI coach vets every other non-best move against the learner's goals.
+      var aiText: String?
+      if hold == nil, let writer = self.writer, !isBest, loss >= 0.02, ply - self.lastVetPausePly >= 6 {
+        let m = self.moment(.vet, fen: before, engine: a, played: played.uci, punish: b.line, label: label, template: "")
+        if let verdict = await writer.vet(m), let h = HoldUp.reviewed(verdict.kind) {
+          hold = h
+          aiText = verdict.text
+          self.lastVetPausePly = ply
+        }
         guard self.phase == .coachChecking, self.generation == gen else { return }
-        hold = kind.flatMap(HoldUp.reviewed)
       }
       guard let hold else { return self.advanceTurn() }
       self.tally.record(hold.kind)
       let bestSAN = FactExtractor.sanLine(fen: before, ucis: [a.bestUCI]).first ?? a.bestUCI
       var explanation = hold.line.replacingOccurrences(of: "Hold up. ", with: "")
       if hold.kind == .mistake || hold.kind == .blunder {
-        let sheet = FactExtractor.sheet(fen: before, played: played.uci, bestLine: [a.bestUCI], punishLine: [b.bestUCI], ply: self.session.history.count)
+        let sheet = FactExtractor.sheet(fen: before, played: played.uci, bestLine: a.line, punishLine: b.line, ply: ply)
         explanation = sheet.map { Explainer.explain($0, as: label, isUser: true) } ?? "There was a better move."
+      } else if hold.kind == .missedMate, let m = a.mate, m > 1 {
+        explanation = "Mate in \(m) was there. Look at every check, even the ones that give up material."
       }
-      self.coachPause = CoachPause(
-        label: label, playedSAN: played.san, bestUCI: a.bestUCI, bestSAN: bestSAN, explanation: explanation, kind: hold.kind)
+      let pause = CoachPause(
+        label: label, playedSAN: played.san, bestUCI: a.bestUCI, bestSAN: bestSAN, explanation: aiText ?? explanation, kind: hold.kind)
+      self.coachPause = pause
       self.annotations.circles = hold.marks
-      self.coachLine = nil
-      self.say(hold.line)
+      self.coachSays(headline: hold.line, text: hold.line)
       self.phase = .coachPaused
       self.telemetry.event("coach.pause", metadata: ["kind": .string(hold.kind.rawValue), "label": .string(label.rawValue), "san": .string(played.san)])
+      // The template shows at once; the coach's own words replace it when they arrive.
+      if aiText == nil, let writer = self.writer {
+        let m = self.moment(.holdUp, fen: before, engine: a, played: played.uci, punish: b.line, label: label, holdUp: hold.kind, template: explanation)
+        if let text = await writer.write(m), self.coachPause == pause { self.coachPause?.explanation = text }
+      }
     }
+  }
+
+  // MARK: - Coach game stages
+
+  private var ucis: [String] { session.history.map(\.uci) }
+
+  /// Start of a coach game: the opening (your repertoire) or straight to the stage the position is in.
+  private func gameIntro() {
+    if let guide, !guide.nextMoves(ucis).isEmpty {
+      stage = .opening
+      let text = guide.name(ucis).map { "Your \($0). \(guide.summary(ucis) ?? "")" }
+        ?? "Play your repertoire. I'll explain each move and stop you if you leave the line."
+      coachSays(headline: CoachVoice.openingStart, text: text)
+    } else {
+      openingDone = true
+      stage = FactExtractor.phase(fen: session.position.fen, ply: session.history.count) == .endgame ? .endgame : .middlegame
+      announce(stage, engine: nil)
+    }
+  }
+
+  /// Your move in the opening: in the line → its idea; out of it → hold up (untimed) or the opening ends.
+  /// True when handled (the game goes on, or is paused).
+  private func bookMove(_ played: PlayedMove) -> Bool {
+    guard focus != nil, !openingDone, let guide else { return false }
+    let before = Array(ucis.dropLast())
+    let expected = guide.nextMoves(before)
+    guard !expected.isEmpty else {
+      openingDone = true
+      return false
+    }
+    if let node = expected.first(where: { $0.uci == played.uci }) {
+      coachSays(headline: nil, text: node.idea.isEmpty ? "\(played.san). That's your line." : "\(played.san): \(node.idea)")
+      return true
+    }
+    guard coach != nil, let line = expected.first else {
+      openingDone = true
+      return false
+    }
+    let name = guide.name(before) ?? "repertoire"
+    let pause = CoachPause(
+      label: .inaccuracy, playedSAN: played.san, bestUCI: line.uci, bestSAN: line.san,
+      explanation: "Your \(name) plays \(line.san) here. \(line.idea)", kind: .leftBook)
+    coachPause = pause
+    coachSays(headline: HoldUp.leftBook.line, text: HoldUp.leftBook.line)
+    phase = .coachPaused
+    telemetry.event("coach.pause", metadata: ["kind": .string(HoldUpKind.leftBook.rawValue), "san": .string(played.san)])
+    return true
+  }
+
+  /// Your turn in a coach game: the opponent's book move, or the stage's prompt.
+  private func stagePrompt() {
+    let moves = ucis
+    if !openingDone, let guide {
+      if !guide.nextMoves(moves).isEmpty {
+        stage = .opening
+        guard let node = guide.lastNode(moves), session.lastMove?.color != userColor else { return }
+        if node.trap != nil {
+          coachSays(headline: CoachVoice.trapAhead, text: "\(node.san): \(node.idea)")
+        } else if node.isDeviation {
+          coachSays(headline: CoachVoice.offMainLine, text: "\(node.san): \(node.idea)")
+        } else if moves.count == 1, let name = guide.name(moves) {
+          coachSays(headline: nil, text: "Your \(name). \(guide.summary(moves) ?? "")")
+        }
+        return
+      }
+      openingDone = true
+    }
+    let next: GamePhaseKind = FactExtractor.phase(fen: session.position.fen, ply: moves.count) == .endgame ? .endgame : .middlegame
+    let changed = next != stage
+    stage = next
+    guard let coach else {
+      if changed { announce(next, engine: nil) }
+      return
+    }
+    let fen = session.position.fen
+    let ply = moves.count
+    let gen = generation
+    Task { [weak self] in
+      let a = try? await coach.assess(fen: fen)
+      guard let self, self.generation == gen, self.session.history.count == ply, self.phase == .userTurn else { return }
+      if self.stage == .endgame, let a, let m = a.mate, m > 0, m <= 5 {
+        let headline = self.mateRun ? CoachVoice.keepGoing : CoachVoice.mateHere
+        self.mateRun = true
+        let template = "Mate in \(m). Look at every check, starting with the most forcing."
+        self.coachSays(headline: headline, text: template, moment: self.moment(.mateAvailable, fen: fen, engine: a, template: template))
+        return
+      }
+      self.mateRun = false
+      if changed {
+        self.announce(next, engine: a)
+      } else if self.stage == .middlegame, let a, let prev = self.afterMoveWin, prev.ply == ply - 1,
+        a.winPercent - prev.win >= 20, a.winPercent >= 60, self.opportunitiesLeft > 0
+      {
+        self.opportunitiesLeft -= 1
+        let template = "Their last move left something. Look at checks, captures and threats."
+        self.coachSays(headline: CoachVoice.theySlipped, text: template, moment: self.moment(.opportunity, fen: fen, engine: a, template: template))
+      }
+    }
+  }
+
+  private func announce(_ stage: GamePhaseKind, engine: CoachAssessment?) {
+    let fen = session.position.fen
+    switch stage {
+    case .endgame:
+      let template = "Fewer pieces now: bring your king toward the centre, push passed pawns, and check every check for mate."
+      coachSays(headline: CoachVoice.endgameStart, text: template, moment: moment(.endgameStart, fen: fen, engine: engine, template: template))
+    default:
+      let template = focus?.intro ?? "Make a plan: improve your worst piece and watch their threats."
+      coachSays(headline: CoachVoice.middlegameStart, text: template, moment: moment(.middlegameStart, fen: fen, engine: engine, template: template))
+    }
+  }
+
+  private func moment(
+    _ kind: CoachMoment.Kind, fen: String, engine: CoachAssessment?, played: String? = nil, punish: [String] = [],
+    label: MoveClass? = nil, holdUp: HoldUpKind? = nil, template: String
+  ) -> CoachMoment {
+    let upTo = played == nil ? session.history.count : session.history.count - 1
+    return CoachMoment(
+      kind: kind, fen: fen, played: played, engine: engine, punish: punish, label: label, holdUp: holdUp, stage: stage,
+      opening: guide?.follow(Array(ucis.prefix(upTo))).first?.repertoire.name, focus: focus, growth: growth,
+      recentSAN: session.history.prefix(upTo).map(\.san), template: template)
   }
 
   /// After the bot moves: nudge the user to look for threats when something is loose
@@ -447,13 +619,16 @@ public final class GameController {
       nudge = nil
       coachLine = nil  // the prompt was about the position you just left
       voiceReact(played)
+      if focus != nil { countChances(played) }
     }
     if session.isOver {
       finish()
+    } else if mover == "user", bookMove(played) {
+      if phase != .coachPaused { advanceTurn() }
     } else if mover == "user", coach != nil {
       coachCheck(played)
     } else {
-      if mover == "bot", voice == nil { coachNudge(played) }
+      if mover == "bot", voice == nil, focus == nil { coachNudge(played) }
       advanceTurn()
     }
   }
@@ -461,7 +636,7 @@ public final class GameController {
   private func advanceTurn() {
     if session.sideToMove == userColor {
       phase = .userTurn
-      voicePrompt()
+      if focus != nil { stagePrompt() } else { voicePrompt() }
       playPremoveIfAny()
     } else {
       phase = .botThinking
@@ -471,9 +646,28 @@ public final class GameController {
 
   // MARK: - Coach in your corner
 
-  private func say(_ text: String) {
-    coachLine = (id: (coachLine?.id ?? 0) + 1, text: text)
-    telemetry.event("coach.voice", metadata: ["text": .string(text)])
+  private func say(_ text: String) { coachSays(headline: text, text: text) }
+
+  /// Shows `text` and (in voice mode) speaks `headline`; the AI coach's words replace `text`
+  /// when they arrive for `moment`.
+  private func coachSays(headline: String?, text: String, moment: CoachMoment? = nil) {
+    let id = (coachLine?.id ?? 0) + 1
+    coachLine = CoachLine(id: id, headline: headline, text: text)
+    telemetry.event("coach.voice", metadata: ["text": .string(headline ?? text)])
+    guard let moment, let writer else { return }
+    Task { [weak self] in
+      guard let better = await writer.write(moment), let self, self.coachLine?.id == id else { return }
+      self.coachLine?.text = better
+    }
+  }
+
+  /// The long-run ledger: chances you took, not just the ones you missed.
+  private func countChances(_ played: PlayedMove) {
+    let before = session.fen(atPly: session.history.count - 1)
+    if played.move.checkState == .checkmate { tally.foundMate += 1 }
+    if let free = BoardScan.freeCapture(fen: before), free.piece.square.notation == String(played.uci.dropFirst(2).prefix(2)) {
+      tally.foundFree += 1
+    }
   }
 
   /// On your turn: a nudge toward the idea (never the move), said the moment their move lands.
@@ -521,15 +715,17 @@ public final class GameController {
     let fen = session.position.fen
     let ply = session.history.count
     let gen = generation
+    // Coach games: the bot plays your repertoire's lines (a random branch, so you meet them all).
+    let book = focus != nil && !openingDone ? guide?.nextMoves(ucis).randomElement() : nil
     botTask = Task { [weak self, bot, minimumBotThink, telemetry] in
       let started = ContinuousClock.now
       let pick: (uci: String, why: String?)?
-      do {
-        pick = try await telemetry.step("game.botTurn", metadata: ["ply": .int(ply)]) { _ in
+      if let book {
+        pick = (book.uci, book.idea.isEmpty ? nil : book.idea)
+      } else {
+        pick = try? await telemetry.step("game.botTurn", metadata: ["ply": .int(ply)]) { _ in
           try await bot.explainedMove(fen: fen)
         }
-      } catch {
-        pick = nil
       }
       let elapsed = ContinuousClock.now - started
       if elapsed < minimumBotThink { try? await Task.sleep(for: minimumBotThink - elapsed) }

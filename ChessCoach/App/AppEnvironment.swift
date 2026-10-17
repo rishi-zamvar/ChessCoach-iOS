@@ -81,6 +81,9 @@ final class AppEnvironment {
   /// Puzzle skill ratings (set by TrainingService): the coach's focus falls back to them.
   @ObservationIgnored var puzzleRatings: () -> [String: Double] = { [:] }
 
+  /// Your repertoire style (set by TrainingService): coach games follow its lines.
+  @ObservationIgnored var repertoireStyle: () -> String = { "allRounder" }
+
   /// Your slips in coach games (decayed), which pick each game's focus.
   var coachWeakness: WeaknessTally {
     get {
@@ -91,8 +94,9 @@ final class AppEnvironment {
 
   var coachFocus: CoachFocus { coachWeakness.focus(puzzleRatings: puzzleRatings()) }
 
-  /// Coach bot games get the focused coach: set-ups for your focus, hold-ups before mistakes
-  /// cost you (untimed), and the voice. In timed games the bot plays without AI (an API wait
+  /// Coach bot games get the staged coach: your repertoire in the opening, the AI coach vetting
+  /// your middlegame against your goals, mates in the endgame; set-ups for your focus, hold-ups
+  /// before mistakes cost you (untimed), and the voice. In timed games the bot plays without AI (an API wait
   /// would burn its clock) and there are no hold-ups.
   func makeGame(_ config: PlayConfig) -> GameController? {
     guard let engineHost else { return nil }
@@ -108,7 +112,9 @@ final class AppEnvironment {
       config: config, bot: bot, telemetry: telemetry, store: gameStore, sounds: sounds,
       coach: coached && !timed ? StockfishCoach(host: engineHost) : nil,
       voice: CoachMode.current == .off ? nil : StockfishCoach(host: engineHost),
-      focus: focus, reviewer: coached && !timed ? HaikuHoldUpReviewer(client: ai) : nil)
+      focus: focus, writer: coached && !timed ? HaikuCoachWriter(client: ai) : nil,
+      opening: coached ? OpeningGuide(style: repertoireStyle(), userColor: config.userColor) : nil,
+      growth: coachWeakness.summary)
     if coached {
       game.onFinished = { [weak self] slips in
         guard let self else { return }
