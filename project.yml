@@ -30,6 +30,10 @@ targets:
         excludes:
           - "**/.DS_Store"
           - "**/*.md"
+    entitlements:
+      path: ChessCoach/ChessCoach.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
     info:
       path: ChessCoach/Info.plist
       properties:

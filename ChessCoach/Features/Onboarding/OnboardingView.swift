@@ -1,16 +1,21 @@
+import AuthenticationServices
 import ChessCoachKit
 import ChessKit
 import SwiftUI
 
-/// First-run flow: chess.com username → style → instinct quiz → placement → reconcile.
+/// First-run flow: Sign in with Apple → chess.com username (skipped when the account already
+/// has one) → style → instinct quiz → placement (skipped when chess.com gives a rating) → result.
 struct OnboardingView: View {
   @Environment(TrainingService.self) private var training
   @Environment(AnalysisService.self) private var analysis
+  @Environment(AppEnvironment.self) private var env
+  @State private var signingIn = false
   @State private var step: Step = .welcome
   @State private var username = ""
   @State private var style: LearnerProfile.Style = .allRounder
   @State private var quizAnswers: [Bool] = []  // true = picked the sharp move
   @State private var placement = PlacementState()
+  @Environment(\.colorScheme) private var colorScheme
 
   enum Step: Int, CaseIterable { case welcome, username, style, quiz, placement, result }
 
@@ -58,10 +63,21 @@ struct OnboardingView: View {
       LogoMark()
         .frame(width: 72, height: 72)
       Text("Your chess coach").font(Typography.display).foregroundStyle(Palette.ink)
-      Text("It reads your games, finds what's costing you points, and builds a 15-minute plan every day. Three minutes to set up.")
+      Text("It reads your games, finds what's costing you points, and builds a 15-minute plan every day. Two minutes to set up.")
         .font(Typography.body).foregroundStyle(Palette.textSecondary)
       Spacer()
-      PrimaryButton(title: "Let's go", action: { step = .username }, icon: "arrow.right")
+      SignInWithAppleButton(.continue) { request in
+        request.requestedScopes = []
+      } onCompletion: { result in
+        Task { await signedIn(result) }
+      }
+      .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+      .frame(height: 52)
+      .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerMedium))
+      .disabled(signingIn)
+      .accessibilityIdentifier("onboarding-apple")
+      Button("Continue without an account") { step = .username }
+        .font(Typography.callout).foregroundStyle(Palette.textSecondary).frame(maxWidth: .infinity)
         .accessibilityIdentifier("onboarding-start")
     }
     .padding(Spacing.xl)
@@ -82,8 +98,8 @@ struct OnboardingView: View {
         .overlay(RoundedRectangle(cornerRadius: Spacing.cornerMedium).stroke(Palette.border))
       Spacer()
       PrimaryButton(title: "Continue", action: {
-        analysis.username = username.trimmingCharacters(in: .whitespaces)
-        if !analysis.username.isEmpty { Task { await analysis.importFromChessCom() } }
+        useUsername(username)
+        if !analysis.username.isEmpty { Task { await env.server.linkChessCom(analysis.username) } }
         step = .style
       }, icon: "arrow.right")
       Button("Skip") { step = .style }
@@ -178,7 +194,7 @@ struct OnboardingView: View {
         let real = training.realRating
         Eyebrow(text: "Starting rating")
         Text("\(RatingAnchor.blend(placement: placement.rating, real: real))").font(Typography.weightLarge).foregroundStyle(Palette.ink)
-        Text(real.map { "Your chess.com rating is \($0); \(placement.solved) of \(placement.done) placement puzzles adjusted it slightly." }
+        Text(real.map { placement.done == 0 ? "From your chess.com rating (\($0))." : "Your chess.com rating is \($0); \(placement.solved) of \(placement.done) placement puzzles adjusted it slightly." }
           ?? "Based on \(placement.done) placement puzzles (\(placement.solved) solved).")
           .font(Typography.caption).foregroundStyle(Palette.textSecondary)
       }
@@ -205,7 +221,37 @@ struct OnboardingView: View {
 
   // MARK: - Actions
 
+  /// Apple's identity token (a JWT) goes to the home PC once, which returns its own session token
+  /// and any chess.com username this Apple ID already linked.
+  private func signedIn(_ result: Result<ASAuthorization, Error>) async {
+    guard case .success(let auth) = result, let credential = auth.credential as? ASAuthorizationAppleIDCredential else { return }
+    signingIn = true
+    defer { signingIn = false }
+    UserDefaults.standard.set(credential.user, forKey: "apple.userID")
+    if let data = credential.identityToken, let jwt = String(data: data, encoding: .utf8) {
+      let account = await env.server.signIn(appleIdentityToken: jwt)
+      if let linked = account.username, !linked.isEmpty {
+        useUsername(linked)
+        step = .style
+        return
+      }
+    }
+    step = .username
+  }
+
+  private func useUsername(_ name: String) {
+    username = name.trimmingCharacters(in: .whitespaces)
+    analysis.username = username
+    if !username.isEmpty { Task { await analysis.importFromChessCom() } }
+  }
+
   private func loadPlacementPuzzle() {
+    // A chess.com rating already places you; the puzzles only nudged it.
+    if let real = training.realRating, placement.done == 0 {
+      placement.rating = real
+      step = .result
+      return
+    }
     guard placement.current == nil, placement.done < PlacementState.total else { return }
     let themes = ["mateIn1", "hangingPiece", "fork", "mateIn1", "backRankMate"]
     let theme = themes[placement.done % themes.count]
@@ -228,7 +274,7 @@ struct OnboardingView: View {
 
 /// Staircase placement: start at 700, ±150 then shrinking steps.
 struct PlacementState {
-  static let total = 10
+  static let total = 5
   var rating = 700
   var done = 0
   var solved = 0
@@ -236,14 +282,14 @@ struct PlacementState {
   var seen: Set<String> = []
 
   mutating func record(solved ok: Bool) {
-    let step = max(50, 200 - done * 20)
+    let step = max(75, 200 - done * 30)
     rating = max(400, min(2000, rating + (ok ? step : -step)))
     done += 1
     if ok { solved += 1 }
   }
 }
 
-/// Seven positions, each with a sharp and a quiet move (both sound), from real openings.
+/// Four positions, each with a sharp and a quiet move (both sound), from real openings.
 enum InstinctQuiz {
   struct Item {
     let fen: String
@@ -258,18 +304,12 @@ enum InstinctQuiz {
   static let items: [Item] = [
     Item(fen: "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", sharp: "b2b4", sharpSAN: "b4",
          sharpNote: "Evans Gambit: a pawn for a fast attack", quiet: "d2d3", quietSAN: "d3", quietNote: "Solid build-up"),
-    Item(fen: "r1bqkbnr/pppp1ppp/2n5/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4", sharp: "c2c3", sharpSAN: "c3",
-         sharpNote: "Göring Gambit: open lines, quick development", quiet: "f3d4", quietSAN: "Nxd4", quietNote: "Take the pawn back"),
     Item(fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2", sharp: "f2f4", sharpSAN: "f4",
          sharpNote: "King's Gambit: romantic and risky", quiet: "g1f3", quietSAN: "Nf3", quietNote: "Develop and attack e5"),
     Item(fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", sharp: "c7c5", sharpSAN: "c5",
          sharpNote: "Sicilian: fight for the win", quiet: "c7c6", quietSAN: "c6", quietNote: "Caro-Kann: rock solid"),
     Item(fen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1", sharp: "f7f5", sharpSAN: "f5",
          sharpNote: "Dutch: unbalance from move one", quiet: "d7d5", quietSAN: "d5", quietNote: "Classical: claim the centre"),
-    Item(fen: "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", sharp: "f3g5", sharpSAN: "Ng5",
-         sharpNote: "Hit f7 right now", quiet: "d2d3", quietSAN: "d3", quietNote: "Calm Italian, castle first"),
-    Item(fen: "rnbqkbnr/pppp1ppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3", sharp: "c2c3", sharpSAN: "c3",
-         sharpNote: "Danish Gambit: bishops on fire", quiet: "d1d4", quietSAN: "Qxd4", quietNote: "Win the pawn back"),
   ]
 
   /// −1 (always quiet) … +1 (always sharp).

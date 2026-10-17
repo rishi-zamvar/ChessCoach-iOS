@@ -12,7 +12,8 @@ final class AppEnvironment {
   let analysisStore: AnalysisStore
   let positionCache: PositionCache
   let aiStore: AIStore
-  let ai: AnthropicClient
+  let ai: LLMClient
+  let aiSettings = AISettings()
   let aiExplainer: AIExplainer
   let server: ServerLink
   /// Learner summary for the teaching bot (set by TrainingService).
@@ -40,6 +41,8 @@ final class AppEnvironment {
     }
     isDegraded = degraded
     isInMemory = inMemory
+    // UI tests start fresh: openings added in an earlier run would leave the Add list.
+    if inMemory { UserDefaults.standard.removeObject(forKey: Self.addedOpeningsKey) }
     self.database = database
     gameStore = GameStore(database: database)
     analysisStore = AnalysisStore(database: database)
@@ -51,7 +54,7 @@ final class AppEnvironment {
     let engineTelemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
     engineHost = EngineAssets.bundled().map { EngineHost(assets: $0, telemetry: engineTelemetry) }
     sounds = SoundPlayer()
-    let ai = AnthropicClient(keyProvider: { KeyStore.read() }, telemetry: telemetry, ledger: aiStore, monthlyCapUSD: 80)
+    let ai = LLMClient(config: { AISettings.config() }, telemetry: telemetry, ledger: aiStore, monthlyCapUSD: 80)
     self.ai = ai
     aiExplainer = AIExplainer(client: ai, store: aiStore)
     server = ServerLink(telemetry: telemetry)
@@ -83,6 +86,8 @@ final class AppEnvironment {
 
   /// Your repertoire style (set by TrainingService): coach games follow its lines.
   @ObservationIgnored var repertoireStyle: () -> String = { "allRounder" }
+  /// Openings added from the Openings screen (comma-separated file names).
+  static let addedOpeningsKey = "openings.added"
 
   /// Your slips in coach games (decayed), which pick each game's focus.
   var coachWeakness: WeaknessTally {
@@ -112,8 +117,11 @@ final class AppEnvironment {
       config: config, bot: bot, telemetry: telemetry, store: gameStore, sounds: sounds,
       coach: coached && !timed ? StockfishCoach(host: engineHost) : nil,
       voice: CoachMode.current == .off ? nil : StockfishCoach(host: engineHost),
-      focus: focus, writer: coached && !timed ? HaikuCoachWriter(client: ai) : nil,
-      opening: coached ? OpeningGuide(style: repertoireStyle(), userColor: config.userColor) : nil,
+      focus: focus, writer: coached && !timed ? LLMCoachWriter(client: ai) : nil,
+      opening: coached ? OpeningGuide(
+        style: repertoireStyle(),
+        added: (UserDefaults.standard.string(forKey: Self.addedOpeningsKey) ?? "").split(separator: ",").map(String.init),
+        userColor: config.userColor) : nil,
       growth: coachWeakness.summary)
     if coached {
       game.onFinished = { [weak self] slips in

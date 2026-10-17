@@ -50,7 +50,7 @@ final class AnalysisService {
     // anyone else starts empty so they never import someone else's games.
     get {
       UserDefaults.standard.string(forKey: Self.usernameKey)
-        ?? (env.server.hasKey || ProcessInfo.processInfo.arguments.contains("-uiTesting") ? "Zammy009" : "")
+        ?? (env.server.deliveredKey || ProcessInfo.processInfo.arguments.contains("-uiTesting") ? "Zammy009" : "")
     }
     set { UserDefaults.standard.set(newValue, forKey: Self.usernameKey) }
   }

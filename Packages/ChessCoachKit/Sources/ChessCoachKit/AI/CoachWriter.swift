@@ -60,12 +60,12 @@ public protocol CoachWriter: Sendable {
   func vet(_ moment: CoachMoment) async -> (kind: HoldUpKind, text: String)?
 }
 
-/// Claude Haiku, fed engine + board facts; every move or square it names is checked.
-public struct HaikuCoachWriter: CoachWriter {
-  let client: AnthropicClient
+/// The fast LLM tier, fed engine + board facts; every move or square it names is checked.
+public struct LLMCoachWriter: CoachWriter {
+  let client: LLMClient
   let timeout: Duration
 
-  public init(client: AnthropicClient, timeout: Duration = .milliseconds(2500)) {
+  public init(client: LLMClient, timeout: Duration = .milliseconds(2500)) {
     self.client = client
     self.timeout = timeout
   }
@@ -89,7 +89,7 @@ public struct HaikuCoachWriter: CoachWriter {
     return await race { [client] in
       guard
         let turn = try? await client.send(
-          model: AnthropicClient.explainModel, system: Self.system,
+          tier: .fast, system: Self.system,
           messages: [.object(["role": .string("user"), "content": .string(ask)])], maxTokens: 160, effort: "low",
           purpose: "coach-\(moment.kind.rawValue)")
       else { return nil }
@@ -123,7 +123,7 @@ public struct HaikuCoachWriter: CoachWriter {
     return await race { [client] in
       guard
         let turn = try? await client.send(
-          model: AnthropicClient.explainModel, system: Self.system,
+          tier: .fast, system: Self.system,
           messages: [.object(["role": .string("user"), "content": .string(ask)])], tools: [tool], maxTokens: 200, effort: "low",
           purpose: "coach-vet"),
         let input = turn.toolUses.first?.input, let raw = input["kind"]?.stringValue,

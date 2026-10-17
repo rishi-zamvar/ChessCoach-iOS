@@ -61,6 +61,21 @@ final class StageCoachTests: XCTestCase {
     XCTAssertEqual(guide.name(["e2e4"]), "Test Italian")
     XCTAssertTrue(guide.follow(["d2d4"]).isEmpty)
     XCTAssertFalse(OpeningGuide(style: "attacker", userColor: .black).repertoires.isEmpty)
+    let withAdded = OpeningGuide(style: "attacker", added: ["positional-black-e4", "positional-white"], userColor: .black)
+    XCTAssertTrue(withAdded.repertoires.map(\.fileName).contains("positional-black-e4"), "added openings join the guide")
+    XCTAssertFalse(withAdded.repertoires.map(\.fileName).contains("positional-white"), "only your colour")
+  }
+
+  func test_givenStyles_whenRatingOpeningFit_thenSharpSuitsAttackersAndSolidSuitsPositional() {
+    let all = RepertoireLibrary.all()
+    let fried = all.first { $0.fileName == "attacker-white" }!
+    let london = all.first { $0.fileName == "positional-white" }!
+    XCTAssertEqual(OpeningFit.stars(fried, style: "attacker", quizScore: 1), 5)
+    XCTAssertLessThanOrEqual(OpeningFit.stars(fried, style: "positional", quizScore: -1), 2)
+    XCTAssertEqual(OpeningFit.stars(london, style: "positional", quizScore: -0.8), 5)
+    XCTAssertGreaterThan(OpeningFit.stars(london, style: "positional", quizScore: 0), OpeningFit.stars(fried, style: "positional", quizScore: 0))
+    XCTAssertEqual(OpeningFit.reason(fried, style: "positional", quizScore: -1), "Sharp and attacking: sharper than you usually like.")
+    XCTAssertEqual(RepertoireLibrary.mine(style: "attacker", added: ["attacker-white", "positional-white"]).count, 4, "no duplicates")
   }
 
   func test_givenCoachGame_whenPlayingThroughRepertoire_thenIdeasHoldUpOffLineThenMiddlegame() async throws {
@@ -148,14 +163,14 @@ final class StageCoachTests: XCTestCase {
     let m = CoachMoment(
       kind: .opportunity, fen: fen, engine: CoachAssessment(bestUCI: "d5c7", winPercent: 90), stage: .middlegame, focus: .tactics,
       growth: "", recentSAN: ["Ra8"], template: "")
-    let facts = HaikuCoachWriter.facts(m)
+    let facts = LLMCoachWriter.facts(m)
     XCTAssertTrue(facts.text.contains("HIDDEN"))
-    XCTAssertNil(HaikuCoachWriter.checked("Play Nc7+ and fork them.", facts: facts))
-    XCTAssertNil(HaikuCoachWriter.checked("Look at c7.", facts: facts))
-    XCTAssertNil(HaikuCoachWriter.checked("Qh5 wins.", facts: facts))
+    XCTAssertNil(LLMCoachWriter.checked("Play Nc7+ and fork them.", facts: facts))
+    XCTAssertNil(LLMCoachWriter.checked("Look at c7.", facts: facts))
+    XCTAssertNil(LLMCoachWriter.checked("Qh5 wins.", facts: facts))
     XCTAssertEqual(
-      HaikuCoachWriter.checked("Their rook and king sit on the same rank. Which of your pieces can reach both?", facts: facts),
+      LLMCoachWriter.checked("Their rook and king sit on the same rank. Which of your pieces can reach both?", facts: facts),
       "Their rook and king sit on the same rank. Which of your pieces can reach both?")
-    XCTAssertNotNil(HaikuCoachWriter.checked("Your knight on d5 is your best piece.", facts: facts))
+    XCTAssertNotNil(LLMCoachWriter.checked("Your knight on d5 is your best piece.", facts: facts))
   }
 }

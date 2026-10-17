@@ -22,9 +22,9 @@ final class TrainUITests: XCTestCase {
     app.buttons["Continue"].tap()
     XCTAssertTrue(app.buttons["quiz-sharp"].waitForExistence(timeout: 5))
     shot(app, "12-onboarding-quiz")
-    for i in 0..<7 { (i % 3 == 0 ? app.buttons["quiz-quiet"] : app.buttons["quiz-sharp"]).tap() }
+    for i in 0..<4 { (i % 3 == 0 ? app.buttons["quiz-quiet"] : app.buttons["quiz-sharp"]).tap() }
     // Placement: reveal each puzzle's solution to move on quickly.
-    for i in 0..<10 {
+    for i in 0..<5 {
       let hint = app.buttons["puzzle-hint"]
       XCTAssertTrue(hint.waitForExistence(timeout: 10), "placement puzzle \(i)")
       if i == 0 { shot(app, "13-onboarding-placement") }
@@ -74,6 +74,15 @@ final class TrainUITests: XCTestCase {
     app.buttons["open-openings"].tap()
     XCTAssertTrue(app.staticTexts["Your repertoire"].waitForExistence(timeout: 5))
     shot(app, "19-openings")
+
+    // + lists every other opening with a style-fit rating; adding one puts it in your repertoire.
+    app.buttons["openings-add"].tap()
+    XCTAssertTrue(app.descendants(matching: .any)["fit-tactician-black-d4"].waitForExistence(timeout: 5))
+    shot(app, "19a-add-openings")
+    app.buttons["add-tactician-black-d4"].tap()
+    XCTAssertFalse(app.buttons["add-tactician-black-d4"].exists, "added openings leave the list")
+    app.buttons["Done"].tap()
+    XCTAssertTrue(app.descendants(matching: .any)["repertoire-tactician-black-d4"].waitForExistence(timeout: 5))
 
     // Learn: after your move the reply waits for a tap, so the idea stays readable.
     app.buttons["Learn"].firstMatch.tap()

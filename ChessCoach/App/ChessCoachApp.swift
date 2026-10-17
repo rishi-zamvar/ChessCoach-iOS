@@ -24,12 +24,14 @@ struct ChessCoachApp: App {
           analysis.onImported = { training.anchorToRealRating() }
           training.anchorToRealRating()
           await env.server.refresh()
+          env.aiSettings.keysChanged()
           analysis.startBackgroundAnalysis()
           await analysis.importIfStale()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
           Task {
             await env.server.refresh()
+            env.aiSettings.keysChanged()
             await analysis.importIfStale()
           }
         }

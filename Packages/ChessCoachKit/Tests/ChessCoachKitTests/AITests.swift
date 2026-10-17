@@ -29,8 +29,12 @@ final class FakeTransport: AITransport, @unchecked Sendable {
 }
 
 final class AIClientTests: XCTestCase {
-  func makeClient(_ t: FakeTransport, key: String? = "sk-test", store: AIStore? = nil, cap: Double = 80) -> AnthropicClient {
-    AnthropicClient(keyProvider: { key }, transport: t, telemetry: Telemetry(sinks: []), ledger: store, monthlyCapUSD: cap)
+  func makeClient(
+    _ t: FakeTransport, key: String? = "sk-test", provider: LLMProvider = .anthropic, store: AIStore? = nil, cap: Double = 80
+  ) -> LLMClient {
+    LLMClient(
+      config: { LLMConfig(provider: provider, apiKey: key, smartModel: provider == .anthropic ? "claude-sonnet-5-5" : nil) }, transport: t,
+      telemetry: Telemetry(sinks: []), ledger: store, monthlyCapUSD: cap)
   }
 
   func test_givenRequest_whenSent_thenHeadersCachedSystemAndUsageCost() async throws {
@@ -38,7 +42,7 @@ final class AIClientTests: XCTestCase {
     t.responses = [(200, FakeTransport.text("hi"))]
     let store = AIStore(database: try AppDatabase.inMemory())
     let turn = try await makeClient(t, store: store).send(
-      model: "claude-haiku-4-5", system: "sys", messages: [.object(["role": .string("user"), "content": .string("x")])], purpose: "test")
+      tier: .fast, system: "sys", messages: [.object(["role": .string("user"), "content": .string("x")])], purpose: "test")
     XCTAssertEqual(turn.text, "hi")
     let req = t.requests[0]
     XCTAssertEqual(req.headers["x-api-key"], "sk-test")
@@ -51,14 +55,14 @@ final class AIClientTests: XCTestCase {
 
   func test_givenSonnet55_whenSent_thenServerSideFallbackDefault() async throws {
     let t = FakeTransport()
-    _ = try await makeClient(t).send(model: "claude-sonnet-5-5", system: "s", messages: [], purpose: "t")
+    _ = try await makeClient(t).send(tier: .smart, system: "s", messages: [], purpose: "t")
     XCTAssertEqual(t.requests[0].headers["anthropic-beta"], "server-side-fallback-2026-07-01")
     XCTAssertEqual(t.requests[0].body["fallbacks"]?.stringValue, "default")
   }
 
   func test_givenNoKey_whenSent_thenNoKeyError() async {
     do {
-      _ = try await makeClient(FakeTransport(), key: nil).send(model: "m", system: "s", messages: [], purpose: "t")
+      _ = try await makeClient(FakeTransport(), key: nil).send(tier: .fast, system: "s", messages: [], purpose: "t")
       XCTFail()
     } catch { XCTAssertEqual(error as? AIError, .noKey) }
   }
@@ -70,7 +74,7 @@ final class AIClientTests: XCTestCase {
     let client = makeClient(t, store: store, cap: 80)
     XCTAssertFalse(client.isAvailable)
     do {
-      _ = try await client.send(model: "m", system: "s", messages: [], purpose: "t")
+      _ = try await client.send(tier: .fast, system: "s", messages: [], purpose: "t")
       XCTFail()
     } catch AIError.budgetExceeded(let spent) { XCTAssertEqual(spent, 100, accuracy: 0.01) }
     XCTAssertTrue(t.requests.isEmpty)
@@ -80,8 +84,8 @@ final class AIClientTests: XCTestCase {
     let t = FakeTransport()
     t.responses = [(200, FakeTransport.text("", stop: "refusal")), (429, #"{"error":{"message":"slow down"}}"#)]
     let client = makeClient(t)
-    do { _ = try await client.send(model: "m", system: "s", messages: [], purpose: "t"); XCTFail() } catch { XCTAssertEqual(error as? AIError, .refused) }
-    do { _ = try await client.send(model: "m", system: "s", messages: [], purpose: "t"); XCTFail() } catch {
+    do { _ = try await client.send(tier: .fast, system: "s", messages: [], purpose: "t"); XCTFail() } catch { XCTAssertEqual(error as? AIError, .refused) }
+    do { _ = try await client.send(tier: .fast, system: "s", messages: [], purpose: "t"); XCTFail() } catch {
       XCTAssertEqual(error as? AIError, .http(status: 429, message: "slow down"))
     }
   }
@@ -90,7 +94,7 @@ final class AIClientTests: XCTestCase {
     let t = FakeTransport()
     t.responses = [(200, FakeTransport.toolUse("legal_moves", input: "{}")), (200, FakeTransport.text("done", model: "claude-sonnet-5-5"))]
     let tool = AITool(name: "legal_moves", description: "d", inputSchema: .object(["type": .string("object"), "properties": .object([:]), "additionalProperties": .bool(false)]))
-    let (text, calls) = try await makeClient(t).runTools(model: "claude-sonnet-5-5", system: "s", user: "u", tools: [tool], purpose: "t") { name, _ in
+    let (text, calls) = try await makeClient(t).runTools(tier: .smart, system: "s", user: "u", tools: [tool], purpose: "t") { name, _ in
       ("[\"e4\"]", false)
     }
     XCTAssertEqual(text, "done")
@@ -102,6 +106,44 @@ final class AIClientTests: XCTestCase {
     XCTAssertEqual(result["type"]?.stringValue, "tool_result")
     XCTAssertEqual(result["tool_use_id"]?.stringValue, "toolu_1")
     XCTAssertEqual(t.requests[0].body["tools"]?.arrayValue?.first?["strict"], .bool(true))
+  }
+
+  func test_givenOpenAICompatibleProvider_whenToolLoopRuns_thenSpeaksChatCompletionsAndTranslatesBack() async throws {
+    let t = FakeTransport()
+    t.responses = [
+      (200, #"{"model":"gpt-5-mini","choices":[{"finish_reason":"tool_calls","message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"legal_moves","arguments":"{\"square\":\"e2\"}"}}]}}],"usage":{"prompt_tokens":120,"completion_tokens":10,"prompt_tokens_details":{"cached_tokens":20}}}"#),
+      (200, #"{"model":"gpt-5-mini","choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"Play e4."}}],"usage":{"prompt_tokens":150,"completion_tokens":5}}"#),
+    ]
+    let tool = AITool(name: "legal_moves", description: "d", inputSchema: .object(["type": .string("object")]))
+    let (text, calls) = try await makeClient(t, key: "sk-oa", provider: .openai).runTools(
+      tier: .fast, system: "sys", user: "u", tools: [tool], purpose: "t"
+    ) { _, input in (input["square"]?.stringValue == "e2" ? "[\"e4\"]" : "?", false) }
+    XCTAssertEqual(text, "Play e4.")
+    XCTAssertEqual(calls.map(\.name), ["legal_moves"])
+    let first = t.requests[0]
+    XCTAssertEqual(first.headers["authorization"], "Bearer sk-oa")
+    XCTAssertNil(first.headers["x-api-key"])
+    XCTAssertEqual(first.body["model"]?.stringValue, "gpt-5-mini")
+    XCTAssertEqual(first.body["messages"]?.arrayValue?.first?["role"]?.stringValue, "system")
+    XCTAssertNotNil(first.body["max_completion_tokens"])
+    XCTAssertEqual(first.body["tools"]?.arrayValue?.first?["function"]?["name"]?.stringValue, "legal_moves")
+    let second = t.requests[1].body["messages"]!.arrayValue!
+    XCTAssertEqual(second.map { $0["role"]?.stringValue ?? "" }, ["system", "user", "assistant", "tool"])
+    XCTAssertEqual(second[2]["tool_calls"]?.arrayValue?.first?["id"]?.stringValue, "call_1")
+    XCTAssertEqual(second[3]["tool_call_id"]?.stringValue, "call_1")
+    XCTAssertEqual(second[3]["content"]?.stringValue, "[\"e4\"]")
+  }
+
+  func test_givenLocalServerWithoutKey_whenSent_thenNoAuthHeaderAndMaxTokens() async throws {
+    let t = FakeTransport()
+    t.responses = [(200, #"{"choices":[{"finish_reason":"stop","message":{"content":"hi"}}]}"#)]
+    let client = makeClient(t, key: nil, provider: .custom)
+    XCTAssertTrue(client.isAvailable)
+    let turn = try await client.send(tier: .fast, system: "s", messages: [], purpose: "t")
+    XCTAssertEqual(turn.text, "hi")
+    XCTAssertNil(t.requests[0].headers["authorization"])
+    XCTAssertNotNil(t.requests[0].body["max_tokens"])
+    XCTAssertFalse(makeClient(FakeTransport(), key: nil, provider: .openai).isAvailable, "hosted providers need a key")
   }
 }
 
@@ -116,7 +158,7 @@ final class AIExplainerTests: XCTestCase {
     let t = FakeTransport()
     t.responses = [(200, FakeTransport.text("Qd5 walks into exd5 — your queen on d5 is lost."))]
     let store = AIStore(database: try AppDatabase.inMemory())
-    let explainer = AIExplainer(client: AnthropicClient(keyProvider: { "k" }, transport: t, telemetry: Telemetry(sinks: []), ledger: store), store: store)
+    let explainer = AIExplainer(client: LLMClient(config: { LLMConfig(provider: .anthropic, apiKey: "k") }, transport: t, telemetry: Telemetry(sinks: []), ledger: store), store: store)
     let r1 = await explainer.explain(sheet: sheet(), label: .blunder, isUser: true, template: "template")
     XCTAssertEqual(r1.origin, .ai)
     let r2 = await explainer.explain(sheet: sheet(), label: .blunder, isUser: true, template: "template")
@@ -129,7 +171,7 @@ final class AIExplainerTests: XCTestCase {
   func test_givenInventedMoveTwice_whenExplained_thenRetriesThenTemplate() async {
     let t = FakeTransport()
     t.responses = [(200, FakeTransport.text("Better was Nf3 hitting h7.")), (200, FakeTransport.text("Try Bb5 instead."))]
-    let explainer = AIExplainer(client: AnthropicClient(keyProvider: { "k" }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil), store: nil)
+    let explainer = AIExplainer(client: LLMClient(config: { LLMConfig(provider: .anthropic, apiKey: "k") }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil), store: nil)
     let r = await explainer.explain(sheet: sheet(), label: .blunder, isUser: true, template: "TEMPLATE")
     XCTAssertEqual(r.origin, .template)
     XCTAssertEqual(r.text, "TEMPLATE")
@@ -140,7 +182,7 @@ final class AIExplainerTests: XCTestCase {
 
   func test_givenNoKey_whenExplained_thenTemplateWithoutCalls() async {
     let t = FakeTransport()
-    let explainer = AIExplainer(client: AnthropicClient(keyProvider: { nil }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil), store: nil)
+    let explainer = AIExplainer(client: LLMClient(config: { nil }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil), store: nil)
     let r = await explainer.explain(sheet: sheet(), label: .blunder, isUser: true, template: "T")
     XCTAssertEqual(r.origin, .template)
     XCTAssertTrue(t.requests.isEmpty)

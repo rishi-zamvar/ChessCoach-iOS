@@ -291,7 +291,7 @@ private struct ReviewContent: View {
   @ViewBuilder
   private var controls: some View {
     HStack(spacing: Spacing.s) {
-      if controller.retryState == nil, env.server.hasKey {
+      if controller.retryState == nil, env.aiSettings.hasKey {
         ControlButton(title: "", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
           .frame(maxWidth: 56)
           .accessibilityIdentifier("review-ask")

@@ -1,7 +1,7 @@
 import ChessCoachKit
 import SwiftUI
 
-/// Settings: profile (retake onboarding), chess.com username, board look, sound, AI status.
+/// Settings: profile (retake onboarding), chess.com username, board look, sound, AI provider.
 struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(TrainingService.self) private var training
@@ -61,15 +61,7 @@ struct SettingsView: View {
             Button("Hear the coach") { CoachSpeaker.shared.say(CoachVoice.sample) }
           }
         }
-        if env.server.hasKey {
-          Section("Coach AI & home PC") {
-            LabeledContent("Home PC", value: serverText)
-            LabeledContent("AI key", value: "Ready (\(env.server.keyID ?? "—"))")
-            LabeledContent("Spent this month", value: String(format: "$%.2f of $80", env.aiStore.spentThisMonth()))
-            LabeledContent("On-device model", value: OnDeviceExplainer.isAvailable ? "Available" : "Not on this device")
-            Button("Check now") { Task { await env.server.refresh() } }
-          }
-        }
+        AIProviderSection()
         Section {
           Text("ChessCoach · engines: Stockfish 17, Maia-1100 (Lc0) · puzzles & openings: Lichess (CC0)")
             .font(.footnote).foregroundStyle(.secondary)
@@ -91,17 +83,81 @@ struct SettingsView: View {
     }
   }
 
-  private var serverText: String {
-    switch env.server.status {
-    case .online(let v): "Connected (v\(v))"
-    case .checking: "Checking…"
-    case .offline: "Not reachable"
-    case .unknown: "—"
-    }
-  }
-
   private func commit() {
     let trimmed = username.trimmingCharacters(in: .whitespaces)
     if !trimmed.isEmpty { analysis.username = trimmed }
+  }
+}
+
+/// Which LLM coaches you, with your own key. On the owner's tailnet the home PC fills Claude's key in.
+private struct AIProviderSection: View {
+  @Environment(AppEnvironment.self) private var env
+  @State private var key = ""
+  @State private var fast = ""
+  @State private var smart = ""
+  @State private var baseURL = ""
+
+  var body: some View {
+    let ai = env.aiSettings
+    let provider = ai.provider
+    Section {
+      Picker("Provider", selection: Binding(get: { ai.provider }, set: { ai.provider = $0 })) {
+        ForEach(LLMProvider.allCases) { Text($0.title).tag($0) }
+      }
+      .accessibilityIdentifier("ai-provider")
+      SecureField(provider.needsKey ? "API key" : "API key (optional)", text: $key)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .onSubmit { ai.setKey(key, for: provider) }
+        .accessibilityIdentifier("ai-key")
+      if provider == .custom {
+        TextField(LLMProvider.custom.defaultBaseURL, text: $baseURL)
+          .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+          .onSubmit { ai.setBaseURL(baseURL, provider) }
+      }
+      LabeledContent("Fast model") {
+        TextField(provider.defaultModels.fast, text: $fast).multilineTextAlignment(.trailing)
+          .textInputAutocapitalization(.never).autocorrectionDisabled()
+          .onSubmit { ai.setModel(fast, .fast, provider) }
+      }
+      LabeledContent("Smart model") {
+        TextField(provider.defaultModels.smart, text: $smart).multilineTextAlignment(.trailing)
+          .textInputAutocapitalization(.never).autocorrectionDisabled()
+          .onSubmit { ai.setModel(smart, .smart, provider) }
+      }
+      LabeledContent("Spent this month", value: String(format: "$%.2f of $80", env.aiStore.spentThisMonth()))
+    } header: {
+      Text("Coach AI")
+    } footer: {
+      Text(footer(provider))
+    }
+    .onAppear { load(provider) }
+    .onChange(of: provider) { old, new in
+      save(old)
+      load(new)
+    }
+    .onDisappear { save(provider) }
+  }
+
+  private func footer(_ p: LLMProvider) -> String {
+    if p == .anthropic, env.server.deliveredKey { return "Your key was added automatically from your home PC." }
+    if !env.aiSettings.hasKey { return "Add a key to turn on AI explanations, the coach bot and Ask. Everything else works offline." }
+    return "Fast runs during games; smart answers your questions. Leave blank for the defaults."
+  }
+
+  private func load(_ p: LLMProvider) {
+    let ai = env.aiSettings
+    key = ai.key(p)
+    fast = ai.model(.fast, p)
+    smart = ai.model(.smart, p)
+    baseURL = ai.baseURL(p)
+  }
+
+  private func save(_ p: LLMProvider) {
+    let ai = env.aiSettings
+    if key != ai.key(p) { ai.setKey(key, for: p) }
+    if fast != ai.model(.fast, p) { ai.setModel(fast, .fast, p) }
+    if smart != ai.model(.smart, p) { ai.setModel(smart, .smart, p) }
+    if baseURL != ai.baseURL(p) { ai.setBaseURL(baseURL, p) }
   }
 }

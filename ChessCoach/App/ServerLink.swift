@@ -4,37 +4,7 @@ import Observation
 import CryptoKit
 import Security
 
-/// The Anthropic key, stored only in the Keychain (never typed by the user).
-enum KeyStore {
-  private static let service = "com.rishizamvar.chesscoach.anthropic"
-
-  static func read() -> String? {
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-      kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne,
-    ]
-    var item: CFTypeRef?
-    guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess, let data = item as? Data else { return nil }
-    return String(data: data, encoding: .utf8)
-  }
-
-  /// Updates in place (falls back to add); returns false if the Keychain refused.
-  @discardableResult
-  static func save(_ key: String) -> Bool {
-    let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service]
-    let attributes: [String: Any] = [
-      kSecValueData as String: Data(key.utf8),
-      // Never leaves this phone (not in backups or iCloud Keychain).
-      kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-    ]
-    let status = SecItemUpdate(base as CFDictionary, attributes as CFDictionary)
-    if status == errSecSuccess { return true }
-    guard status == errSecItemNotFound else { return false }
-    return SecItemAdd(base.merging(attributes) { _, new in new } as CFDictionary, nil) == errSecSuccess
-  }
-}
-
-/// Finds the home PC over Tailscale and pulls the API key from it (the PC checks who's
+/// Background link to the home PC over Tailscale: pulls the Claude key from it (the PC checks who's
 /// asking with `tailscale whois`, so the phone holds no secret of its own).
 @MainActor
 @Observable
@@ -49,7 +19,8 @@ final class ServerLink {
   /// Base URL of the host that answered last.
   private(set) var baseURL: URL?
   var isOnline: Bool { if case .online = status { true } else { false } }
-  var hasKey: Bool { KeyStore.read() != nil }
+  /// The PC handed this phone its key (owner on the tailnet).
+  var deliveredKey: Bool { keyID != nil && KeyStore.read(.anthropic) != nil }
 
   /// The PC's MagicDNS name: iOS only allows plain HTTP (NSAllowsLocalNetworking) to bare
   /// hostnames, not to 100.x IPs. A hostile Wi-Fi DNS could answer the name, so it is only
@@ -114,8 +85,8 @@ final class ServerLink {
           secret.hasPrefix("sk-ant-"), secret.count > 30
         {
           let id = Self.keyID(secret)
-          if id != keyID || !hasKey {
-            let saved = KeyStore.save(secret)
+          if id != keyID || KeyStore.read(.anthropic) == nil {
+            let saved = KeyStore.save(secret, for: .anthropic)
             if saved {
               keyID = id
               UserDefaults.standard.set(id, forKey: "ai.keyID")
@@ -135,6 +106,41 @@ final class ServerLink {
   /// First 8 hex digits of SHA-256(key) — identifies the key without revealing any of it.
   static func keyID(_ key: String) -> String {
     SHA256.hash(data: Data(key.utf8)).prefix(4).map { String(format: "%02x", $0) }.joined()
+  }
+
+  // MARK: - Account (Sign in with Apple, once at onboarding)
+
+  /// Trades Apple's identity token (a JWT) for this server's session JWT. Returns the chess.com
+  /// username already linked to this Apple ID (a reinstall or a new phone), if any.
+  /// False when the PC isn't reachable: the phone stays signed in to Apple only.
+  func signIn(appleIdentityToken: String) async -> (ok: Bool, username: String?) {
+    if baseURL == nil { await refresh() }
+    guard let base = baseURL,
+      let reply = try? await sendJSON("POST", base.appendingPathComponent("auth/apple"), ["identity_token": .string(appleIdentityToken)]),
+      let token = reply["token"]?.stringValue
+    else { return (false, nil) }
+    KeyStore.session = token
+    telemetry.event("auth.apple", metadata: ["linked": .bool(reply["chesscom_username"]?.stringValue != nil)])
+    return (true, reply["chesscom_username"]?.stringValue)
+  }
+
+  /// Links the chess.com username to the signed-in Apple ID.
+  func linkChessCom(_ username: String) async {
+    guard let base = baseURL, let token = KeyStore.session else { return }
+    _ = try? await sendJSON("PUT", base.appendingPathComponent("account"), ["chesscom_username": .string(username)], bearer: token)
+  }
+
+  private func sendJSON(_ method: String, _ url: URL, _ body: [String: JSON], bearer: String? = nil) async throws -> JSON {
+    var request = URLRequest(url: url)
+    request.httpMethod = method
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
+    request.httpBody = try JSONEncoder().encode(JSON.object(body))
+    // Apple's keys may need fetching on the PC: allow longer than a health check.
+    request.timeoutInterval = 8
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+    return try JSONDecoder().decode(JSON.self, from: data)
   }
 
   // MARK: - Deep analysis (chesscoach-server /analysis/jobs)

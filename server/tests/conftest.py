@@ -58,6 +58,7 @@ def no_engine_settings(tmp_path) -> Settings:
         stockfish_path=str(tmp_path / "no-stockfish.exe"),
         lc0_path=str(tmp_path / "no-lc0.exe"),
         maia_1100_weights_path=str(tmp_path / "no-weights.pb.gz"),
+        data_dir=str(tmp_path / "data"),
     )
 
 

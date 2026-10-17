@@ -72,3 +72,16 @@ class MaiaPredictRequest(BaseModel):
 
 class MaiaPredictResponse(BaseModel):
     policy: dict[str, float]
+
+
+class AppleSignInRequest(BaseModel):
+    identity_token: str = Field(min_length=20, max_length=4096)
+
+
+class AccountResponse(BaseModel):
+    token: str | None = None
+    chesscom_username: str | None
+
+
+class LinkChessComRequest(BaseModel):
+    chesscom_username: str | None = Field(default=None, max_length=50, pattern=r"^[A-Za-z0-9_-]*$")

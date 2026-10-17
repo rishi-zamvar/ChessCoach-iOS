@@ -6,9 +6,9 @@ import Foundation
 public struct OpeningGuide: Sendable {
   public let repertoires: [Repertoire]
 
-  /// The learner's repertoires for their colour (Black has one vs 1.e4 and one vs 1.d4).
-  public init(style: String, userColor: Piece.Color) {
-    self.init(repertoires: RepertoireLibrary.forStyle(style).filter { $0.side == userColor })
+  /// The learner's repertoires (style + added) for their colour (Black has ones vs 1.e4 and vs 1.d4).
+  public init(style: String, added: [String] = [], userColor: Piece.Color) {
+    self.init(repertoires: RepertoireLibrary.mine(style: style, added: added).filter { $0.side == userColor })
   }
 
   init(repertoires: [Repertoire]) {

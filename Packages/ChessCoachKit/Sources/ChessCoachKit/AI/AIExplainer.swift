@@ -5,14 +5,12 @@ import Foundation
 public struct AIExplainer: Sendable {
   public enum Origin: String, Sendable { case ai, template, cache }
 
-  let client: AnthropicClient
+  let client: LLMClient
   let store: AIStore?
-  let model: String
 
-  public init(client: AnthropicClient, store: AIStore?, model: String = AnthropicClient.explainModel) {
+  public init(client: LLMClient, store: AIStore?) {
     self.client = client
     self.store = store
-    self.model = model
   }
 
   public static let system = """
@@ -26,6 +24,7 @@ public struct AIExplainer: Sendable {
     """
 
   public func explain(sheet: FactSheet, label: MoveClass, isUser: Bool, template: String, styleNote: String = "") async -> (text: String, origin: Origin) {
+    let model = client.model(.fast)
     let key = "\(model)|\(sheet.played.uci)|\(label.rawValue)|\(isUser)|\(sheet.vocabulary.sorted().joined(separator: ","))|\(template)"
     if let cached = store?.cachedExplanation(key: key) { return (cached, .cache) }
     guard client.isAvailable else { return (template, .template) }
@@ -36,7 +35,7 @@ public struct AIExplainer: Sendable {
     for attempt in 0..<2 {
       guard
         let turn = try? await client.send(
-          model: model, system: Self.system, messages: [.object(["role": .string("user"), "content": .string(prompt)])],
+          tier: .fast, system: Self.system, messages: [.object(["role": .string("user"), "content": .string(prompt)])],
           maxTokens: 300, purpose: "explain")
       else { return (template, .template) }
       let text = turn.text.trimmingCharacters(in: .whitespacesAndNewlines)

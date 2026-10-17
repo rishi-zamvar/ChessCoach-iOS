@@ -137,10 +137,10 @@ public struct CoachTools: Sendable {
 /// "Ask the coach" about a position: Claude answers using the board tools; the answer
 /// may only name moves/squares the tools (or the visible move list) produced.
 public struct AskCoach: Sendable {
-  let client: AnthropicClient
+  let client: LLMClient
   let tools: CoachTools
 
-  public init(client: AnthropicClient, tools: CoachTools) {
+  public init(client: LLMClient, tools: CoachTools) {
     self.client = client
     self.tools = tools
   }
@@ -165,7 +165,7 @@ public struct AskCoach: Sendable {
     var arrows: [Arrow] = []
     let box = ToolBox(tools: tools, fen: fen, history: history)
     let (text, _) = try await client.runTools(
-      model: AnthropicClient.coachModel, system: Self.system, user: question, tools: CoachTools.definitions, maxTurns: 6,
+      tier: .smart, system: Self.system, user: question, tools: CoachTools.definitions, maxTurns: 6,
       effort: "low", purpose: "ask-coach"
     ) { name, input in await box.run(name, input) }
     vocabulary.formUnion(await box.vocabulary)

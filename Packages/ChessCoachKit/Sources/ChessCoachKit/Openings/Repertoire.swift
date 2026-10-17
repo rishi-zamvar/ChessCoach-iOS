@@ -298,4 +298,38 @@ public enum RepertoireLibrary {
     }
   }
 
+  /// The style's repertoires plus the ones the learner added (by file name), style ones first.
+  public static func mine(style: String, added: [String]) -> [Repertoire] {
+    let base = forStyle(style)
+    return base + added.compactMap { name in all().first { $0.fileName == name } }.filter { rep in !base.contains { $0.id == rep.id } }
+  }
+
+}
+
+/// How well an opening suits a player, 1–5, from their style and instinct-quiz score.
+public enum OpeningFit {
+  /// −1 (quiet) … +1 (sharp).
+  static func sharpness(_ style: String) -> Double {
+    switch style {
+    case "attacker": 1
+    case "tactician": 0.5
+    case "positional": -0.8
+    default: 0
+    }
+  }
+
+  static func learner(style: String, quizScore: Double) -> Double { 0.6 * sharpness(style) + 0.4 * quizScore }
+
+  public static func stars(_ rep: Repertoire, style: String, quizScore: Double) -> Int {
+    let gap = abs(learner(style: style, quizScore: quizScore) - sharpness(rep.style))
+    return max(1, 5 - Int((gap * 2.5).rounded()))
+  }
+
+  public static func reason(_ rep: Repertoire, style: String, quizScore: Double) -> String {
+    let o = sharpness(rep.style)
+    let kind = o >= 0.8 ? "Sharp and attacking" : o > 0.2 ? "Tactical" : o < -0.4 ? "Solid and positional" : "Balanced"
+    let gap = o - learner(style: style, quizScore: quizScore)
+    let verdict = abs(gap) < 0.3 ? "matches how you like to play" : gap > 0 ? "sharper than you usually like" : "calmer than you usually like"
+    return "\(kind): \(verdict)."
+  }
 }

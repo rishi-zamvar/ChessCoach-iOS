@@ -7,7 +7,7 @@ import Foundation
 /// "gifts" are rationed. Without AI (no key, offline, budget) it plays like Maia.
 public struct TeachingBot: BotPlayer {
   public let host: EngineHost
-  let client: AnthropicClient?
+  let client: LLMClient?
   let telemetry: Telemetry
   let random: RandomSource
   /// Plain-language summary of the learner's weaknesses and level (from the app).
@@ -17,7 +17,7 @@ public struct TeachingBot: BotPlayer {
   let focus: @Sendable () -> CoachFocus?
 
   public init(
-    host: EngineHost, client: AnthropicClient?, telemetry: Telemetry, random: RandomSource = SystemRandom(),
+    host: EngineHost, client: LLMClient?, telemetry: Telemetry, random: RandomSource = SystemRandom(),
     brief: @escaping @Sendable () -> String, focus: @escaping @Sendable () -> CoachFocus? = { nil }
   ) {
     self.focus = focus
@@ -167,7 +167,7 @@ public struct TeachingBot: BotPlayer {
     their best reply, or name any move other than the one you played.
     """
 
-  func askClaude(fen: String, allowed: [Candidate], client: AnthropicClient) async throws -> (uci: String, reason: String, explanation: String?) {
+  func askClaude(fen: String, allowed: [Candidate], client: LLMClient) async throws -> (uci: String, reason: String, explanation: String?) {
     let list = allowed.map { c in
       "- \(c.uci) (\(c.san)): engine expectation \(Int(c.ep * 100))%, human likelihood \(Int(c.maiaProbability * 100))%\(c.gives.map { ", \($0)" } ?? "")"
     }.joined(separator: "\n")
@@ -192,7 +192,7 @@ public struct TeachingBot: BotPlayer {
       ]))
     // One call: read the play_move tool_use directly (no need to send a tool_result back).
     let turn = try await client.send(
-      model: AnthropicClient.explainModel, system: Self.system,
+      tier: .fast, system: Self.system,
       messages: [.object(["role": .string("user"), "content": .string(user)])], tools: [tool], maxTokens: 400, effort: "low",
       purpose: "teaching-bot")
     guard let call = turn.toolUses.first(where: { $0.name == "play_move" }), let uci = call.input["move"]?.stringValue,

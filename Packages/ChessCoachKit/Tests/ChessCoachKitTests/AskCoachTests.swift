@@ -64,7 +64,7 @@ final class AskCoachTests: XCTestCase {
       (200, FakeTransport.toolUse("draw", input: #"{"arrows":[{"from":"e2","to":"e4","color":"green"}]}"#)),
       (200, FakeTransport.text("Start with e4 or Nf3 to grab the centre.", model: "claude-sonnet-5-5")),
     ]
-    let coach = AskCoach(client: AnthropicClient(keyProvider: { "k" }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil),
+    let coach = AskCoach(client: LLMClient(config: { LLMConfig(provider: .anthropic, apiKey: "k") }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil),
       tools: CoachTools(host: nil, profile: { "" }))
     let answer = try await coach.ask("What should I play?", fen: GameSession.standardFEN, history: [])
     XCTAssertTrue(answer.grounded, answer.text)
@@ -74,7 +74,7 @@ final class AskCoachTests: XCTestCase {
   func test_givenAnswerWithInventedMove_whenAsked_thenNotGrounded() async throws {
     let t = FakeTransport()
     t.responses = [(200, FakeTransport.text("Play Qh5 and attack f7.", model: "claude-sonnet-5-5"))]
-    let coach = AskCoach(client: AnthropicClient(keyProvider: { "k" }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil),
+    let coach = AskCoach(client: LLMClient(config: { LLMConfig(provider: .anthropic, apiKey: "k") }, transport: t, telemetry: Telemetry(sinks: []), ledger: nil),
       tools: CoachTools(host: nil, profile: { "" }))
     let answer = try await coach.ask("What now?", fen: GameSession.standardFEN, history: [])
     XCTAssertFalse(answer.grounded)
