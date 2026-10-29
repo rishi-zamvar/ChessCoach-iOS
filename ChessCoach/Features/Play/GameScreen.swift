@@ -371,6 +371,9 @@ struct BoardOptionsSheet: View {
           Toggle("Move sounds", isOn: $soundOn)
         }
       }
+      .scrollContentBackground(.hidden)
+      .background(Palette.surfaceBase.ignoresSafeArea())
+      .tint(Palette.sage)
       .navigationTitle("Options")
       .navigationBarTitleDisplayMode(.inline)
     }

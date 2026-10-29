@@ -106,6 +106,9 @@ struct SettingsView: View {
             .font(.footnote).foregroundStyle(.secondary)
         }
       }
+      .scrollContentBackground(.hidden)
+      .background(Palette.surfaceBase.ignoresSafeArea())
+      .tint(Palette.sage)
       .navigationTitle("Settings")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { commit(); dismiss() } } }

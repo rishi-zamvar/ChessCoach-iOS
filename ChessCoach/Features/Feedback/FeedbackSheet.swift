@@ -249,6 +249,8 @@ struct FeedbackListView: View {
         Button("Send new feedback") { env.feedback.open(source: "settings") }
       }
     }
+    .scrollContentBackground(.hidden)
+    .background(Palette.surfaceBase.ignoresSafeArea())
     .navigationTitle("Your feedback")
     .task { await env.feedback.flush(); await env.feedback.refreshStatuses() }
   }
