@@ -20,7 +20,7 @@ struct TrainingRunnerView: View {
       header
       if tasks.isEmpty {
         Spacer()
-        Text("Nothing to do here right now.").foregroundStyle(ChessChrome.textSecondary)
+        Text("Nothing to do here right now.").foregroundStyle(Palette.textSecondary)
         Spacer()
       } else if finished {
         summary
@@ -30,32 +30,32 @@ struct TrainingRunnerView: View {
           .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .opacity))
       }
     }
-    .background(ChessChrome.background.ignoresSafeArea())
+    .background(Palette.surfaceBase.ignoresSafeArea())
     .onAppear { startRating = training.globalRating }
   }
 
   private var header: some View {
     HStack {
       Button { dismiss() } label: {
-        Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44)
+        Image(systemName: "xmark").font(Typography.symbol(16, weight: .semibold)).frame(width: 44, height: 44)
       }
       .accessibilityIdentifier("runner-close")
       Spacer()
       VStack(spacing: 2) {
-        Text(title).font(.system(size: 15, weight: .bold, design: .rounded)).lineLimit(1)
+        Text(title).font(.system(.subheadline).weight(.bold)).lineLimit(1)
         if tasks.count > 1 && !finished {
-          Text("\(index + 1) of \(tasks.count)").font(.system(size: 12, design: .rounded))
+          Text("\(index + 1) of \(tasks.count)").font(.system(.caption))
         }
       }
       Spacer()
       Color.clear.frame(width: 44, height: 44)
     }
-    .foregroundStyle(ChessChrome.textSecondary)
+    .foregroundStyle(Palette.textSecondary)
     .padding(.horizontal, Spacing.s)
-    .background(ChessChrome.bar)
+    .background(Palette.surfaceRaised)
     .overlay(alignment: .bottom) {
       GeometryReader { proxy in
-        Rectangle().fill(ChessChrome.accentGreen)
+        Rectangle().fill(Palette.sage)
           .frame(width: proxy.size.width * CGFloat(finished ? tasks.count : index) / CGFloat(max(1, tasks.count)), height: 3)
           .animation(.easeOut, value: index)
       }
@@ -99,18 +99,18 @@ struct TrainingRunnerView: View {
   private var summary: some View {
     VStack(spacing: Spacing.l) {
       Spacer()
-      Image(systemName: "checkmark.seal.fill").font(.system(size: 54)).foregroundStyle(ChessChrome.accentGreen)
-      Text("Block complete").font(.system(size: 26, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+      Image(systemName: "checkmark.seal.fill").font(Typography.symbol(54)).foregroundStyle(Palette.success)
+      Text("Block complete").font(.system(.title).weight(.bold)).foregroundStyle(Palette.textPrimary)
       Text("\(cleanSolves) of \(tasks.count) clean")
-        .font(.system(size: 17, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        .font(.system(.body).weight(.semibold)).foregroundStyle(Palette.textSecondary)
       let delta = training.globalRating - startRating
       if delta != 0 {
         Text("Puzzle rating \(training.globalRating) (\(delta > 0 ? "+" : "")\(delta))")
-          .font(.system(size: 15, weight: .medium, design: .rounded))
-          .foregroundStyle(delta > 0 ? ChessChrome.accentGreen : ChessChrome.lowTime)
+          .font(.system(.subheadline).weight(.medium))
+          .foregroundStyle(delta > 0 ? Palette.success : Palette.danger)
       }
       Spacer()
-      PuzzleButton(title: "Done", systemImage: "checkmark", prominent: true) { dismiss() }
+      ActionButton(title: "Done", systemImage: "checkmark", prominent: true) { dismiss() }
         .accessibilityIdentifier("runner-done")
         .padding(Spacing.m)
     }

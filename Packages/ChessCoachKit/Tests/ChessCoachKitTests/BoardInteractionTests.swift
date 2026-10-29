@@ -134,7 +134,7 @@ final class BoardInteractionTests: XCTestCase {
   }
 
   func test_givenThemes_whenListed_thenGreenIsDefaultWithChessComColors() {
-    XCTAssertEqual(BoardTheme.default.id, "green")
+    XCTAssertEqual(BoardTheme.default.id, "sage")
     XCTAssertEqual(BoardTheme.green.light, 0xEEEED2)
     XCTAssertEqual(BoardTheme.green.dark, 0x769656)
     XCTAssertEqual(Set(BoardTheme.all.map(\.id)).count, BoardTheme.all.count)

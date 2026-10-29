@@ -12,26 +12,26 @@ struct MoveNote: View {
   var body: some View {
     HStack(alignment: .top, spacing: 10) {
       ZStack {
-        Circle().fill(isYou ? ChessChrome.accentGreen.opacity(0.22) : Color.primary.opacity(0.08))
+        Circle().fill(isYou ? Palette.sage.opacity(0.22) : Color.primary.opacity(0.08))
         Image(systemName: isYou ? "person.fill" : "cpu")
-          .font(.system(size: 13, weight: .semibold))
-          .foregroundStyle(isYou ? ChessChrome.accentGreen : ChessChrome.textSecondary)
+          .font(.system(.footnote).weight(.semibold))
+          .foregroundStyle(isYou ? Palette.sage : Palette.textSecondary)
       }
       .frame(width: 30, height: 30)
       VStack(alignment: .leading, spacing: 3) {
         HStack(spacing: 6) {
           Text(who.uppercased())
-            .font(.system(size: 11, weight: .heavy, design: .rounded)).tracking(0.8)
-            .foregroundStyle(ChessChrome.textSecondary)
+            .font(.system(.caption2).weight(.heavy)).tracking(0.8)
+            .foregroundStyle(Palette.textSecondary)
           Text(san)
-            .font(.system(size: 13, weight: .bold, design: .rounded))
-            .foregroundStyle(ChessChrome.textPrimary)
+            .font(.system(.footnote).weight(.bold))
+            .foregroundStyle(Palette.textPrimary)
             .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(Capsule().fill(isYou ? ChessChrome.accentGreen.opacity(0.35) : Color.primary.opacity(0.14)))
+            .background(Capsule().fill(isYou ? Palette.sage.opacity(0.35) : Color.primary.opacity(0.14)))
         }
         Text(Self.body(text, san: san))
-          .font(.system(size: compact ? 14 : 15, weight: .medium, design: .rounded))
-          .foregroundStyle(ChessChrome.textPrimary.opacity(0.92))
+          .font((compact ? Font.callout : Font.subheadline).weight(.medium))
+          .foregroundStyle(Palette.textPrimary.opacity(0.92))
           .lineSpacing(2)
           .fixedSize(horizontal: false, vertical: true)
       }
@@ -62,34 +62,34 @@ struct CoachLineBubble: View {
   var body: some View {
     HStack(alignment: .center, spacing: 12) {
       Text("♞")
-        .font(.system(size: 22, design: .serif))
-        .foregroundStyle(ChessChrome.background)
+        .font(.system(.title2, design: .serif))
+        .foregroundStyle(Palette.surfaceBase)
         .frame(width: 38, height: 38)
-        .background(Circle().fill(ChessChrome.accentGreen))
-        .shadow(color: ChessChrome.accentGreen.opacity(speaking ? 0.7 : 0), radius: speaking ? 8 : 0)
+        .background(Circle().fill(Palette.sage))
+        .shadow(color: Palette.sage.opacity(speaking ? 0.7 : 0), radius: speaking ? 8 : 0)
         .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: speaking)
       VStack(alignment: .leading, spacing: 2) {
         Text("COACH")
-          .font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1)
-          .foregroundStyle(ChessChrome.accentGreen)
+          .font(.system(.caption2).weight(.heavy)).tracking(1)
+          .foregroundStyle(Palette.sage)
         if let headline {
           Text(headline)
-            .font(.system(size: 13, weight: .bold, design: .rounded))
-            .foregroundStyle(ChessChrome.textSecondary)
+            .font(.system(.footnote).weight(.bold))
+            .foregroundStyle(Palette.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
         }
         Text(text)
-          .font(.system(size: 16, weight: .semibold, design: .serif))
+          .font(.system(.body, design: .serif).weight(.semibold))
           .italic()
-          .foregroundStyle(ChessChrome.textPrimary)
+          .foregroundStyle(Palette.textPrimary)
           .fixedSize(horizontal: false, vertical: true)
       }
       Spacer(minLength: 0)
       if let onReplay {
         Button(action: onReplay) {
           Image(systemName: "speaker.wave.2.fill")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(ChessChrome.textSecondary)
+            .font(.system(.subheadline).weight(.semibold))
+            .foregroundStyle(Palette.textSecondary)
             .frame(width: 40, height: 40)
         }
         .accessibilityLabel("Say it again")
@@ -98,8 +98,8 @@ struct CoachLineBubble: View {
     .padding(.leading, 12).padding(.trailing, 4).padding(.vertical, 10)
     .background(
       RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .fill(ChessChrome.card)
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(ChessChrome.accentGreen.opacity(0.45), lineWidth: 1)))
+        .fill(Palette.surfaceRaised)
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Palette.sage.opacity(0.45), lineWidth: 1)))
     .padding(.horizontal, Spacing.m)
     .padding(.top, Spacing.xs)
     .accessibilityIdentifier("coach-bubble")

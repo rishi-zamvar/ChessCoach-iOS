@@ -2,23 +2,13 @@ import ChessCoachKit
 import SwiftUI
 import UIKit
 
-/// Root tab container. Each tab renders its own `BackgroundAtmosphere` so it
-/// draws under the tab bar correctly.
+/// Root tab container. Each tab renders its own `BackgroundAtmosphere`; the tab bar is the
+/// system's (Liquid Glass on iOS 26), never a custom background.
 struct RootView: View {
     @State private var tab: Tab = .today
     @Environment(TrainingService.self) private var training
 
     enum Tab: Hashable { case today, analyze, train, play }
-
-    init() {
-        // Paper tab bar — opaque cream so atmosphere doesn't leak through.
-        let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(Palette.paper)
-        appearance.shadowColor = UIColor(Palette.border)
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
-    }
 
     var body: some View {
         TabView(selection: $tab) {
@@ -35,7 +25,7 @@ struct RootView: View {
                 .tabItem { Label("Play", systemImage: "play.circle") }
                 .tag(Tab.play)
         }
-        .tint(Palette.primaryDeep)
+        .tint(Palette.sage)
         .fullScreenCover(isPresented: Binding(get: { training.needsOnboarding }, set: { _ in })) {
             OnboardingView()
         }

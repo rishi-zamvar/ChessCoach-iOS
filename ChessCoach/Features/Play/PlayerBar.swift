@@ -21,15 +21,15 @@ struct PlayerBar: View {
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 4) {
           Text(name)
-            .font(.system(size: 15, weight: .semibold, design: .rounded))
-            .foregroundStyle(ChessChrome.textPrimary)
+            .font(.system(.subheadline).weight(.semibold))
+            .foregroundStyle(Palette.textPrimary)
           if let rating {
             Text("(" + String(rating) + ")")
-              .font(.system(size: 14, weight: .regular, design: .rounded))
-              .foregroundStyle(ChessChrome.textSecondary)
+              .font(.system(.callout))
+              .foregroundStyle(Palette.textSecondary)
           }
           if thinking {
-            ProgressView().controlSize(.mini).tint(ChessChrome.textSecondary)
+            ProgressView().controlSize(.mini).tint(Palette.textSecondary)
           }
         }
         CapturedRow(captured: captured, advantage: advantage, pieceSet: pieceSet)
@@ -37,7 +37,7 @@ struct PlayerBar: View {
       Spacer(minLength: 0)
       if let clock {
         Text(clock)
-          .font(.system(size: 20, weight: .semibold, design: .monospaced))
+          .font(.system(.title3, design: .monospaced).weight(.semibold))
           .foregroundStyle(clockForeground)
           .padding(.horizontal, Spacing.m)
           .frame(minWidth: 96, minHeight: 40, alignment: .trailing)
@@ -51,22 +51,22 @@ struct PlayerBar: View {
 
   private var clockForeground: Color {
     if lowTime && clockActive { return .white }
-    return clockActive ? ChessChrome.clockActiveText : ChessChrome.clockIdleText
+    return clockActive ? Palette.clockActiveText : Palette.clockIdleText
   }
 
   private var clockBackground: Color {
-    if lowTime && clockActive { return ChessChrome.lowTime }
-    return clockActive ? ChessChrome.clockActiveBG : ChessChrome.clockIdleBG
+    if lowTime && clockActive { return Palette.danger }
+    return clockActive ? Palette.clockActiveBG : Palette.clockIdleBG
   }
 
   private var avatar: some View {
     ZStack {
       RoundedRectangle(cornerRadius: 4)
-        .fill(ChessChrome.card)
+        .fill(Palette.surfaceRaised)
       if name == "You" {
         Image(systemName: "person.fill")
-          .font(.system(size: 20))
-          .foregroundStyle(ChessChrome.textSecondary)
+          .font(.system(.title3))
+          .foregroundStyle(Palette.textSecondary)
       } else {
         Image(pieceSet.assetName(color: color, kind: .knight))
           .resizable()
@@ -101,8 +101,8 @@ private struct CapturedRow: View {
       }
       if advantage > 0 {
         Text("+\(advantage)")
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
-          .foregroundStyle(ChessChrome.textSecondary)
+          .font(.system(.caption).weight(.semibold))
+          .foregroundStyle(Palette.textSecondary)
       }
     }
     .frame(height: 16)

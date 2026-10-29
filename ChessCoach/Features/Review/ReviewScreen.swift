@@ -21,17 +21,17 @@ struct ReviewScreen: View {
       if let controller {
         if analysisService.progress?.gameID == game.id {
           ProgressView(value: analysisService.progress?.fraction ?? 0) {
-            Text(env.server.isOnline ? "Deep analysis on your home PC…" : "Deep analysis…").font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+            Text(env.server.isOnline ? "Deep analysis on your home PC…" : "Deep analysis…").font(.system(.caption)).foregroundStyle(Palette.textSecondary)
           }
-          .tint(ChessChrome.accentGreen)
+          .tint(Palette.sage)
           .padding(.horizontal, Spacing.m)
         } else if env.server.canDeepAnalyze, !controller.analysis.engine.contains("pc") {
           Button {
             Task { await deepen() }
           } label: {
             Label(env.server.isOnline ? "Deeper analysis on your home PC" : "Deeper analysis", systemImage: env.server.isOnline ? "desktopcomputer" : "cpu")
-              .font(.system(size: 13, weight: .semibold, design: .rounded))
-              .foregroundStyle(ChessChrome.accentGreen)
+              .font(.system(.footnote).weight(.semibold))
+              .foregroundStyle(Palette.sage)
           }
           .padding(.top, Spacing.xs)
           .accessibilityIdentifier("review-deep")
@@ -41,14 +41,13 @@ struct ReviewScreen: View {
           pieceSet: PieceSetID(rawValue: pieceSetRaw) ?? .default)
       } else if let failure {
         Spacer()
-        Text(failure).foregroundStyle(ChessChrome.textSecondary).padding()
+        Text(failure).foregroundStyle(Palette.textSecondary).padding()
         Spacer()
       } else {
         AnalyzingView(progress: analysisService.progress)
       }
     }
-    .background(ChessChrome.background.ignoresSafeArea())
-    .preferredColorScheme(.dark)
+    .background(Palette.surfaceBase.ignoresSafeArea())
     .task { await load() }
     .onAppear { analysisService.beginForegroundEngineUse() }
     .onDisappear { analysisService.endForegroundEngineUse() }
@@ -57,19 +56,19 @@ struct ReviewScreen: View {
   private var header: some View {
     HStack {
       Button { dismiss() } label: {
-        Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44)
+        Image(systemName: "xmark").font(Typography.symbol(16, weight: .semibold)).frame(width: 44, height: 44)
       }
       .accessibilityIdentifier("review-close")
       Spacer()
-      Text("Game Review").font(.system(size: 16, weight: .bold, design: .rounded))
+      Text("Game Review").font(.system(.body).weight(.bold))
       Spacer()
       Button { flipped.toggle() } label: {
-        Image(systemName: "arrow.up.arrow.down").font(.system(size: 15, weight: .semibold)).frame(width: 44, height: 44)
+        Image(systemName: "arrow.up.arrow.down").font(Typography.symbol(15, weight: .semibold)).frame(width: 44, height: 44)
       }
     }
-    .foregroundStyle(ChessChrome.textSecondary)
+    .foregroundStyle(Palette.textSecondary)
     .padding(.horizontal, Spacing.s)
-    .background(ChessChrome.bar)
+    .background(Palette.surfaceRaised)
   }
 
   private func deepen() async {
@@ -104,22 +103,22 @@ private struct AnalyzingView: View {
     VStack(spacing: Spacing.l) {
       Spacer()
       Image(systemName: "sparkle.magnifyingglass")
-        .font(.system(size: 44))
-        .foregroundStyle(ChessChrome.accentGreen)
+        .font(Typography.symbol(44))
+        .foregroundStyle(Palette.sage)
         .symbolEffect(.pulse)
       Text("Analyzing your game…")
-        .font(.system(size: 20, weight: .bold, design: .rounded))
-        .foregroundStyle(ChessChrome.textPrimary)
+        .font(.system(.title3).weight(.bold))
+        .foregroundStyle(Palette.textPrimary)
       if let progress, progress.total > 1 {
         ProgressView(value: progress.fraction)
-          .tint(ChessChrome.accentGreen)
+          .tint(Palette.sage)
           .frame(maxWidth: 240)
         Text(detail(progress))
-          .font(.system(size: 13, design: .rounded))
-          .foregroundStyle(ChessChrome.textSecondary)
+          .font(.system(.footnote))
+          .foregroundStyle(Palette.textSecondary)
           .monospacedDigit()
       } else {
-        ProgressView().tint(ChessChrome.textSecondary)
+        ProgressView().tint(Palette.textSecondary)
       }
       Spacer()
     }
@@ -209,16 +208,16 @@ private struct ReviewContent: View {
           if let note = repertoireNote {
             HStack(alignment: .top, spacing: Spacing.s) {
               Image(systemName: "book.closed").foregroundStyle(MoveClass.book.color)
-              Text(note.text).font(.system(size: 14, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+              Text(note.text).font(.system(.callout).weight(.medium)).foregroundStyle(Palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
               Spacer(minLength: 0)
               if let ply = note.ply {
                 Button("Show") { controller.goTo(ply: ply) }
-                  .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.accentGreen)
+                  .font(.system(.footnote).weight(.bold)).foregroundStyle(Palette.sage)
               }
             }
             .padding(Spacing.m)
-            .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.bar))
+            .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
             .accessibilityIdentifier("repertoire-note")
           }
           SummaryCard(analysis: controller.analysis)
@@ -309,8 +308,8 @@ private struct ReviewContent: View {
     let seen = repeats(type)
     VStack(alignment: .leading, spacing: Spacing.s) {
       insightRow("Your move", insight.played, color: MoveClass.mistake.color)
-      insightRow("Why the better move is better", insight.better, color: ChessChrome.accentGreen)
-      insightRow("Why you missed it", insight.habit, color: ChessChrome.textSecondary)
+      insightRow("Why the better move is better", insight.better, color: Palette.success)
+      insightRow("Why you missed it", insight.habit, color: Palette.textSecondary)
       HStack(spacing: Spacing.s) {
         lineButton("Your line", better: false).accessibilityIdentifier("review-line-yours")
         lineButton("Better line", better: true).accessibilityIdentifier("review-line-better")
@@ -321,14 +320,14 @@ private struct ReviewContent: View {
             title: type.displayName, tasks: training.patternTasks(key: AnalysisStore.typeKey(type)))
         } label: {
           Label("\(type.displayName): \(seen.count) times in \(seen.games) games. Practice them", systemImage: "repeat")
-            .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.accentGreen)
+            .font(.system(.footnote).weight(.bold)).foregroundStyle(Palette.sage)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("review-practice-pattern")
       }
     }
     .padding(Spacing.m)
-    .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.bar))
+    .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
     // .contain keeps the buttons' own identifiers.
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("review-insight")
@@ -336,8 +335,8 @@ private struct ReviewContent: View {
 
   private func insightRow(_ title: String, _ text: String, color: Color) -> some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text(title.uppercased()).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundStyle(color)
-      Text(text).font(.system(size: 14, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+      Text(title.uppercased()).font(.system(.caption2).weight(.bold)).foregroundStyle(color)
+      Text(text).font(.system(.callout)).foregroundStyle(Palette.textPrimary)
         .fixedSize(horizontal: false, vertical: true)
     }
   }
@@ -345,10 +344,10 @@ private struct ReviewContent: View {
   private func lineButton(_ title: String, better: Bool) -> some View {
     Button { controller.playLine(better: better) } label: {
       Label(title, systemImage: "play.fill")
-        .font(.system(size: 13, weight: .bold, design: .rounded))
-        .foregroundStyle(better ? ChessChrome.accentGreen : MoveClass.mistake.color)
+        .font(.system(.footnote).weight(.bold))
+        .foregroundStyle(better ? Palette.success : MoveClass.mistake.color)
         .frame(maxWidth: .infinity).padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 8).stroke(better ? ChessChrome.accentGreen : MoveClass.mistake.color))
+        .background(RoundedRectangle(cornerRadius: 8).stroke(better ? Palette.success : MoveClass.mistake.color))
     }
   }
 
@@ -363,73 +362,55 @@ private struct ReviewContent: View {
   private var controls: some View {
     HStack(spacing: Spacing.s) {
       if controller.retryState == nil, env.aiSettings.hasKey {
-        ControlButton(title: "", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
+        ActionButton(title: "", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
           .frame(maxWidth: 56)
           .accessibilityIdentifier("review-ask")
       }
       if let line = controller.line {
-        ControlButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endLine() }
+        ActionButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endLine() }
           .accessibilityIdentifier("review-line-end")
-        ControlButton(title: "", systemImage: "chevron.left") { controller.lineBack() }
+        ActionButton(title: "", systemImage: "chevron.left") { controller.lineBack() }
           .frame(maxWidth: 56).disabled(line.step == 0)
-        ControlButton(title: line.step == 0 ? "Play" : "Next move", systemImage: "play.fill", prominent: true) { controller.lineForward() }
+        ActionButton(title: line.step == 0 ? "Play" : "Next move", systemImage: "play.fill", prominent: true) { controller.lineForward() }
           .disabled(line.step >= line.moves.count)
           .accessibilityIdentifier("review-line-forward")
       } else if let retry = controller.retryState {
-        ControlButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endRetry() }
+        ActionButton(title: "Back", systemImage: "arrow.uturn.backward") { controller.endRetry() }
         if !retry.solved && !retry.revealed {
-          ControlButton(title: "Hint", systemImage: "lightbulb") { controller.hint() }
-          ControlButton(title: "Show", systemImage: "eye") { controller.reveal() }
+          ActionButton(title: "Hint", systemImage: "lightbulb") { controller.hint() }
+          ActionButton(title: "Show", systemImage: "eye") { controller.reveal() }
         } else {
-          ControlButton(title: "Next", systemImage: "forward.fill", prominent: true) {
+          ActionButton(title: "Next", systemImage: "forward.fill", prominent: true) {
             controller.endRetry()
             controller.nextMoment()
           }
         }
       } else if controller.ply == 0 {
-        ControlButton(title: "Start Review", systemImage: "play.fill", prominent: true) { controller.startReview() }
+        ActionButton(title: "Start Review", systemImage: "play.fill", prominent: true) { controller.startReview() }
           .accessibilityIdentifier("review-start")
       } else {
-        ControlButton(title: "", systemImage: "chevron.left") { controller.stepBack() }
+        ActionButton(title: "", systemImage: "chevron.left") { controller.stepBack() }
           .frame(maxWidth: 56)
         if controller.canRetry {
-          ControlButton(title: "Retry", systemImage: "arrow.counterclockwise", prominent: true) { controller.retry() }
+          ActionButton(title: "Retry", systemImage: "arrow.counterclockwise", prominent: true) { controller.retry() }
             .accessibilityIdentifier("review-retry")
           if userInsight == nil {
-            ControlButton(title: "Next Moment", systemImage: "forward.fill") { controller.nextMoment() }
+            ActionButton(title: "Next Moment", systemImage: "forward.fill") { controller.nextMoment() }
           }
         } else {
-          ControlButton(title: "Next Moment", systemImage: "forward.fill", prominent: true) { controller.nextMoment() }
+          ActionButton(title: "Next Moment", systemImage: "forward.fill", prominent: true) { controller.nextMoment() }
             .accessibilityIdentifier("review-next")
         }
-        ControlButton(title: "", systemImage: "chevron.right") { controller.stepForward() }
+        ActionButton(title: "", systemImage: "chevron.right") { controller.stepForward() }
           .frame(maxWidth: 56)
       }
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
-    .background(ChessChrome.bar)
+    .background(Palette.surfaceRaised)
   }
 }
 
-private struct ControlButton: View {
-  let title: String
-  let systemImage: String
-  var prominent = false
-  let action: () -> Void
-
-  var body: some View {
-    Button(action: action) {
-      HStack(spacing: 6) {
-        Image(systemName: systemImage).font(.system(size: 15, weight: .bold))
-        if !title.isEmpty { Text(title).font(.system(size: 15, weight: .bold, design: .rounded)) }
-      }
-      .frame(maxWidth: .infinity, minHeight: 46)
-      .foregroundStyle(prominent ? .white : ChessChrome.textPrimary)
-      .background(RoundedRectangle(cornerRadius: 10).fill(prominent ? ChessChrome.accentGreen : ChessChrome.card))
-    }
-  }
-}
 
 /// Coach avatar + speech bubble; tinted by the move's label.
 private struct CoachBubble: View {
@@ -439,32 +420,32 @@ private struct CoachBubble: View {
   var body: some View {
     HStack(alignment: .top, spacing: Spacing.s) {
       ZStack {
-        Circle().fill(ChessChrome.card)
-        Text("♞").font(.system(size: 26, design: .serif)).foregroundStyle(ChessChrome.accentGreen)
+        Circle().fill(Palette.surfaceRaised)
+        Text("♞").font(Typography.symbol(26, design: .serif)).foregroundStyle(Palette.sage)
       }
       .frame(width: 44, height: 44)
       VStack(alignment: .leading, spacing: 4) {
         if let move {
           HStack(spacing: 6) {
             Text(move.label.glyph)
-              .font(.system(size: 11, weight: .heavy, design: .rounded))
+              .font(.system(.caption2).weight(.heavy))
               .foregroundStyle(.white)
               .frame(width: 22, height: 22)
               .background(Circle().fill(move.label.color))
             Text(headline(move))
-              .font(.system(size: 15, weight: .bold, design: .rounded))
+              .font(.system(.subheadline).weight(.bold))
               .foregroundStyle(move.label.color)
           }
         }
         Text(text)
-          .font(.system(size: 14, weight: .medium, design: .rounded))
-          .foregroundStyle(ChessChrome.textPrimary)
+          .font(.system(.callout).weight(.medium))
+          .foregroundStyle(Palette.textPrimary)
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("coach-text")
       }
       .padding(Spacing.m)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .background(RoundedRectangle(cornerRadius: 12).fill(ChessChrome.card))
+      .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
     }
     .frame(minHeight: 72, alignment: .top)
   }
@@ -497,10 +478,11 @@ struct EvalBar: View {
     GeometryReader { proxy in
       let whiteHeight = proxy.size.height * whiteWin / 100
       ZStack(alignment: flipped ? .top : .bottom) {
-        Color(hex: 0x403D39)
-        Rectangle().fill(Color.white).frame(height: whiteHeight)
+        Palette.evalBlack
+        Rectangle().fill(Palette.evalWhite).frame(height: whiteHeight)
+        Rectangle().fill(Palette.separatorStrong).frame(height: 0.5).frame(maxHeight: .infinity)
       }
-      .animation(.easeOut(duration: 0.25), value: whiteWin)
+      .animation(.easeOut(duration: 0.3), value: whiteWin)
     }
     .accessibilityLabel("Evaluation")
   }
@@ -520,7 +502,7 @@ struct EvalGraph: View {
       let h = proxy.size.height
       let step = whiteWin.count > 1 ? w / CGFloat(whiteWin.count - 1) : w
       ZStack(alignment: .topLeading) {
-        Color(hex: 0x403D39)
+        Palette.evalBlack
         Path { p in
           p.move(to: CGPoint(x: 0, y: h))
           for (i, v) in whiteWin.enumerated() {
@@ -529,12 +511,12 @@ struct EvalGraph: View {
           p.addLine(to: CGPoint(x: w, y: h))
           p.closeSubpath()
         }
-        .fill(Color.white.opacity(0.92))
+        .fill(Palette.evalWhite)
         Path { p in
           p.move(to: CGPoint(x: 0, y: h / 2))
           p.addLine(to: CGPoint(x: w, y: h / 2))
         }
-        .stroke(Color.gray.opacity(0.5), lineWidth: 0.5)
+        .stroke(Palette.separatorStrong, lineWidth: 0.5)
         ForEach(moments, id: \.self) { ply in
           if ply < whiteWin.count, ply - 1 < moves.count {
             Circle()
@@ -544,7 +526,7 @@ struct EvalGraph: View {
           }
         }
         Rectangle()
-          .fill(ChessChrome.accentGreen)
+          .fill(Palette.sage)
           .frame(width: 2, height: h)
           .position(x: CGFloat(current) * step, y: h / 2)
       }
@@ -585,7 +567,7 @@ private struct ReviewMoveList: View {
         let white = row.white
         let black = row.black
         HStack(spacing: Spacing.s) {
-          Text("\(row.id).").font(.system(size: 13, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+          Text("\(row.id).").font(.system(.footnote)).foregroundStyle(Palette.textSecondary)
             .frame(width: 30, alignment: .leading)
           cell(white)
           if let black { cell(black) } else { Spacer().frame(maxWidth: .infinity) }
@@ -593,7 +575,7 @@ private struct ReviewMoveList: View {
       }
     }
     .padding(Spacing.s)
-    .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.bar))
+    .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
   }
 
   private func cell(_ move: MoveAnalysis) -> some View {
@@ -602,8 +584,8 @@ private struct ReviewMoveList: View {
         Circle().fill(move.label.color).frame(width: 8, height: 8)
           .opacity(move.label == .good || move.label == .excellent || move.label == .best ? 0.5 : 1)
         Text(move.san)
-          .font(.system(size: 14, weight: move.ply == current ? .bold : .medium, design: .rounded))
-          .foregroundStyle(move.ply == current ? ChessChrome.textPrimary : ChessChrome.textSecondary)
+          .font(Typography.moveSAN.weight(move.ply == current ? .bold : .medium))
+          .foregroundStyle(move.ply == current ? Palette.textPrimary : Palette.textSecondary)
         Spacer(minLength: 0)
       }
       .padding(.horizontal, 6)
@@ -624,12 +606,12 @@ private struct SummaryCard: View {
   var body: some View {
     VStack(spacing: Spacing.m) {
       if let opening = analysis.openingName {
-        Text(opening).font(.system(size: 13, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        Text(opening).font(.system(.footnote).weight(.medium)).foregroundStyle(Palette.textSecondary)
       }
       HStack {
         accuracy("White", analysis.accuracyWhite)
         Spacer()
-        Text("Accuracy").font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        Text("Accuracy").font(.system(.footnote).weight(.semibold)).foregroundStyle(Palette.textSecondary)
         Spacer()
         accuracy("Black", analysis.accuracyBlack)
       }
@@ -640,43 +622,43 @@ private struct SummaryCard: View {
           Text("\(white[label] ?? 0)").frame(width: 40).foregroundStyle(label.color)
           Spacer()
           HStack(spacing: 6) {
-            Text(label.glyph).font(.system(size: 10, weight: .heavy, design: .rounded)).foregroundStyle(.white)
+            Text(label.glyph).font(.system(.caption2).weight(.heavy)).foregroundStyle(.white)
               .frame(width: 20, height: 20).background(Circle().fill(label.color))
-            Text(label.displayName).foregroundStyle(ChessChrome.textPrimary)
+            Text(label.displayName).foregroundStyle(Palette.textPrimary)
           }
           Spacer()
           Text("\(black[label] ?? 0)").frame(width: 40).foregroundStyle(label.color)
         }
-        .font(.system(size: 14, weight: .semibold, design: .rounded))
+        .font(.system(.callout).weight(.semibold))
       }
-      Divider().background(ChessChrome.card)
+      Divider().background(Palette.surfaceRaised)
       ForEach([GamePhaseKind.opening, .middlegame, .endgame], id: \.self) { phase in
         HStack {
           grade(analysis.phaseAccuracy(phase, color: "white"))
           Spacer()
-          Text(phase.rawValue.capitalized).font(.system(size: 13, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+          Text(phase.rawValue.capitalized).font(.system(.footnote).weight(.medium)).foregroundStyle(Palette.textSecondary)
           Spacer()
           grade(analysis.phaseAccuracy(phase, color: "black"))
         }
       }
     }
     .padding(Spacing.l)
-    .background(RoundedRectangle(cornerRadius: 12).fill(ChessChrome.bar))
+    .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
   }
 
   private func accuracy(_ side: String, _ value: Double?) -> some View {
     VStack(spacing: 2) {
       Text(value.map { String(format: "%.1f", $0) } ?? "–")
-        .font(.system(size: 22, weight: .heavy, design: .rounded))
-        .foregroundStyle(ChessChrome.textPrimary)
-      Text(side).font(.system(size: 11, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        .font(.system(.title2).weight(.heavy))
+        .foregroundStyle(Palette.textPrimary)
+      Text(side).font(.system(.caption2)).foregroundStyle(Palette.textSecondary)
     }
     .frame(width: 72)
   }
 
   private func grade(_ accuracy: Double?) -> some View {
     let (symbol, color): (String, Color) = {
-      guard let a = accuracy else { return ("–", ChessChrome.textSecondary) }
+      guard let a = accuracy else { return ("–", Palette.textSecondary) }
       switch a {
       case 85...: return ("★", MoveClass.best.color)
       case 70..<85: return ("👍", MoveClass.excellent.color)
@@ -684,27 +666,27 @@ private struct SummaryCard: View {
       default: return ("??", MoveClass.blunder.color)
       }
     }()
-    return Text(symbol).font(.system(size: 14, weight: .bold)).foregroundStyle(color).frame(width: 72)
+    return Text(symbol).font(.system(.callout).weight(.bold)).foregroundStyle(color).frame(width: 72)
   }
 }
 
 extension MoveClass {
-  /// Label colors (our own palette, chosen for contrast on the dark chrome).
-  var color: Color {
+  /// The design-system quality (glyph + colour-blind-safe colour) for this label.
+  var quality: MoveQuality {
     switch self {
-    case .brilliant: Color(hex: 0x1BADA6)
-    case .great: Color(hex: 0x5C8BB0)
-    case .best: Color(hex: 0x81B64C)
-    case .excellent: Color(hex: 0x96BC4B)
-    case .good: Color(hex: 0x95B776)
-    case .book: Color(hex: 0xA88764)
-    case .forced: Color(hex: 0x95B776)
-    case .inaccuracy: Color(hex: 0xF0C15C)
-    case .mistake: Color(hex: 0xE69F42)
-    case .miss: Color(hex: 0xEE6B55)
-    case .blunder: Color(hex: 0xCA3431)
+    case .brilliant: .brilliant
+    case .great: .great
+    case .best: .best
+    case .excellent, .good, .forced: .good
+    case .book: .book
+    case .inaccuracy: .inaccuracy
+    case .mistake: .mistake
+    case .miss: .miss
+    case .blunder: .blunder
     }
   }
+
+  var color: Color { quality.color }
 }
 
 extension Array {

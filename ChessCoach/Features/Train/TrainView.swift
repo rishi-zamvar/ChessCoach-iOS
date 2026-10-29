@@ -40,7 +40,7 @@ struct TrainView: View {
           Button { showRush = true } label: {
             Card {
               HStack(spacing: Spacing.m) {
-                Image(systemName: "bolt.fill").font(.system(size: 22)).foregroundStyle(Palette.accentDeep)
+                Image(systemName: "bolt.fill").font(Typography.symbol(22)).foregroundStyle(Palette.accentDeep)
                 VStack(alignment: .leading, spacing: 2) {
                   Text("Puzzle Rush").font(Typography.titleSmall).foregroundStyle(Palette.ink)
                   Text("3 minutes, 3 strikes. Best: \(UserDefaults.standard.integer(forKey: PuzzleRushView.bestKey))")
@@ -67,7 +67,7 @@ struct TrainView: View {
           Button { showOpenings = true } label: {
             Card {
               HStack(spacing: Spacing.m) {
-                Image(systemName: "book.closed").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
+                Image(systemName: "book.closed").font(Typography.symbol(22, weight: .light)).foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
                   Text("Your repertoire").font(Typography.titleSmall).foregroundStyle(Palette.ink)
                   Text("Learn and drill the openings for your style.").font(Typography.callout).foregroundStyle(Palette.textSecondary)
@@ -86,7 +86,7 @@ struct TrainView: View {
           } label: {
             Card {
               HStack(spacing: Spacing.m) {
-                Image(systemName: "person.wave.2").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
+                Image(systemName: "person.wave.2").font(Typography.symbol(22, weight: .light)).foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
                   Text("Play with the coach").font(Typography.titleSmall).foregroundStyle(Palette.ink)
                   Text("A game that trains \(env.coachFocus.title.lowercased()). The coach says \"Hold up\" before a mistake costs you.")
@@ -160,11 +160,11 @@ private struct SkillTile: View {
     Button(action: { Haptics.light(); action() }) {
       VStack(alignment: .leading, spacing: Spacing.s) {
         HStack {
-          Image(systemName: skill.systemImage).font(.system(size: 18)).foregroundStyle(Palette.primaryDeep)
+          Image(systemName: skill.systemImage).font(Typography.symbol(18)).foregroundStyle(Palette.primaryDeep)
           Spacer()
           if let rating, skill.themes.isEmpty == false {
             Text("\(Int(rating.rating))")
-              .font(.system(size: 13, weight: .semibold, design: .rounded))
+              .font(.system(.footnote).weight(.semibold))
               .foregroundStyle(rating.deviation > 150 ? Palette.textMuted : Palette.ink)
           }
         }
@@ -191,7 +191,7 @@ private struct LessonRow: View {
     Button(action: { Haptics.light(); action() }) {
       HStack(spacing: Spacing.m) {
         Image(systemName: progress?.passed == true ? "checkmark.circle.fill" : "book")
-          .font(.system(size: 18))
+          .font(.system(.title3))
           .foregroundStyle(progress?.passed == true ? Palette.success : Palette.primaryDeep)
           .frame(width: 28)
         VStack(alignment: .leading, spacing: 2) {
@@ -200,7 +200,7 @@ private struct LessonRow: View {
             .font(Typography.caption).foregroundStyle(Palette.textSecondary)
         }
         Spacer()
-        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.textMuted)
+        Image(systemName: "chevron.right").font(Typography.symbol(13, weight: .semibold)).foregroundStyle(Palette.textMuted)
       }
       .padding(Spacing.m)
       .background(Palette.paper)

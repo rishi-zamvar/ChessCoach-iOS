@@ -139,7 +139,7 @@ private struct OpponentCard<Accessory: View>: View {
     Button(action: { Haptics.selection(); action() }) {
       HStack(alignment: .top, spacing: Spacing.l) {
         Image(systemName: systemImage)
-          .font(.system(size: 20, weight: .medium))
+          .font(.system(.title3).weight(.medium))
           .frame(width: 44, height: 44)
           .background(Circle().fill(selected ? Palette.primary : Palette.surfaceAlt))
           .foregroundStyle(selected ? Palette.textOnDark : Palette.primaryDeep)

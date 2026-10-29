@@ -27,25 +27,25 @@ struct PuzzleRushView: View {
       let left = max(0, Self.duration - context.date.timeIntervalSince(startedAt))
       VStack(spacing: 0) {
         HStack {
-          Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44) }
+          Button { dismiss() } label: { Image(systemName: "xmark").font(Typography.symbol(16, weight: .semibold)).frame(width: 44, height: 44) }
           Spacer()
           Text(String(format: "%d:%02d", Int(left) / 60, Int(left) % 60))
-            .font(.system(size: 22, weight: .bold, design: .monospaced))
-            .foregroundStyle(left < 20 ? ChessChrome.lowTime : ChessChrome.textPrimary)
+            .font(.system(.title2, design: .monospaced).weight(.bold))
+            .foregroundStyle(left < 20 ? Palette.danger : Palette.textPrimary)
           Spacer()
           HStack(spacing: 4) {
             ForEach(0..<3, id: \.self) { i in
               Image(systemName: i < strikes ? "xmark.circle.fill" : "circle")
-                .foregroundStyle(i < strikes ? ChessChrome.lowTime : ChessChrome.textSecondary)
+                .foregroundStyle(i < strikes ? Palette.danger : Palette.textSecondary)
             }
           }
           .frame(width: 80)
         }
-        .foregroundStyle(ChessChrome.textSecondary)
+        .foregroundStyle(Palette.textSecondary)
         .padding(.horizontal, Spacing.s)
-        .background(ChessChrome.bar)
+        .background(Palette.surfaceRaised)
         Text("Score \(score)")
-          .font(.system(size: 18, weight: .heavy, design: .rounded)).foregroundStyle(ChessChrome.accentGreen)
+          .font(.system(.title3).weight(.heavy)).foregroundStyle(Palette.sage)
           .padding(.vertical, Spacing.xs)
           .accessibilityIdentifier("rush-score")
         if over {
@@ -63,7 +63,7 @@ struct PuzzleRushView: View {
       }
       .onChange(of: left <= 0) { _, timeUp in if timeUp, !over { finish() } }
     }
-    .background(ChessChrome.background.ignoresSafeArea())
+    .background(Palette.surfaceBase.ignoresSafeArea())
     .onAppear {
       startedAt = Date()
       next()
@@ -73,14 +73,14 @@ struct PuzzleRushView: View {
   private var summary: some View {
     VStack(spacing: Spacing.l) {
       Spacer()
-      Image(systemName: "bolt.fill").font(.system(size: 50)).foregroundStyle(ChessChrome.accentGreen)
-      Text("\(score)").font(.system(size: 64, weight: .heavy, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+      Image(systemName: "bolt.fill").font(Typography.symbol(50)).foregroundStyle(Palette.sage)
+      Text("\(score)").font(Typography.symbol(64, weight: .heavy)).foregroundStyle(Palette.textPrimary)
       Text(isNewBest ? "New best!" : "Best: \(best)")
-        .font(.system(size: 17, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        .font(.system(.body).weight(.semibold)).foregroundStyle(Palette.textSecondary)
       Spacer()
       HStack(spacing: Spacing.s) {
-        PuzzleButton(title: "Again", systemImage: "arrow.clockwise", prominent: true) { restart() }
-        PuzzleButton(title: "Done", systemImage: "checkmark") { dismiss() }
+        ActionButton(title: "Again", systemImage: "arrow.clockwise", prominent: true) { restart() }
+        ActionButton(title: "Done", systemImage: "checkmark") { dismiss() }
       }
       .padding(Spacing.m)
     }

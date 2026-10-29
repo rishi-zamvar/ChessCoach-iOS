@@ -13,9 +13,9 @@ struct ResultCard: View {
 
   private var outcome: (title: String, icon: String, tint: Color) {
     switch result.winner {
-    case nil: ("Draw", "equal.circle.fill", ChessChrome.textSecondary)
-    case userColor: ("You Won!", "trophy.fill", ChessChrome.accentGreen)
-    default: ("\(opponentName) Won", "flag.fill", ChessChrome.lowTime)
+    case nil: ("Draw", "equal.circle.fill", Palette.textSecondary)
+    case userColor: ("You Won!", "trophy.fill", Palette.success)
+    default: ("\(opponentName) Won", "flag.fill", Palette.danger)
     }
   }
 
@@ -25,47 +25,30 @@ struct ResultCard: View {
         .onTapGesture(perform: onDone)
       VStack(spacing: Spacing.l) {
         Image(systemName: outcome.icon)
-          .font(.system(size: 40))
+          .font(Typography.symbol(40))
           .foregroundStyle(outcome.tint)
         VStack(spacing: Spacing.xs) {
           Text(outcome.title)
-            .font(.system(size: 28, weight: .bold, design: .rounded))
-            .foregroundStyle(ChessChrome.textPrimary)
+            .font(.system(.title).weight(.bold))
+            .foregroundStyle(Palette.textPrimary)
             .accessibilityIdentifier("result-title")
           Text("by \(result.termination.displayName.lowercased())")
-            .font(.system(size: 15, weight: .medium, design: .rounded))
-            .foregroundStyle(ChessChrome.textSecondary)
+            .font(.system(.subheadline).weight(.medium))
+            .foregroundStyle(Palette.textSecondary)
         }
         VStack(spacing: Spacing.s) {
-          Button(action: onReview) {
-            Label("Game Review", systemImage: "sparkle.magnifyingglass")
-              .font(.system(size: 17, weight: .bold, design: .rounded))
-              .frame(maxWidth: .infinity, minHeight: 50)
-              .foregroundStyle(.white)
-              .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.accentGreen))
-          }
-          .accessibilityIdentifier("result-review")
-          Button(action: onNewGame) {
-            Text("New Game")
-              .font(.system(size: 16, weight: .semibold, design: .rounded))
-              .frame(maxWidth: .infinity, minHeight: 46)
-              .foregroundStyle(ChessChrome.textPrimary)
-              .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
-          }
-          .accessibilityIdentifier("result-new-game")
-          Button(action: onDone) {
-            Text("View Board")
-              .font(.system(size: 16, weight: .semibold, design: .rounded))
-              .frame(maxWidth: .infinity, minHeight: 46)
-              .foregroundStyle(ChessChrome.textPrimary)
-              .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
-          }
+          ActionButton(title: "Game Review", systemImage: "sparkle.magnifyingglass", prominent: true, action: onReview)
+            .accessibilityIdentifier("result-review")
+          ActionButton(title: "New Game", action: onNewGame)
+            .accessibilityIdentifier("result-new-game")
+          ActionButton(title: "View Board", action: onDone)
         }
       }
       .padding(Spacing.xl)
       .frame(maxWidth: 320)
-      .background(RoundedRectangle(cornerRadius: 16).fill(ChessChrome.bar))
-      .shadow(color: .black.opacity(0.4), radius: 24, y: 10)
+      .background(RoundedRectangle(cornerRadius: Spacing.cornerLarge, style: .continuous).fill(Palette.surfaceRaised))
+      .overlay(RoundedRectangle(cornerRadius: Spacing.cornerLarge, style: .continuous).stroke(Palette.border, lineWidth: 0.75))
+      .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
     }
   }
 }

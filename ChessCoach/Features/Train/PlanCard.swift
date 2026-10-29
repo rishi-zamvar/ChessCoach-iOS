@@ -59,7 +59,7 @@ private struct PlanRow: View {
     Button(action: action) {
       HStack(alignment: .top, spacing: Spacing.m) {
         Image(systemName: done ? "checkmark.circle.fill" : icon)
-          .font(.system(size: 20))
+          .font(.system(.title3))
           .foregroundStyle(done ? Palette.success : Palette.primaryDeep)
           .frame(width: 30)
         VStack(alignment: .leading, spacing: 3) {

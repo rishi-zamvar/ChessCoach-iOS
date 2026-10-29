@@ -113,7 +113,7 @@ struct AnalyzeView: View {
             .font(Typography.titleSmall)
             .foregroundStyle(analysis.username.isEmpty ? Palette.primaryDeep : Palette.ink)
           Image(systemName: "pencil")
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(.footnote).weight(.semibold))
             .foregroundStyle(Palette.textMuted)
         }
       }

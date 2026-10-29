@@ -15,14 +15,14 @@ struct MoveStrip: View {
             let ply = index + 1
             if index.isMultiple(of: 2) {
               Text("\(index / 2 + 1).")
-                .font(.system(size: 14, weight: .regular, design: .rounded))
-                .foregroundStyle(ChessChrome.textSecondary.opacity(0.7))
+                .font(.system(.callout))
+                .foregroundStyle(Palette.textSecondary.opacity(0.7))
                 .padding(.leading, index == 0 ? 0 : 6)
             }
             Button { onSelect(ply) } label: {
               Text(played.san)
-                .font(.system(size: 14, weight: ply == currentPly ? .bold : .medium, design: .rounded))
-                .foregroundStyle(ply == currentPly ? ChessChrome.textPrimary : ChessChrome.textSecondary)
+                .font(Typography.moveSAN.weight(ply == currentPly ? .bold : .medium))
+                .foregroundStyle(ply == currentPly ? Palette.textPrimary : Palette.textSecondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .background(
@@ -34,8 +34,8 @@ struct MoveStrip: View {
           }
           if history.isEmpty {
             Text("Make your move")
-              .font(.system(size: 14, weight: .medium, design: .rounded))
-              .foregroundStyle(ChessChrome.textSecondary.opacity(0.7))
+              .font(.system(.callout).weight(.medium))
+              .foregroundStyle(Palette.textSecondary.opacity(0.7))
           }
         }
         .padding(.horizontal, Spacing.m)
@@ -46,6 +46,6 @@ struct MoveStrip: View {
         withAnimation(.easeOut(duration: 0.2)) { reader.scrollTo(ply, anchor: .center) }
       }
     }
-    .background(ChessChrome.bar.opacity(0.6))
+    .background(Palette.surfaceRaised.opacity(0.6))
   }
 }

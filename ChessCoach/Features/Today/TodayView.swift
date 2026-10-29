@@ -19,7 +19,7 @@ struct TodayView: View {
             Eyebrow(text: "Today · \(Date.now.formatted(.dateTime.month(.abbreviated).day()))")
             Spacer()
             Button { showSettings = true } label: {
-              Image(systemName: "gearshape").font(.system(size: 18)).foregroundStyle(Palette.primaryDeep)
+              Image(systemName: "gearshape").font(Typography.symbol(18)).foregroundStyle(Palette.primaryDeep)
             }
             .accessibilityIdentifier("open-settings")
           }
@@ -73,7 +73,7 @@ struct TodayView: View {
           Card {
             HStack(spacing: Spacing.m) {
               Image(systemName: "play.circle")
-                .font(.system(size: 28, weight: .light))
+                .font(.system(.title).weight(.light))
                 .foregroundStyle(Palette.primaryDeep)
               VStack(alignment: .leading, spacing: 2) {
                 Text("Play a game")

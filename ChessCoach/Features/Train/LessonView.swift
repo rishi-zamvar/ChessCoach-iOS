@@ -46,26 +46,26 @@ struct LessonView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.m) {
           Text(lesson.title)
-            .font(.system(size: 28, weight: .bold, design: .serif))
-            .foregroundStyle(ChessChrome.textPrimary)
+            .font(.system(.title, design: .serif).weight(.bold))
+            .foregroundStyle(Palette.textPrimary)
           Text(lesson.idea)
-            .font(.system(size: 16, weight: .regular, design: .rounded))
-            .foregroundStyle(ChessChrome.textPrimary.opacity(0.92))
+            .font(.system(.body))
+            .foregroundStyle(Palette.textPrimary.opacity(0.92))
             .lineSpacing(4)
           VStack(alignment: .leading, spacing: Spacing.s) {
             ForEach(Array(lesson.keyPoints.enumerated()), id: \.offset) { _, point in
               HStack(alignment: .top, spacing: Spacing.s) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(ChessChrome.accentGreen)
-                Text(point).font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.success)
+                Text(point).font(.system(.subheadline).weight(.medium)).foregroundStyle(Palette.textPrimary)
               }
             }
           }
           .padding(Spacing.m)
-          .background(RoundedRectangle(cornerRadius: 12).fill(ChessChrome.card))
+          .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
         }
         .padding(Spacing.l)
       }
-      PuzzleButton(title: "See it in action", systemImage: "play.fill", prominent: true) { startWorked() }
+      ActionButton(title: "See it in action", systemImage: "play.fill", prominent: true) { startWorked() }
         .accessibilityIdentifier("lesson-next")
         .padding(Spacing.m)
     }
@@ -90,10 +90,10 @@ struct LessonView: View {
         StepButton(systemImage: "chevron.left", enabled: workedStep > 0) { unstepWorked() }
           .accessibilityIdentifier("lesson-back")
         if workedStep < ex.moves.count {
-          PuzzleButton(title: workedStep == 0 ? "Play" : "Next move", systemImage: "forward.fill", prominent: true) { stepWorked() }
+          ActionButton(title: workedStep == 0 ? "Play" : "Next move", systemImage: "forward.fill", prominent: true) { stepWorked() }
             .accessibilityIdentifier("lesson-step")
         } else {
-          PuzzleButton(title: "Your turn", systemImage: "hand.point.up.left.fill", prominent: true) { stage = .faded }
+          ActionButton(title: "Your turn", systemImage: "hand.point.up.left.fill", prominent: true) { stage = .faded }
             .accessibilityIdentifier("lesson-next")
         }
       }
@@ -174,7 +174,7 @@ struct LessonView: View {
       if practiceIndex < practice.count {
         VStack(spacing: 0) {
           Text("Practice \(practiceIndex + 1) of \(practice.count)")
-            .font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+            .font(.system(.footnote).weight(.semibold)).foregroundStyle(Palette.textSecondary)
             .padding(.top, Spacing.xs)
           PuzzleView(puzzle: practice[practiceIndex]) { outcome in
             if outcome.solvedCleanly { practiceCorrect += 1 }
@@ -217,25 +217,25 @@ struct LessonView: View {
     VStack(spacing: Spacing.l) {
       Spacer()
       Image(systemName: passed ? "star.circle.fill" : "arrow.clockwise.circle.fill")
-        .font(.system(size: 56)).foregroundStyle(passed ? ChessChrome.accentGreen : MoveClass.inaccuracy.color)
+        .font(Typography.symbol(56)).foregroundStyle(passed ? Palette.success : MoveClass.inaccuracy.color)
       Text(passed ? "Lesson mastered" : "Almost there")
-        .font(.system(size: 26, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+        .font(.system(.title).weight(.bold)).foregroundStyle(Palette.textPrimary)
       if practiceTotal == 0 {
         Text("No practice positions were available — try again later.")
-          .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+          .font(.system(.subheadline).weight(.medium)).foregroundStyle(Palette.textSecondary)
       } else {
         Text("\(practiceCorrect) of \(practiceTotal) · need \(lesson.mastery.required) of \(lesson.mastery.of)")
-          .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+          .font(.system(.subheadline).weight(.medium)).foregroundStyle(Palette.textSecondary)
       }
       Text(passed ? "It'll come back in your reviews so it sticks." : "Try again tomorrow — it'll be in your plan.")
-        .font(.system(size: 14, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        .font(.system(.callout)).foregroundStyle(Palette.textSecondary)
       Spacer()
       HStack(spacing: Spacing.s) {
         if !passed, practiceTotal > 0 {
-          PuzzleButton(title: "Practice again", systemImage: "arrow.counterclockwise") { startPractice() }
+          ActionButton(title: "Practice again", systemImage: "arrow.counterclockwise") { startPractice() }
             .accessibilityIdentifier("lesson-retry")
         }
-        PuzzleButton(title: "Continue", systemImage: "checkmark", prominent: true) {
+        ActionButton(title: "Continue", systemImage: "checkmark", prominent: true) {
           onFinished(practiceCorrect, practiceTotal)
         }
         .accessibilityIdentifier("lesson-finish")
@@ -248,13 +248,13 @@ struct LessonView: View {
 
   private func coachLine(_ text: String) -> some View {
     HStack(alignment: .top, spacing: Spacing.s) {
-      Text("♞").font(.system(size: 22, design: .serif)).foregroundStyle(ChessChrome.accentGreen)
-        .frame(width: 36, height: 36).background(Circle().fill(ChessChrome.card))
-      Text(text).font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+      Text("♞").font(Typography.symbol(22, design: .serif)).foregroundStyle(Palette.sage)
+        .frame(width: 36, height: 36).background(Circle().fill(Palette.surfaceRaised))
+      Text(text).font(.system(.subheadline).weight(.medium)).foregroundStyle(Palette.textPrimary)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.m)
-        .background(RoundedRectangle(cornerRadius: 12).fill(ChessChrome.card))
+        .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
         .accessibilityIdentifier("lesson-narration")
     }
     .padding(Spacing.m)

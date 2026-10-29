@@ -13,6 +13,10 @@ public struct BoardTheme: Identifiable, Hashable, Sendable {
   public let selected: UInt32
   public let premove: UInt32
 
+  /// Default (spec W9): calm sage that sits with the app's palette, not chess.com green.
+  public static let sage = BoardTheme(
+    id: "sage", name: "Sage", light: 0xE9EDDF, dark: 0x7D9672,
+    lastMove: 0xE9C46A, lastMoveAlpha: 0.45, selected: 0x2B2523, premove: 0x5A8DC9)
   public static let green = BoardTheme(
     id: "green", name: "Green", light: 0xEEEED2, dark: 0x769656,
     lastMove: 0xFFFF33, lastMoveAlpha: 0.5, selected: 0xFFFF33, premove: 0x5A8DC9)
@@ -26,8 +30,8 @@ public struct BoardTheme: Identifiable, Hashable, Sendable {
     id: "walnut", name: "Walnut", light: 0xE9D4B4, dark: 0x8A6240,
     lastMove: 0xD9C25A, lastMoveAlpha: 0.6, selected: 0xD9C25A, premove: 0x5A8DC9)
 
-  public static let all: [BoardTheme] = [.green, .brown, .blue, .walnut]
-  public static let `default` = green
+  public static let all: [BoardTheme] = [.sage, .green, .brown, .blue, .walnut]
+  public static let `default` = sage
 
   public static func named(_ id: String) -> BoardTheme { all.first { $0.id == id } ?? .default }
 }

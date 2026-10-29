@@ -8,8 +8,6 @@ final class SoundPlayer: SoundSink {
   /// Several players per sound so fast sequences (premove + reply) overlap cleanly.
   private var pools: [SoundEvent: [AVAudioPlayer]] = [:]
   private var next: [SoundEvent: Int] = [:]
-  private let light = UIImpactFeedbackGenerator(style: .light)
-  private let medium = UIImpactFeedbackGenerator(style: .medium)
 
   var isEnabled: Bool {
     UserDefaults.standard.object(forKey: BoardSettings.soundKey) as? Bool ?? true
@@ -26,8 +24,6 @@ final class SoundPlayer: SoundSink {
         return player
       }
     }
-    light.prepare()
-    medium.prepare()
   }
 
   func play(_ event: SoundEvent) {
@@ -40,12 +36,14 @@ final class SoundPlayer: SoundSink {
     player.play()
   }
 
+  // ponytail: the bot's replies buzz too (SoundSink doesn't say whose move it was); add a mover flag if testers find it busy.
   private func haptic(for event: SoundEvent) {
     switch event {
-    case .move, .castle, .premove: light.impactOccurred()
-    case .capture, .check, .promote: medium.impactOccurred()
-    case .illegal: UINotificationFeedbackGenerator().notificationOccurred(.warning)
-    case .gameEnd: UINotificationFeedbackGenerator().notificationOccurred(.success)
+    case .move, .castle, .premove: Haptics.light()
+    case .capture, .promote: Haptics.medium()
+    case .check: Haptics.rigid()
+    case .illegal: Haptics.warning()
+    case .gameEnd: Haptics.success()
     case .gameStart, .lowTime: break
     }
   }

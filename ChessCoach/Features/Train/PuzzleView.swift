@@ -108,23 +108,23 @@ struct PuzzleView: View {
       let color = session?.userColor ?? .white
       RoundedRectangle(cornerRadius: 3)
         .fill(color == .white ? Color.white : Color.black)
-        .overlay(RoundedRectangle(cornerRadius: 3).stroke(ChessChrome.textSecondary, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Palette.textSecondary, lineWidth: 1))
         .frame(width: 18, height: 18)
       VStack(alignment: .leading, spacing: 1) {
         Text(review == nil ? "\(color == .white ? "White" : "Black") to move" : "Review: \(color == .white ? "White" : "Black") to move")
-          .font(.system(size: 16, weight: .bold, design: .rounded))
-          .foregroundStyle(ChessChrome.textPrimary)
+          .font(.system(.body).weight(.bold))
+          .foregroundStyle(Palette.textPrimary)
         Text(subtitle)
-          .font(.system(size: 13, weight: .medium, design: .rounded))
-          .foregroundStyle(ChessChrome.textSecondary)
+          .font(.system(.footnote).weight(.medium))
+          .foregroundStyle(Palette.textSecondary)
       }
       Spacer()
       if review == nil {
         Text("\(puzzle.rating)")
-          .font(.system(size: 14, weight: .semibold, design: .rounded))
-          .foregroundStyle(ChessChrome.textSecondary)
+          .font(.system(.callout).weight(.semibold))
+          .foregroundStyle(Palette.textSecondary)
           .padding(.horizontal, 8).padding(.vertical, 4)
-          .background(Capsule().fill(ChessChrome.card))
+          .background(Capsule().fill(Palette.surfaceRaised))
       }
     }
     .padding(.horizontal, Spacing.m)
@@ -146,19 +146,19 @@ struct PuzzleView: View {
       case .prompt: return ("", "", .clear)
       case .correct:
         let tap = awaitingReply && paceRaw == ReplyPace.step.rawValue
-        return ("checkmark.circle.fill", tap ? "Best move! Tap the board for the reply." : "Best move! Keep going…", ChessChrome.accentGreen)
-      case .wrong(let san): return ("xmark.circle.fill", "\(san) isn't it. Try again.", ChessChrome.lowTime)
+        return ("checkmark.circle.fill", tap ? "Best move! Tap the board for the reply." : "Best move! Keep going…", Palette.success)
+      case .wrong(let san): return ("xmark.circle.fill", "\(san) isn't it. Try again.", Palette.danger)
       case .solved:
         let delta = isRetry ? "" : change.map { $0.delta >= 0 ? " +\($0.delta)" : " \($0.delta)" } ?? ""
-        return ("checkmark.seal.fill", "Solved!\(delta)", ChessChrome.accentGreen)
+        return ("checkmark.seal.fill", "Solved!\(delta)", Palette.success)
       case .revealed:
         let done = viewPly >= shownGame.history.count
         return ("eye.fill", done ? "That's the full solution." : "Solution: tap ▶ to step through it.", MoveClass.inaccuracy.color)
       }
     }()
     HStack(spacing: Spacing.s) {
-      if !icon.isEmpty { Image(systemName: icon).font(.system(size: 20)) }
-      Text(text).font(.system(size: 16, weight: .bold, design: .rounded))
+      if !icon.isEmpty { Image(systemName: icon).font(Typography.symbol(20)) }
+      Text(text).font(.system(.body).weight(.bold))
         .accessibilityIdentifier("puzzle-feedback")
       Spacer()
     }
@@ -195,23 +195,23 @@ struct PuzzleView: View {
   private var controls: some View {
     HStack(spacing: Spacing.s) {
       if feedback == .solved || feedback == .revealed {
-        PuzzleButton(title: "Retry", systemImage: "arrow.counterclockwise") { Task { await start(retry: true) } }
+        ActionButton(title: "Retry", systemImage: "arrow.counterclockwise") { Task { await start(retry: true) } }
           .accessibilityIdentifier("puzzle-retry")
-        PuzzleButton(title: "Next", systemImage: "arrow.right", prominent: true) { finish() }
+        ActionButton(title: "Next", systemImage: "arrow.right", prominent: true) { finish() }
           .disabled(finishing)
           .accessibilityIdentifier("puzzle-next")
       } else {
-        PuzzleButton(title: "Hint", systemImage: "lightbulb") { hint() }
+        ActionButton(title: "Hint", systemImage: "lightbulb") { hint() }
           .accessibilityIdentifier("puzzle-hint")
         if showSolutionButton {
-          PuzzleButton(title: "Solution", systemImage: "eye") { reveal() }
+          ActionButton(title: "Solution", systemImage: "eye") { reveal() }
             .accessibilityIdentifier("puzzle-solution")
         }
       }
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
-    .background(ChessChrome.bar)
+    .background(Palette.surfaceRaised)
   }
 
   private var showSolutionButton: Bool {
@@ -422,31 +422,15 @@ struct StepButton: View {
   var body: some View {
     Button(action: action) {
       Image(systemName: systemImage)
-        .font(.system(size: 18, weight: .bold))
+        .font(.system(.title3).weight(.bold))
         .frame(width: 48, height: 44)
-        .foregroundStyle(ChessChrome.textPrimary.opacity(enabled ? 1 : 0.3))
-        .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
+        .foregroundStyle(Palette.textPrimary.opacity(enabled ? 1 : 0.3))
+        .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
     }
     .disabled(!enabled)
   }
 }
 
-struct PuzzleButton: View {
-  let title: String
-  let systemImage: String
-  var prominent = false
-  let action: () -> Void
-
-  var body: some View {
-    Button(action: action) {
-      Label(title, systemImage: systemImage)
-        .font(.system(size: 16, weight: .bold, design: .rounded))
-        .frame(maxWidth: .infinity, minHeight: 48)
-        .foregroundStyle(prominent ? .white : ChessChrome.textPrimary)
-        .background(RoundedRectangle(cornerRadius: 10).fill(prominent ? ChessChrome.accentGreen : ChessChrome.card))
-    }
-  }
-}
 
 /// Your move vs the better one, and the habit that catches it (scrolls inside a fixed height).
 struct InsightCard: View {
@@ -456,13 +440,13 @@ struct InsightCard: View {
     ScrollView {
       VStack(alignment: .leading, spacing: Spacing.s) {
         row("Your move", insight.played, color: MoveClass.mistake.color)
-        row("Better", insight.better, color: ChessChrome.accentGreen)
-        row("Why it was easy to miss", insight.habit, color: ChessChrome.textSecondary)
+        row("Better", insight.better, color: Palette.success)
+        row("Why it was easy to miss", insight.habit, color: Palette.textSecondary)
       }
       .padding(Spacing.m)
     }
     .frame(height: 150)
-    .background(RoundedRectangle(cornerRadius: 12).fill(ChessChrome.card))
+    .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
     .padding(.horizontal, Spacing.m)
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("insight-card")
@@ -470,8 +454,8 @@ struct InsightCard: View {
 
   private func row(_ title: String, _ text: String, color: Color) -> some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text(title.uppercased()).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundStyle(color)
-      Text(text).font(.system(size: 14, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+      Text(title.uppercased()).font(.system(.caption2).weight(.bold)).foregroundStyle(color)
+      Text(text).font(.system(.callout)).foregroundStyle(Palette.textPrimary)
         .fixedSize(horizontal: false, vertical: true)
     }
   }

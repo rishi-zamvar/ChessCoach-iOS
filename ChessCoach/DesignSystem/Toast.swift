@@ -55,7 +55,7 @@ struct ToastOverlay: ViewModifier {
     private func toastView(_ toast: ToastCenter.Toast) -> some View {
         HStack(spacing: Spacing.s) {
             Image(systemName: iconFor(toast.kind))
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(.callout).weight(.semibold))
                 .foregroundStyle(colorFor(toast.kind))
             Text(toast.text)
                 .font(Typography.callout)

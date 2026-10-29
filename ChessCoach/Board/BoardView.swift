@@ -91,7 +91,7 @@ struct BoardView: View {
           context.fill(Path(rect), with: .color(Color(hex: theme.premove, alpha: 0.6)))
         }
         if highlights.check == square {
-          let gradient = Gradient(colors: [Color(hex: 0xFF0000, alpha: 0.9), Color(hex: 0xE70000, alpha: 0.45), .clear])
+          let gradient = Gradient(colors: [Palette.check.opacity(0.9), Palette.check.opacity(0.45), .clear])
           context.fill(
             Path(ellipseIn: rect),
             with: .radialGradient(gradient, center: CGPoint(x: rect.midX, y: rect.midY), startRadius: 0, endRadius: sq * 0.6))
@@ -272,13 +272,18 @@ struct SquareBadge: Equatable {
   var color: Color
 }
 
+extension BoardTheme {
+  var lightColor: Color { Color(hex: light) }
+  var darkColor: Color { Color(hex: dark) }
+}
+
 extension AnnotationColor {
   var swiftUIColor: Color {
     switch self {
-    case .green: Color(hex: 0x15781B)
-    case .red: Color(hex: 0x882020)
-    case .blue: Color(hex: 0x003088)
-    case .yellow: Color(hex: 0xE68F00)
+    case .green: MoveQuality.best.color.opacity(0.85)
+    case .red: MoveQuality.blunder.color.opacity(0.85)
+    case .blue: Palette.sage.opacity(0.9)
+    case .yellow: Palette.warning.opacity(0.85)
     }
   }
 }

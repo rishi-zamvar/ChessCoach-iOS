@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>ChessCoach</string>
+	<string>Knightlight</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -29,6 +29,10 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>ChessCoach talks to your home PC over Tailscale for deep analysis and to receive its AI key.</string>
+	<key>PostHogAPIKey</key>
+	<string></string>
+	<key>PostHogHost</key>
+	<string>https://eu.i.posthog.com</string>
 	<key>PublicServerURL</key>
 	<string>https://chess.zamvar.io</string>
 	<key>UILaunchScreen</key>
