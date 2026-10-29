@@ -188,7 +188,8 @@ final class PlannerTests: XCTestCase {
   }
 
   func test_givenDueReviewsAndMistakes_whenPlanned_thenReviewAndOwnMistakeBlocks() {
-    let state = LearnerState(globalRating: 600, dueReviews: 4, ownMistakesAvailable: 7)
+    // Due reviews include the mistakes: 4 puzzle reviews + 3 own-game mistakes.
+    let state = LearnerState(globalRating: 600, dueReviews: 7, ownMistakesAvailable: 3)
     let plan = DailyPlanner().plan(for: state, now: now)
     XCTAssertTrue(plan.contains { $0.kind == .reviews(count: 4) })
     XCTAssertTrue(plan.contains { $0.kind == .ownMistakes(count: 3) })
