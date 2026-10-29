@@ -47,6 +47,15 @@ final class AnalyticsTests: XCTestCase {
     XCTAssertEqual(AnalyticsEvent.map(step("analysis.game", phase: .fail))?.name, "error")
   }
 
+  func test_givenAICallAndGameSteps_whenMapped_thenCostKeptAndPerMoveNoiseDropped() {
+    let ai = AnalyticsEvent.map(step("ai.call", ["model": .string("claude-haiku"), "costUSD": .double(0.0021), "purpose": .string("explain")]))
+    XCTAssertEqual(ai?.name, "ai.call")
+    XCTAssertEqual(ai?.properties["cost_usd"], .double(0.0021))
+    XCTAssertEqual(AnalyticsEvent.map(step("game.end"))?.name, "game.end")
+    XCTAssertNil(AnalyticsEvent.map(step("game.move")), "one event per move is too much")
+    XCTAssertNil(AnalyticsEvent.map(step("game.botTurn")))
+  }
+
   func test_givenSensitiveMetadata_whenMapped_thenScrubbed() {
     let mapped = AnalyticsEvent.map(step("screen.view", [
       "name": .string("today"), "api_key": .string("sk-ant-123"), "username": .string("Zammy009"),

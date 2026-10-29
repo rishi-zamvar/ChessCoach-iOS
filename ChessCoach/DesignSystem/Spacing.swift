@@ -10,6 +10,7 @@ enum Spacing {
     static let xxl: CGFloat = 32
     static let xxxl: CGFloat = 48
 
+    static let cornerTiny: CGFloat   = 4
     static let cornerSmall: CGFloat  = 8
     static let cornerMedium: CGFloat = 12
     static let cornerLarge: CGFloat  = 20

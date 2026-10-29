@@ -620,7 +620,7 @@ public final class GameController {
     }
     viewPly = session.history.count
     annotations.clearUser()
-    sounds.play(SoundEvent.forMove(played, gameOver: session.isOver))
+    sounds.play(SoundEvent.forMove(played, gameOver: session.isOver), byUser: played.color == userColor)
     telemetry.event(
       "game.move",
       metadata: [

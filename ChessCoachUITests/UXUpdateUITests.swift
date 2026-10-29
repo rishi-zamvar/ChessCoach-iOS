@@ -32,7 +32,7 @@ final class UXUpdateUITests: XCTestCase {
     XCTAssertTrue(app.buttons["train-plan-link"].waitForExistence(timeout: 10))
     shot(app, "u04-train")
     app.buttons["skill-B1"].tap()
-    XCTAssertTrue(app.staticTexts["coach-mode-chip"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.descendants(matching: .any)["coach-mode-chip"].waitForExistence(timeout: 10))
     sleep(2)
     shot(app, "u05-coach-puzzle")
     app.buttons["runner-close"].tap()

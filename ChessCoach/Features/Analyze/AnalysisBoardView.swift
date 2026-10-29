@@ -95,7 +95,7 @@ struct AnalysisBoardView: View {
       HStack(spacing: Spacing.s) {
         EvalBar(whiteWin: whiteWin, flipped: flipped)
           .frame(width: 14)
-          .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+          .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerTiny, style: .continuous))
         BoardView(
           position: line.session.position,
           highlights: BoardHighlights.make(session: line.session, ply: line.cursor, interaction: interaction),
@@ -114,7 +114,7 @@ struct AnalysisBoardView: View {
           },
           onDragCancelled: { interaction.dragCancelled() }
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerSmall, style: .continuous))
       }
       .padding(.horizontal, Spacing.m)
       .padding(.top, Spacing.s)

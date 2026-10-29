@@ -78,6 +78,9 @@ extension AnalyticsSetup {
   /// PostHog's ID for this device (for delete requests); nil when analytics isn't configured.
   @MainActor static var distinctID: String? { apiKey == nil ? nil : PostHogSDK.shared.getDistinctId() }
 
+  /// A PostHog feature flag (false when analytics isn't configured).
+  @MainActor static func isEnabled(_ flag: String) -> Bool { apiKey != nil && PostHogSDK.shared.isFeatureEnabled(flag) }
+
   /// Should we ask about the training profile? Once, after onboarding, only when analytics is configured.
   static var shouldAskRich: Bool { apiKey != nil && !UserDefaults.standard.bool(forKey: richAskedKey) }
 }

@@ -131,9 +131,9 @@ struct PuzzleView: View {
   private var promptBar: some View {
     HStack(spacing: Spacing.s) {
       let color = session?.userColor ?? .white
-      RoundedRectangle(cornerRadius: 3)
+      RoundedRectangle(cornerRadius: Spacing.cornerTiny)
         .fill(color == .white ? Color.white : Color.black)
-        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Palette.textSecondary, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: Spacing.cornerTiny).stroke(Palette.textSecondary, lineWidth: 1))
         .frame(width: 18, height: 18)
       VStack(alignment: .leading, spacing: 1) {
         Text(review == nil ? "\(color == .white ? "White" : "Black") to move" : "Review: \(color == .white ? "White" : "Black") to move")
@@ -152,6 +152,9 @@ struct PuzzleView: View {
           .padding(.horizontal, 8).padding(.vertical, 4)
           .background(Capsule().fill(Palette.action))
           .accessibilityIdentifier("you-play-black")
+      }
+      if !rush, rated, review?.kind != .mistake {
+        PuzzleModeChip(mode: .instant)
       }
       if review == nil {
         Text("\(puzzle.rating)")
@@ -250,7 +253,9 @@ struct PuzzleView: View {
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
-    .background(Palette.surfaceRaised)
+    .glassCapsule()
+    .padding(.horizontal, Spacing.m)
+    .padding(.bottom, Spacing.xs)
   }
 
   private var showSolutionButton: Bool {
@@ -523,7 +528,7 @@ struct StepButton: View {
         .font(.system(.title3).weight(.bold))
         .frame(width: 48, height: 44)
         .foregroundStyle(Palette.textPrimary.opacity(enabled ? 1 : 0.3))
-        .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
+        .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
     }
     .disabled(!enabled)
   }
@@ -544,7 +549,7 @@ struct InsightCard: View {
       .padding(Spacing.m)
     }
     .frame(height: 150)
-    .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
+    .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
     .padding(.horizontal, Spacing.m)
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("insight-card")

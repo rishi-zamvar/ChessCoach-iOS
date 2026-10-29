@@ -101,6 +101,11 @@ struct PlanCard: View {
 
       Eyebrow(text: "Want more?").padding(.top, Spacing.l)
       VStack(spacing: 0) {
+        // Experiment completion_cta_set: the coach game first instead of last.
+        if coachFirst {
+          coachCTA
+          divider
+        }
         if let bonus = training.bonusTasks(), !bonus.tasks.isEmpty {
           cta(bonus.title, "Five more puzzles on today's top skill.", "target", id: "bonus") {
             running = RunningBlock(item: nil, title: bonus.title, tasks: bonus.tasks)
@@ -111,11 +116,9 @@ struct PlanCard: View {
           cta("Review your last game", "vs \(last.opponentName) · see where it turned.", "sparkle.magnifyingglass", id: "review") {
             reviewGame = last
           }
-          divider
+          if !coachFirst { divider }
         }
-        cta("Play the coach", "A game that trains \(env.coachFocus.title.lowercased()).", "person.wave.2", id: "coach") {
-          coachGame = env.makeGame(PlayConfig(opponent: .teaching, userColor: ColorChoice.random.resolve(), timeControl: .untimed))
-        }
+        if !coachFirst { coachCTA }
       }
       .padding(.top, Spacing.xs)
 
@@ -130,6 +133,14 @@ struct PlanCard: View {
       env.feedback.reviewPolicy.asked(version: version)
       env.telemetry.event("app.review_prompt")
       requestReview()
+    }
+  }
+
+  private var coachFirst: Bool { AnalyticsSetup.isEnabled("completion_cta_set") }
+
+  private var coachCTA: some View {
+    cta("Play the coach", "A game that trains \(env.coachFocus.title.lowercased()).", "person.wave.2", id: "coach") {
+      coachGame = env.makeGame(PlayConfig(opponent: .teaching, userColor: ColorChoice.random.resolve(), timeControl: .untimed))
     }
   }
 

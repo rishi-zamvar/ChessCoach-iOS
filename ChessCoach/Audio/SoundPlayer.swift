@@ -26,8 +26,11 @@ final class SoundPlayer: SoundSink {
     }
   }
 
-  func play(_ event: SoundEvent) {
-    haptic(for: event)
+  func play(_ event: SoundEvent) { play(event, byUser: true) }
+
+  /// The opponent's moves make a sound but no haptic (spec W9: nothing on opponent moves).
+  func play(_ event: SoundEvent, byUser: Bool) {
+    if byUser || event == .gameEnd || event == .check { haptic(for: event) }
     guard isEnabled, let pool = pools[event], !pool.isEmpty else { return }
     let index = next[event, default: 0]
     next[event] = (index + 1) % pool.count
@@ -36,7 +39,6 @@ final class SoundPlayer: SoundSink {
     player.play()
   }
 
-  // ponytail: the bot's replies buzz too (SoundSink doesn't say whose move it was); add a mover flag if testers find it busy.
   private func haptic(for event: SoundEvent) {
     switch event {
     case .move, .castle, .premove: Haptics.light()

@@ -26,6 +26,7 @@ struct BoardView: View {
   var badge: SquareBadge? = nil
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.colorScheme) private var scheme
   @State private var identified: [IdentifiedPiece] = []
   @State private var nextID = 0
   @State private var gesture = GestureState()
@@ -52,6 +53,9 @@ struct BoardView: View {
         draggedPieceLayer(geo)
       }
       .frame(width: side, height: side)
+      // Spec W9: the board is content — same colours in both themes, dimmed 6% in dark, radius 8.
+      .overlay { if scheme == .dark { Color.black.opacity(0.06).allowsHitTesting(false) } }
+      .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerSmall, style: .continuous))
       .contentShape(Rectangle())
       .gesture(interactive ? boardGesture(geo) : nil)
       .accessibilityHidden(true)

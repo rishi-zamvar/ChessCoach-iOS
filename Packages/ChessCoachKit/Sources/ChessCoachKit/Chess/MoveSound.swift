@@ -21,6 +21,12 @@ public enum SoundEvent: String, CaseIterable, Sendable {
 @MainActor
 public protocol SoundSink: AnyObject {
   func play(_ event: SoundEvent)
+  /// A move's sound, saying whose move it was (the app only buzzes for yours).
+  func play(_ event: SoundEvent, byUser: Bool)
+}
+
+extension SoundSink {
+  public func play(_ event: SoundEvent, byUser: Bool) { play(event) }
 }
 
 /// Test/preview sink that remembers what was played.

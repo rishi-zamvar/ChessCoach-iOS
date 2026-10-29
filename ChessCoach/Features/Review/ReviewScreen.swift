@@ -238,7 +238,7 @@ private struct ReviewContent: View {
               }
             }
             .padding(Spacing.m)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
+            .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
             .accessibilityIdentifier("repertoire-note")
           }
           SummaryCard(analysis: controller.analysis)
@@ -348,7 +348,7 @@ private struct ReviewContent: View {
       }
     }
     .padding(Spacing.m)
-    .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
+    .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
     // .contain keeps the buttons' own identifiers.
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("review-insight")
@@ -368,7 +368,7 @@ private struct ReviewContent: View {
         .font(.system(.footnote).weight(.bold))
         .foregroundStyle(better ? Palette.success : MoveClass.mistake.color)
         .frame(maxWidth: .infinity).padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 8).stroke(better ? Palette.success : MoveClass.mistake.color))
+        .background(RoundedRectangle(cornerRadius: Spacing.cornerSmall).stroke(better ? Palette.success : MoveClass.mistake.color))
     }
   }
 
@@ -428,7 +428,9 @@ private struct ReviewContent: View {
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
-    .background(Palette.surfaceRaised)
+    .glassCapsule()
+    .padding(.horizontal, Spacing.m)
+    .padding(.bottom, Spacing.xs)
   }
 }
 
@@ -466,7 +468,7 @@ private struct CoachBubble: View {
       }
       .padding(Spacing.m)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
+      .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
     }
     .frame(minHeight: 72, alignment: .top)
   }
@@ -551,7 +553,7 @@ struct EvalGraph: View {
           .frame(width: 2, height: h)
           .position(x: CGFloat(current) * step, y: h / 2)
       }
-      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .clipShape(RoundedRectangle(cornerRadius: Spacing.cornerTiny))
       .contentShape(Rectangle())
       .gesture(
         DragGesture(minimumDistance: 0).onChanged { value in
@@ -596,7 +598,7 @@ private struct ReviewMoveList: View {
       }
     }
     .padding(Spacing.s)
-    .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
+    .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceSunken))
   }
 
   private func cell(_ move: MoveAnalysis) -> some View {
@@ -612,7 +614,7 @@ private struct ReviewMoveList: View {
       .padding(.horizontal, 6)
       .padding(.vertical, 4)
       .frame(maxWidth: .infinity)
-      .background(RoundedRectangle(cornerRadius: 5).fill(move.ply == current ? Color.white.opacity(0.14) : .clear))
+      .background(RoundedRectangle(cornerRadius: Spacing.cornerTiny).fill(move.ply == current ? Palette.sageSoft : .clear))
     }
     .buttonStyle(.plain)
   }
@@ -664,7 +666,7 @@ private struct SummaryCard: View {
       }
     }
     .padding(Spacing.l)
-    .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
+    .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
   }
 
   private func accuracy(_ side: String, _ value: Double?) -> some View {

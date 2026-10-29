@@ -26,7 +26,7 @@ struct MoveStrip: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .background(
-                  RoundedRectangle(cornerRadius: 4)
+                  RoundedRectangle(cornerRadius: Spacing.cornerTiny)
                     .fill(ply == currentPly ? Color.primary.opacity(0.18) : .clear))
             }
             .buttonStyle(.plain)
@@ -46,6 +46,6 @@ struct MoveStrip: View {
         withAnimation(.easeOut(duration: 0.2)) { reader.scrollTo(ply, anchor: .center) }
       }
     }
-    .background(Palette.surfaceRaised.opacity(0.6))
+    .background(Palette.surfaceSunken)
   }
 }

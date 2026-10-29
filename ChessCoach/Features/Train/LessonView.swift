@@ -17,6 +17,8 @@ struct LessonView: View {
 
   @State private var stage: Stage = .idea
   @State private var workedStep = 0
+  @State private var analyzing: AnalysisRequest?
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var workedGame = GameSession()
   @State private var fadedDone = false
   @State private var practice: [Puzzle] = []
@@ -33,7 +35,8 @@ struct LessonView: View {
       case .result: result
       }
     }
-    .animation(.easeInOut(duration: 0.25), value: stage)
+    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: stage)
+    .fullScreenCover(item: $analyzing) { AnalysisBoardView(request: $0) }
   }
 
   private var theme: BoardTheme { BoardTheme.named(themeID) }
@@ -61,7 +64,7 @@ struct LessonView: View {
             }
           }
           .padding(Spacing.m)
-          .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
+          .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
         }
         .padding(Spacing.l)
       }
@@ -89,6 +92,14 @@ struct LessonView: View {
       HStack(spacing: Spacing.s) {
         StepButton(systemImage: "chevron.left", enabled: workedStep > 0) { unstepWorked() }
           .accessibilityIdentifier("lesson-back")
+        ActionButton(title: "", systemImage: "magnifyingglass", label: "Analyze this position") {
+          env.telemetry.event("analysis.open", metadata: ["from": .string("lesson")])
+          analyzing = AnalysisRequest(
+            startFEN: ex.fen, moves: Array(ex.moves.prefix(workedStep)),
+            flipped: Position(fen: ex.fen)?.sideToMove == .black, title: "Analyze lesson")
+        }
+        .frame(width: 56)
+        .accessibilityIdentifier("lesson-analyze")
         if workedStep < ex.moves.count {
           ActionButton(title: workedStep == 0 ? "Play" : "Next move", systemImage: "forward.fill", prominent: true) { stepWorked() }
             .accessibilityIdentifier("lesson-step")
@@ -254,7 +265,7 @@ struct LessonView: View {
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.m)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
+        .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
         .accessibilityIdentifier("lesson-narration")
     }
     .padding(Spacing.m)

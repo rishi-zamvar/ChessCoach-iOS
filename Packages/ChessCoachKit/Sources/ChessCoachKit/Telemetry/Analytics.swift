@@ -26,7 +26,10 @@ public enum AnalyticsEvent {
     "training.lesson": ("lesson.done", [:]),
     "training.drill": ("drill.done", ["seconds": "secs"]),
     "rating.anchor": ("rating.anchor", [:]),
+    "ai.call": ("ai.call", ["costUSD": "cost_usd"]),
   ]
+  /// Steps in a product area that fire too often to be useful (one per move or bot turn).
+  static let noisy: Set<String> = ["game.move", "game.botTurn", "game.premove", "game.premoveDiscarded", "game.lowTime", "analysis.ply", "analysis.move"]
   /// Steps already named in the taxonomy pass through unchanged.
   static let passthroughAreas: Set<String> = ["screen", "plan", "feedback", "settings", "analysis", "review", "game", "coach", "rush", "puzzle", "lesson"]
   static let sensitiveKeyParts = ["key", "token", "email", "username", "user", "text", "prompt", "pgn", "question", "answer", "name_full"]
@@ -41,7 +44,7 @@ public enum AnalyticsEvent {
     var keys: [String: String] = [:]
     if let r = renamed[event.step] {
       (name, keys) = r
-    } else if let area = event.step.split(separator: ".").first, passthroughAreas.contains(String(area)), !event.step.hasPrefix("analysis.ply") {
+    } else if let area = event.step.split(separator: ".").first, passthroughAreas.contains(String(area)), !noisy.contains(event.step) {
       name = event.step
     } else {
       return nil

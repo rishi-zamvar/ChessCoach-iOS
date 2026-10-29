@@ -85,6 +85,27 @@ final class DesignSnapshotTests: XCTestCase {
     render(TodayView().environment(env).environment(analysis).environment(training), named: "today-done")
   }
 
+  func test_givenEveryScreen_whenRendered_thenTabsSettingsAndBoardsInAllLooks() {
+    let (env, analysis, training) = appEnvironment()
+    func wrap<V: View>(_ v: V) -> some View { v.environment(env).environment(analysis).environment(training) }
+    render(wrap(TrainView()), named: "train")
+    render(wrap(AnalyzeView()), named: "analyze")
+    render(wrap(PlayHomeView()), named: "play")
+    render(wrap(SettingsView()), named: "settings")
+    render(wrap(AnalysisBoardView(request: AnalysisRequest(startFEN: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3"))), named: "analysis")
+  }
+
+  func test_givenEveryScreen_whenSnapshotInLightDarkAX5HighContrast_thenMatchesReference_consent() {
+    snapshotAllLooks(TrainingProfileConsentSheet { _ in }, named: "consent")
+  }
+
+  func test_givenMoveClass_whenBadgeRendered_thenGlyphAndTokenColourBothPresent() {
+    for label in MoveClass.allCases {
+      XCTAssertFalse(label.quality.glyph.isEmpty, "\(label) has a glyph, so colour is never the only cue")
+    }
+    XCTAssertEqual(Set(MoveQuality.allCases.map(\.glyph)).count, MoveQuality.allCases.count, "every quality reads differently")
+  }
+
   func test_givenBlockDone_whenAskingNext_thenTheFollowingUnfinishedBlock() {
     let (_, _, training) = appEnvironment()
     let first = training.plan[0]

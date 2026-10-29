@@ -322,8 +322,8 @@ Paywalls/subscriptions, social features, online multiplayer, Android, rewriting 
 ## As built (branch feat/0.9-m1, 2026-10-29)
 All four milestones are implemented. Where the build differs from the text above:
 - **Enforcement**: `scripts/lint-design.sh` (grep) instead of SwiftLint, which isn't installed; it fails on raw
-  colours / fixed font sizes outside `DesignSystem/` and `Board/`, and counts numeric radius/padding literals
-  (26 left) as warnings. `scripts/testflight.sh` runs it.
+  colours, fixed font sizes and numeric radius/padding literals outside `DesignSystem/` and `Board/` (zero left).
+  `scripts/testflight.sh` runs it.
 - **Snapshots**: components and the feedback sheet are compared references (`ChessCoachTests/__Snapshots__`).
   Today and the completion card change with the date, so they render to `ChessCoachTests/ScreenRenders/`
   (git-ignored) for visual QA, and their logic is asserted instead.
@@ -331,12 +331,17 @@ All four milestones are implemented. Where the build differs from the text above
 - **ChessChrome** is deleted; its tokens map onto Palette. The 4 duplicate buttons are one `ActionButton`.
 - **Coach mode** applies to plan puzzles, skill sets and failed-puzzle reviews. Own-game mistake reviews stay
   instant (they carry the "your move vs better" insight card). Quick warm-up and Rush are always instant.
-- **Analyze** entry points: puzzles, Coach puzzles, Rush misses, Review, finished games, Analyze tab (paste
-  FEN/PGN). Lessons don't have one yet.
+- **Analyze** entry points: puzzles, Coach puzzles, Rush misses, Review, finished games, lessons, Analyze tab
+  (paste FEN/PGN). Mode switch: the puzzle header chip (from the next puzzle) and Settings.
 - **Rich tier**: session replay switches on at the next launch after opting in (PostHog config is per launch).
 - **Analytics is off in this build**: `PostHogAPIKey` in project.yml is empty. Add the EU project key to turn
   on both tiers and the `coach_mode_default` flag; until then Coach mode is the default.
-- **Server**: `POST/GET /v1/feedback`, `POST /v1/privacy/delete`, `GET /privacy` on chess-public;
-  `server/scripts/feedback.py list|show|status|notify|deletions` on the PC. Needs deploying to the PC.
-- **Not done**: "Blunder" relabelling in already-lost positions; PostHog dashboard and ASC report pull (need
-  the PostHog project and an App Manager API key); the bot's replies still buzz (SoundSink has no mover flag).
+- **Server** (deployed, live at chess.zamvar.io): `POST/GET /v1/feedback`, `POST /v1/privacy/delete`,
+  `GET /privacy`; `server/scripts/feedback.py list|show|status|notify|deletions|testflight` on the PC
+  (`testflight` imports TestFlight feedback into the same table; needs the ASC key on the PC).
+- **App Store Connect**: `uv run scripts/asc.py feedback | whattotest <build> <text> | analytics request|download`.
+  Ongoing analytics reports were requested 2026-10-29 (Apple's first files arrive within ~48 h).
+- **PostHog**: `uv run scripts/posthog-setup.py` creates both experiment flags and the "Knightlight core"
+  dashboard (13 insights from the KPI table) once a project and personal key exist.
+- "Blunder" in already-lost positions was already handled by `MoveClassifier` (decided positions cap at
+  inaccuracy). The bot's replies no longer buzz (`SoundSink.play(_:byUser:)`). Board: 8 pt radius, dimmed 6% in dark.

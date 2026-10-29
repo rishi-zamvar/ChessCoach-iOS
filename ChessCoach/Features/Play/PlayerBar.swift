@@ -41,7 +41,7 @@ struct PlayerBar: View {
           .foregroundStyle(clockForeground)
           .padding(.horizontal, Spacing.m)
           .frame(minWidth: 96, minHeight: 40, alignment: .trailing)
-          .background(RoundedRectangle(cornerRadius: 4).fill(clockBackground))
+          .background(RoundedRectangle(cornerRadius: Spacing.cornerTiny).fill(clockBackground))
           .accessibilityIdentifier("clock-\(color.rawValue)")
       }
     }
@@ -61,7 +61,7 @@ struct PlayerBar: View {
 
   private var avatar: some View {
     ZStack {
-      RoundedRectangle(cornerRadius: 4)
+      RoundedRectangle(cornerRadius: Spacing.cornerTiny)
         .fill(Palette.surfaceRaised)
       if name == "You" {
         Image(systemName: "person.fill")
@@ -70,7 +70,7 @@ struct PlayerBar: View {
       } else {
         Image(pieceSet.assetName(color: color, kind: .knight))
           .resizable()
-          .padding(4)
+          .padding(Spacing.xs)
       }
     }
     .frame(width: 40, height: 40)

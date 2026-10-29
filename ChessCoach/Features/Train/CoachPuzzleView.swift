@@ -12,6 +12,30 @@ enum PuzzleMode: String, CaseIterable, Identifiable {
   static var current: PuzzleMode { PuzzleMode(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .coach }
 }
 
+/// The puzzle header's mode chip: tap to switch Coach ⇄ Instant (from the next puzzle on).
+struct PuzzleModeChip: View {
+  let mode: PuzzleMode
+  @Environment(AppEnvironment.self) private var env
+  @AppStorage(PuzzleMode.key) private var modeRaw = PuzzleMode.current.rawValue
+
+  var body: some View {
+    let other: PuzzleMode = mode == .coach ? .instant : .coach
+    Menu {
+      Button("Switch to \(other.title) from the next puzzle") {
+        modeRaw = other.rawValue
+        env.telemetry.event("settings.change", metadata: ["key": .string("puzzle_mode"), "value": .string(other.rawValue)])
+      }
+    } label: {
+      Text(modeRaw == mode.rawValue ? "\(mode.title) mode" : "\(other.title) next")
+        .font(Typography.caption.weight(.semibold)).foregroundStyle(Palette.sage)
+        .padding(.horizontal, Spacing.s).padding(.vertical, Spacing.xs)
+        .background(Capsule().fill(Palette.sageSoft))
+    }
+    .accessibilityLabel("Puzzle feedback: \(mode.title). Double tap to change.")
+    .accessibilityIdentifier(mode == .coach ? "coach-mode-chip" : "instant-mode-chip")
+  }
+}
+
 /// A Coach-mode puzzle: every move is played, the opponent answers with its best move, and when
 /// the line ends you find which of your moves was the mistake, then the better move from there.
 struct CoachPuzzleView: View {
@@ -78,11 +102,7 @@ struct CoachPuzzleView: View {
           .padding(.horizontal, 8).padding(.vertical, 4)
           .background(Capsule().fill(Palette.action))
       }
-      Text("Coach mode")
-        .font(Typography.caption.weight(.semibold)).foregroundStyle(Palette.sage)
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(Capsule().fill(Palette.sageSoft))
-        .accessibilityIdentifier("coach-mode-chip")
+      PuzzleModeChip(mode: .coach)
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
@@ -185,7 +205,9 @@ struct CoachPuzzleView: View {
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
-    .background(Palette.surfaceRaised)
+    .glassCapsule()
+    .padding(.horizontal, Spacing.m)
+    .padding(.bottom, Spacing.xs)
   }
 
   // MARK: - Flow

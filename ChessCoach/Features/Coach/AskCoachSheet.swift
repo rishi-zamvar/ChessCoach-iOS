@@ -22,10 +22,11 @@ struct AskCoachSheet: View {
   var body: some View {
     NavigationStack {
       VStack(spacing: Spacing.m) {
+        ConnectionBanner(isOnline: env.connectivity.isOnline, message: "Offline. The coach answers when you're back online.")
         if !env.ai.isAvailable {
           EmptyState(
             title: "Coach AI is off",
-            message: "Open the app once while your home PC is reachable over Tailscale — it shares the AI key automatically.",
+            message: "Add your own AI key in Settings → Coach AI to ask the coach. Everything else works without one.",
             systemImage: "sparkles")
           Spacer()
         } else {

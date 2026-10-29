@@ -309,7 +309,7 @@ struct OpeningTrainerView: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(Spacing.m)
-      .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
+      .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
     }
     .padding(Spacing.m)
     .frame(minHeight: 110, alignment: .top)

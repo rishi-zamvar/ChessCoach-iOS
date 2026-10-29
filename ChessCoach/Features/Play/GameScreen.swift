@@ -281,7 +281,10 @@ struct GameScreen: View {
       ToolbarButton(title: "Forward", systemImage: "chevron.right", enabled: !game.isViewingLatest) { game.stepForward() }
     }
     .padding(.vertical, Spacing.xs)
-    .background(Palette.surfaceRaised)
+    .padding(.horizontal, Spacing.s)
+    .glassCapsule()
+    .padding(.horizontal, Spacing.m)
+    .padding(.bottom, Spacing.xs)
   }
 
   // MARK: - Helpers
@@ -349,8 +352,8 @@ struct BoardOptionsSheet: View {
           Picker("Theme", selection: $themeID) {
             ForEach(BoardTheme.all) { theme in
               HStack {
-                RoundedRectangle(cornerRadius: 3).fill(theme.lightColor).frame(width: 14, height: 14)
-                RoundedRectangle(cornerRadius: 3).fill(theme.darkColor).frame(width: 14, height: 14)
+                RoundedRectangle(cornerRadius: Spacing.cornerTiny).fill(theme.lightColor).frame(width: 14, height: 14)
+                RoundedRectangle(cornerRadius: Spacing.cornerTiny).fill(theme.darkColor).frame(width: 14, height: 14)
                 Text(theme.name)
               }
               .tag(theme.id)
@@ -394,7 +397,7 @@ private struct CoachBanner: View {
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
-    .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
+    .background(RoundedRectangle(cornerRadius: Spacing.cornerMedium).fill(Palette.surfaceRaised))
     .padding(.horizontal, Spacing.m)
     .padding(.top, Spacing.xs)
     .accessibilityIdentifier("coach-banner")
@@ -437,8 +440,8 @@ private struct CoachPauseCard: View {
       }
     }
     .padding(Spacing.l)
-    .background(RoundedRectangle(cornerRadius: 16).fill(Palette.surfaceRaised))
-    .overlay(RoundedRectangle(cornerRadius: 16).stroke(tint.opacity(0.6), lineWidth: 1.5))
+    .background(RoundedRectangle(cornerRadius: Spacing.cornerLarge).fill(Palette.surfaceRaised))
+    .overlay(RoundedRectangle(cornerRadius: Spacing.cornerLarge).stroke(tint.opacity(0.6), lineWidth: 1.5))
     .shadow(color: .black.opacity(0.4), radius: 16, y: 6)
   }
 }

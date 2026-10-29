@@ -1,5 +1,6 @@
 import AuthenticationServices
 import ChessCoachKit
+import PostHog
 import SwiftUI
 
 /// Settings: profile (retake onboarding), chess.com username, board look, sound, AI provider.
@@ -228,6 +229,7 @@ private struct AIProviderSection: View {
       }
       .accessibilityIdentifier("ai-provider")
       SecureField(provider.needsKey ? "API key" : "API key (optional)", text: $key)
+        .postHogMask()  // never in a session replay
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .onSubmit { ai.setKey(key, for: provider) }

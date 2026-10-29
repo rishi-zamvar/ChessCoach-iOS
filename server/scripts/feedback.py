@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from public_app.feedback import FeedbackStore  # noqa: E402
 from public_app.main import PublicSettings  # noqa: E402
 
@@ -33,6 +34,7 @@ def main() -> None:
     st.add_argument("--build")
     sub.add_parser("notify")
     sub.add_parser("deletions")  # deletes queued PostHog persons; needs POSTHOG_PERSONAL_KEY + POSTHOG_PROJECT_ID
+    sub.add_parser("testflight")  # imports TestFlight feedback; needs ASC_KEY_PATH, ASC_KEY_ID, ASC_ISSUER_ID
     args = p.parse_args()
     store = FeedbackStore(Path(args.data))
 
@@ -73,6 +75,21 @@ def main() -> None:
                     method="DELETE", headers={"Authorization": f"Bearer {key}"}))
             store.mark_deleted(d["distinct_id"])
             print("deleted", d["distinct_id"], f"({len(people)} person)")
+    elif args.cmd == "testflight":
+        import urllib.request
+
+        import asc_client
+
+        new = 0
+        known = {r["id"] for r in store.all()}
+        for row in asc_client.as_feedback_rows(asc_client.testflight_feedback()):
+            if row["id"] in known:
+                continue
+            url = row.pop("screenshot_url", None)
+            shot = urllib.request.urlopen(url, timeout=30).read() if url else None
+            store.add("testflight", row, shot if shot and shot.startswith(b"\xff\xd8") else None)
+            new += 1
+        print(f"imported {new} new TestFlight report(s)")
     elif args.cmd == "notify":
         for r in store.unnotified():
             body = f"[{r['category']}] on {r['screen'] or '?'} (build {r['build']}): {r['text'][:300]}"
