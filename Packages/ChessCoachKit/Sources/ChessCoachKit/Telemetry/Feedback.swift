@@ -82,7 +82,7 @@ public final class FeedbackOutbox: @unchecked Sendable {
   }
 
   public func pending() -> [FeedbackReport] {
-    let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.creationDateKey])) ?? []
+    let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
     return files.filter { $0.pathExtension == "json" }
       .compactMap { try? JSONDecoder().decode(FeedbackReport.self, from: Data(contentsOf: $0)) }
   }
@@ -97,6 +97,10 @@ public final class FeedbackOutbox: @unchecked Sendable {
         continue
       }
     }
+  }
+
+  public func remove(_ id: UUID) {
+    try? FileManager.default.removeItem(at: file(id))
   }
 
   private func file(_ id: UUID) -> URL { directory.appendingPathComponent("\(id.uuidString).json") }

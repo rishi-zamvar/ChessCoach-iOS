@@ -32,10 +32,10 @@ struct AnalyzeView: View {
 
   var body: some View {
     ZStack(alignment: .top) {
-      BackgroundAtmosphere()
+      BackgroundAtmosphere().screen("analyze")
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.l) {
-          Eyebrow(text: "Analyze")
+          HStack { Eyebrow(text: "Analyze"); Spacer(); FeedbackButton() }
           Text("Your games")
             .font(Typography.display)
             .foregroundStyle(Palette.ink)

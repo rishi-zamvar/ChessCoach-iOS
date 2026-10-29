@@ -1,3 +1,4 @@
+import ChessCoachKit
 import SnapshotTesting
 import SwiftUI
 import XCTest
@@ -27,6 +28,83 @@ final class DesignSnapshotTests: XCTestCase {
 
   func test_givenEveryScreen_whenSnapshotInLightDarkAX5HighContrast_thenMatchesReference_components() {
     snapshotAllLooks(ComponentGallery(), named: "components")
+  }
+
+  /// A fresh learner with today's plan (optionally all done). Clears today's stored plan afterwards.
+  private func appEnvironment(planDone: Bool = false) -> (AppEnvironment, AnalysisService, TrainingService) {
+    clearToday()
+    addTeardownBlock { @MainActor in self.clearToday() }
+    let env = AppEnvironment(inMemory: true)
+    let training = TrainingService(env: env)
+    training.completeOnboarding(
+      LearnerProfile(username: "snap", style: .allRounder, quizScore: 0, historyScore: nil, placementRating: 700, onboardedAt: Date()))
+    if planDone { training.plan.forEach { training.markDone($0) } }
+    return (env, AnalysisService(env: env), training)
+  }
+
+  private func clearToday() {
+    for key in ["completed", "ids"] {
+      UserDefaults.standard.removeObject(forKey: "plan.\(key).\(Self.day)")
+      UserDefaults.standard.removeObject(forKey: "plan.\(key).\(Self.day).items")
+    }
+  }
+
+  /// Date-dependent screens: rendered for visual QA (ScreenRenders/), not compared.
+  private func render<V: View>(_ view: V, named name: String, height: CGFloat = 1400) {
+    let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("ScreenRenders")
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    for (look, traits) in Self.looks {
+      let host = UIHostingController(rootView: view.frame(width: 393, height: look == "ax5" ? height * 2 : height))
+      let size = CGSize(width: 393, height: look == "ax5" ? height * 2 : height)
+      let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+      window.traitOverrides.userInterfaceStyle = traits.userInterfaceStyle
+      window.traitOverrides.preferredContentSizeCategory = traits.preferredContentSizeCategory
+      window.traitOverrides.accessibilityContrast = traits.accessibilityContrast
+      window.rootViewController = host
+      window.makeKeyAndVisible()
+      host.view.frame = window.bounds
+      host.view.layoutIfNeeded()
+      RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+      let image = UIGraphicsImageRenderer(size: size).image { _ in host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true) }
+      try? image.pngData()?.write(to: dir.appendingPathComponent("\(name)-\(look).png"))
+    }
+  }
+
+  func test_givenFreshLearner_whenTodayRenders_thenPlanWithStartButton() {
+    let (env, analysis, training) = appEnvironment()
+    XCTAssertFalse(training.plan.isEmpty)
+    XCTAssertNotNil(training.nextBlock(after: nil))
+    render(TodayView().environment(env).environment(analysis).environment(training), named: "today")
+  }
+
+  func test_givenPlanDone_whenTodayRenders_thenCompletionCardWithThreeCTAs() {
+    let (env, analysis, training) = appEnvironment(planDone: true)
+    XCTAssertTrue(training.isPlanDone)
+    XCTAssertNil(training.nextBlock(after: nil), "nothing left, so no Start button")
+    XCTAssertEqual(training.bonusTasks()?.tasks.count, 5, "the bonus set is offered")
+    render(TodayView().environment(env).environment(analysis).environment(training), named: "today-done")
+  }
+
+  func test_givenBlockDone_whenAskingNext_thenTheFollowingUnfinishedBlock() {
+    let (_, _, training) = appEnvironment()
+    let first = training.plan[0]
+    training.markDone(first)
+    XCTAssertEqual(training.nextBlock(after: first)?.id, training.plan[1].id)
+  }
+
+  func test_givenEveryScreen_whenSnapshotInLightDarkAX5HighContrast_thenMatchesReference_feedbackSheet() {
+    let env = AppEnvironment(inMemory: true)
+    UserDefaults.standard.removeObject(forKey: FeedbackDraft.draftKey)
+    var draft = FeedbackDraft(screen: "today", context: ["plan_done": .bool(true)], screenshot: UIImage(systemName: "sun.max"))
+    draft.category = .bug
+    draft.text = "Cannot progress beyond this page."
+    snapshotAllLooks(FeedbackSheet(center: env.feedback, draft: draft), named: "feedback")
+  }
+
+  static var day: String {
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd"
+    return f.string(from: Date())
   }
 }
 

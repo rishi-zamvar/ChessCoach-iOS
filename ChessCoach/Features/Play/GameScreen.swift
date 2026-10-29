@@ -65,6 +65,7 @@ struct GameScreen: View {
       .onChange(of: context.date) { _, _ in game.tick() }
     }
     .background(Palette.surfaceBase.ignoresSafeArea())
+    .screen("game", context: ["opponent": .string(coachTitle), "fen": .string(game.displayedFEN)], board: true)
     .overlay(alignment: .bottom) {
       if let pause = game.coachPause {
         CoachPauseCard(pause: pause, onTakeBack: game.takeBack, onShow: game.showBetterMove, onContinue: game.continueGame)
@@ -197,15 +198,19 @@ struct GameScreen: View {
           .frame(width: 44, height: 44)
       }
       .accessibilityIdentifier("game-close")
+      .accessibilityLabel("Close")
       Spacer()
       Text(coachTitle)
         .font(.system(.subheadline).weight(.semibold))
+        .foregroundStyle(Palette.textPrimary)
       Spacer()
+      FeedbackButton()
       Button { game.flip() } label: {
         Image(systemName: "arrow.up.arrow.down")
           .font(.system(.subheadline).weight(.semibold))
           .frame(width: 44, height: 44)
       }
+      .accessibilityLabel("Flip board")
     }
     .foregroundStyle(Palette.textSecondary)
     .padding(.horizontal, Spacing.s)

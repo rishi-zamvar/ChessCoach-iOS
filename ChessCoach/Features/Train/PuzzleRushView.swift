@@ -28,6 +28,8 @@ struct PuzzleRushView: View {
       VStack(spacing: 0) {
         HStack {
           Button { dismiss() } label: { Image(systemName: "xmark").font(Typography.symbol(16, weight: .semibold)).frame(width: 44, height: 44) }
+            .accessibilityLabel("Close")
+          FeedbackButton()
           Spacer()
           Text(String(format: "%d:%02d", Int(left) / 60, Int(left) % 60))
             .font(.system(.title2, design: .monospaced).weight(.bold))
@@ -64,6 +66,7 @@ struct PuzzleRushView: View {
       .onChange(of: left <= 0) { _, timeUp in if timeUp, !over { finish() } }
     }
     .background(Palette.surfaceBase.ignoresSafeArea())
+    .screen("rush", board: true)
     .onAppear {
       startedAt = Date()
       next()

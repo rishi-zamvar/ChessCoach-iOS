@@ -9,6 +9,7 @@ struct TrainView: View {
   @State private var coachGame: GameController?
   @State private var showRush = false
   @Environment(AppEnvironment.self) private var env
+  @Environment(\.selectTab) private var selectTab
 
   struct Running: Identifiable {
     let id = UUID()
@@ -18,14 +19,14 @@ struct TrainView: View {
 
   var body: some View {
     ZStack {
-      BackgroundAtmosphere().ignoresSafeArea()
+      BackgroundAtmosphere().ignoresSafeArea().screen("train")
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.l) {
-          Eyebrow(text: "Train")
+          HStack { Eyebrow(text: "Train"); Spacer(); FeedbackButton() }
           Text("Train").font(Typography.display).foregroundStyle(Palette.ink)
 
           ratingCard
-          PlanCard()
+          todayPlanLink
 
           SectionHeader(title: "Skills", subtitle: "Six puzzles at your level. Ratings move with every attempt.")
           LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.m), GridItem(.flexible(), spacing: Spacing.m)], spacing: Spacing.m) {
@@ -114,6 +115,27 @@ struct TrainView: View {
     .fullScreenCover(item: $running, onDismiss: { training.refresh() }) { run in
       TrainingRunnerView(title: run.title, tasks: run.tasks)
     }
+  }
+
+  /// The plan lives on Today; Train links there instead of a second copy with its own state.
+  private var todayPlanLink: some View {
+    Button { selectTab(.today) } label: {
+      Card {
+        HStack(spacing: Spacing.m) {
+          Image(systemName: training.isPlanDone ? "checkmark.circle.fill" : "list.bullet.clipboard")
+            .font(Typography.symbol(22, weight: .light)).foregroundStyle(training.isPlanDone ? Palette.success : Palette.sage)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Today's plan").font(Typography.titleSmall).foregroundStyle(Palette.textPrimary)
+            Text(training.isPlanDone ? "Done for today. Pick anything below." : "\(training.plan.count - training.completedToday.count) blocks left, about \(max(1, Int(training.planMinutesLeft.rounded()))) min")
+              .font(Typography.callout).foregroundStyle(Palette.textSecondary)
+          }
+          Spacer()
+          Image(systemName: "chevron.right").foregroundStyle(Palette.textTertiary)
+        }
+      }
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("train-plan-link")
   }
 
   private var ratingCard: some View {

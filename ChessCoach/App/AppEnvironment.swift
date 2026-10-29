@@ -20,6 +20,8 @@ final class AppEnvironment {
   @ObservationIgnored var learnerBrief: @Sendable () -> String = { "A beginner around 300–500." }
   let telemetry: Telemetry
   let databaseSink: DatabaseSink
+  /// In-app feedback: breadcrumbs, outbox, status (spec W8).
+  let feedback: FeedbackCenter
   let engineHost: EngineHost?
   let sounds: SoundPlayer
   /// The on-disk store failed to open and we're running in memory (nothing persists).
@@ -50,7 +52,15 @@ final class AppEnvironment {
     let aiStore = AIStore(database: database)
     self.aiStore = aiStore
     databaseSink = DatabaseSink(database: database)
-    telemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
+    var telemetryRef: Telemetry?
+    let feedback = FeedbackCenter(telemetry: { telemetryRef })
+    self.feedback = feedback
+    var sinks: [TelemetrySink] = [OSLogSink(), databaseSink, feedback.breadcrumbs]
+    if let client = AnalyticsSetup.start(inMemory: inMemory) {
+      sinks.append(AnalyticsSink(client: client, consent: { AnalyticsSetup.consent }))
+    }
+    telemetry = Telemetry(sinks: sinks)
+    telemetryRef = telemetry
     let engineTelemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
     engineHost = EngineAssets.bundled().map { EngineHost(assets: $0, telemetry: engineTelemetry) }
     sounds = SoundPlayer()

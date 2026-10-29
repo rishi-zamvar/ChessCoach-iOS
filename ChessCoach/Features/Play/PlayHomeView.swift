@@ -13,11 +13,11 @@ struct PlayHomeView: View {
 
   var body: some View {
     ZStack {
-      BackgroundAtmosphere().ignoresSafeArea()
+      BackgroundAtmosphere().ignoresSafeArea().screen("play")
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.xl) {
           VStack(alignment: .leading, spacing: Spacing.s) {
-            Eyebrow(text: "Play")
+            HStack { Eyebrow(text: "Play"); Spacer(); FeedbackButton() }
             Text("New game")
               .font(Typography.display)
               .foregroundStyle(Palette.ink)

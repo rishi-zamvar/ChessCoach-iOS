@@ -14,6 +14,7 @@ struct SettingsView: View {
   @AppStorage(BoardSettings.soundKey) private var soundOn = true
   @AppStorage(BoardSettings.paceKey) private var paceRaw = ReplyPace.normal.rawValue
   @AppStorage(BoardSettings.coachModeKey) private var coachModeRaw = CoachMode.voice.rawValue
+  @AppStorage(Haptics.key) private var hapticsOn = true
   @State private var username = ""
   @State private var appleUserID = AppleAccount.userID
   @Environment(\.colorScheme) private var colorScheme
@@ -58,7 +59,7 @@ struct SettingsView: View {
         } header: {
           Text("Account")
         } footer: {
-          Text("Your chess.com username is your account. Games, ratings and progress stay on this phone; nothing is stored in the cloud.")
+          Text("Your chess.com username is your account. Games, ratings and progress stay on this phone.")
         }
         Section("Board") {
           Picker("Theme", selection: $themeID) {
@@ -86,9 +87,13 @@ struct SettingsView: View {
             Button("Hear the coach") { CoachSpeaker.shared.say(CoachVoice.sample) }
           }
         }
+        Section("Feel") {
+          Toggle("Haptics", isOn: $hapticsOn)
+        }
         AIProviderSection()
+        PrivacySection()
         Section {
-          Text("ChessCoach · engines: Stockfish 17, Maia-1100 (Lc0) · puzzles & openings: Lichess (CC0)")
+          Text("Knightlight \(FeedbackCenter.version) (\(FeedbackCenter.build)) · engines: Stockfish 17, Maia-1100 (Lc0) · puzzles & openings: Lichess (CC0)")
             .font(.footnote).foregroundStyle(.secondary)
         }
       }
@@ -111,6 +116,34 @@ struct SettingsView: View {
   private func commit() {
     let trimmed = username.trimmingCharacters(in: .whitespaces)
     if !trimmed.isEmpty { analysis.username = trimmed }
+  }
+}
+
+/// Feedback and what the app shares (spec W7, W8).
+private struct PrivacySection: View {
+  @Environment(AppEnvironment.self) private var env
+  @AppStorage(FeedbackCenter.shakeKey) private var shake = FeedbackCenter.isTestFlight
+  @AppStorage(AnalyticsSetup.consentKey) private var consentRaw = AnalyticsConsent.basic.rawValue
+
+  var body: some View {
+    Section {
+      NavigationLink("Your feedback") { FeedbackListView() }
+        .accessibilityIdentifier("settings-feedback")
+      Toggle("Shake to send feedback", isOn: $shake)
+      Toggle("Share anonymous usage", isOn: Binding(
+        get: { consentRaw != AnalyticsConsent.off.rawValue },
+        set: { on in
+          let value: AnalyticsConsent = on ? .basic : .off
+          AnalyticsSetup.setConsent(value, profile: { [:] }, userID: { "" })
+          consentRaw = value.rawValue
+          env.telemetry.event("settings.change", metadata: ["key": .string("analytics"), "on": .bool(on)])
+        }))
+        .accessibilityIdentifier("settings-analytics")
+    } header: {
+      Text("Privacy & feedback")
+    } footer: {
+      Text("Anonymous usage is which screens and features get used, with no name, games or text attached. It helps us find where the app gets in your way. Shake is ignored while you're playing.")
+    }
   }
 }
 

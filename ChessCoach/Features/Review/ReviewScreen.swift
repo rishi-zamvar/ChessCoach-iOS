@@ -48,6 +48,7 @@ struct ReviewScreen: View {
       }
     }
     .background(Palette.surfaceBase.ignoresSafeArea())
+    .screen("review", context: ["game": .string(game.id)], board: true)
     .task { await load() }
     .onAppear { analysisService.beginForegroundEngineUse() }
     .onDisappear { analysisService.endForegroundEngineUse() }
@@ -59,12 +60,15 @@ struct ReviewScreen: View {
         Image(systemName: "xmark").font(Typography.symbol(16, weight: .semibold)).frame(width: 44, height: 44)
       }
       .accessibilityIdentifier("review-close")
+      .accessibilityLabel("Close")
       Spacer()
-      Text("Game Review").font(.system(.body).weight(.bold))
+      Text("Game Review").font(Typography.bodyEmph).foregroundStyle(Palette.textPrimary)
       Spacer()
+      FeedbackButton()
       Button { flipped.toggle() } label: {
         Image(systemName: "arrow.up.arrow.down").font(Typography.symbol(15, weight: .semibold)).frame(width: 44, height: 44)
       }
+      .accessibilityLabel("Flip board")
     }
     .foregroundStyle(Palette.textSecondary)
     .padding(.horizontal, Spacing.s)

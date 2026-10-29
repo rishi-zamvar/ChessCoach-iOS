@@ -7,6 +7,8 @@ import UIKit
 struct RootView: View {
     @State private var tab: Tab = .today
     @Environment(TrainingService.self) private var training
+    @Environment(AppEnvironment.self) private var env
+    @State private var showReports = false
 
     enum Tab: Hashable { case today, analyze, train, play }
 
@@ -26,10 +28,22 @@ struct RootView: View {
                 .tag(Tab.play)
         }
         .tint(Palette.sage)
+        .environment(\.selectTab, SelectTabAction { tab = $0 })
         .fullScreenCover(isPresented: Binding(get: { training.needsOnboarding }, set: { _ in })) {
             OnboardingView()
         }
         .onAppear(perform: skipOnboardingInUITests)
+        .onShake { env.feedback.shake() }
+        .onChange(of: env.feedback.prompt) { _, prompt in
+            guard let prompt else { return }
+            env.feedback.prompt = nil
+            PromptBanner.show(prompt, center: env.feedback) { showReports = true }
+        }
+        .sheet(isPresented: $showReports) { NavigationStack { FeedbackListView() } }
+        .task {
+            await env.feedback.flush()
+            await env.feedback.refreshStatuses()
+        }
     }
 
     /// UI tests start from a fresh in-memory store; skip onboarding unless a test asks for it.
