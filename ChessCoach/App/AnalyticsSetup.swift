@@ -1,4 +1,5 @@
 import ChessCoachKit
+import CryptoKit
 import Foundation
 import PostHog
 
@@ -29,6 +30,14 @@ enum AnalyticsSetup {
     config.sessionReplayConfig.screenshotMode = true
     PostHogSDK.shared.setup(config)
     if consent == .off { PostHogSDK.shared.optOut() }
+    // Experiment (spec W7): the first-launch puzzle mode comes from the coach_mode_default flag.
+    if UserDefaults.standard.string(forKey: PuzzleMode.key) == nil {
+      PostHogSDK.shared.reloadFeatureFlags {
+        guard UserDefaults.standard.string(forKey: PuzzleMode.key) == nil else { return }
+        let coach = PostHogSDK.shared.isFeatureEnabled("coach_mode_default")
+        UserDefaults.standard.set((coach ? PuzzleMode.coach : .instant).rawValue, forKey: PuzzleMode.key)
+      }
+    }
     return PostHogClient()
   }
 
@@ -47,6 +56,44 @@ enum AnalyticsSetup {
       PostHogSDK.shared.optIn()
       PostHogClient().identify(userID(), properties: profile())
     }
+  }
+}
+
+extension AnalyticsSetup {
+  static let richAskedKey = "analytics.richAsked"
+  static let installIDKey = "analytics.installID"
+  static let privacyURL = URL(string: "https://chess.zamvar.io/privacy")!
+
+  /// The identified tier's ID: a hash of your Apple user ID (or a random install ID), never the raw ID.
+  static var userID: String {
+    let raw = AppleAccount.userID ?? {
+      if let id = UserDefaults.standard.string(forKey: installIDKey) { return id }
+      let id = UUID().uuidString
+      UserDefaults.standard.set(id, forKey: installIDKey)
+      return id
+    }()
+    return SHA256.hash(data: Data(raw.utf8)).map { String(format: "%02x", $0) }.joined().prefix(32).description
+  }
+
+  /// PostHog's ID for this device (for delete requests); nil when analytics isn't configured.
+  @MainActor static var distinctID: String? { apiKey == nil ? nil : PostHogSDK.shared.getDistinctId() }
+
+  /// Should we ask about the training profile? Once, after onboarding, only when analytics is configured.
+  static var shouldAskRich: Bool { apiKey != nil && !UserDefaults.standard.bool(forKey: richAskedKey) }
+}
+
+extension TrainingService {
+  /// Person properties for the opt-in training profile (spec W7 rich tier).
+  func analyticsProfile(_ env: AppEnvironment) -> [String: JSONValue] {
+    var p: [String: JSONValue] = [
+      "puzzle_rating": .int(globalRating), "style": .string(profile?.style.rawValue ?? "unknown"),
+      "ai_provider": .string(env.aiSettings.provider.rawValue), "locale": .string(Locale.current.identifier),
+      "lessons_passed": .int(lessonProgress.values.filter(\.passed).count),
+    ]
+    if let name = profile?.username, !name.isEmpty { p["chesscom_username"] = .string(name) }
+    if let real = realRating { p["chesscom_rating"] = .int(real) }
+    for (id, r) in skillRatings where id != TrainingStore.globalSkill { p["skill_\(id)"] = .int(Int(r.rating)) }
+    return p
   }
 }
 

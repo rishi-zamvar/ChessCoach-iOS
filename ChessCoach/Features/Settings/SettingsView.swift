@@ -15,6 +15,7 @@ struct SettingsView: View {
   @AppStorage(BoardSettings.paceKey) private var paceRaw = ReplyPace.normal.rawValue
   @AppStorage(BoardSettings.coachModeKey) private var coachModeRaw = CoachMode.voice.rawValue
   @AppStorage(Haptics.key) private var hapticsOn = true
+  @AppStorage(PuzzleMode.key) private var puzzleModeRaw = PuzzleMode.current.rawValue
   @State private var username = ""
   @State private var appleUserID = AppleAccount.userID
   @Environment(\.colorScheme) private var colorScheme
@@ -87,8 +88,16 @@ struct SettingsView: View {
             Button("Hear the coach") { CoachSpeaker.shared.say(CoachVoice.sample) }
           }
         }
-        Section("Feel") {
+        Section {
+          Picker("Puzzle feedback", selection: $puzzleModeRaw) {
+            ForEach(PuzzleMode.allCases) { Text($0.title).tag($0.rawValue) }
+          }
+          .accessibilityIdentifier("settings-puzzle-mode")
           Toggle("Haptics", isOn: $hapticsOn)
+        } header: {
+          Text("Puzzles & feel")
+        } footer: {
+          Text("Coach: play every puzzle out, then find your own mistake. Instant: right or wrong straight away. Quick warm-up and Puzzle Rush are always instant.")
         }
         AIProviderSection()
         PrivacySection()
@@ -122,8 +131,11 @@ struct SettingsView: View {
 /// Feedback and what the app shares (spec W7, W8).
 private struct PrivacySection: View {
   @Environment(AppEnvironment.self) private var env
+  @Environment(TrainingService.self) private var training
   @AppStorage(FeedbackCenter.shakeKey) private var shake = FeedbackCenter.isTestFlight
   @AppStorage(AnalyticsSetup.consentKey) private var consentRaw = AnalyticsConsent.basic.rawValue
+  @State private var confirmDelete = false
+  @State private var deleteResult: String?
 
   var body: some View {
     Section {
@@ -132,18 +144,67 @@ private struct PrivacySection: View {
       Toggle("Shake to send feedback", isOn: $shake)
       Toggle("Share anonymous usage", isOn: Binding(
         get: { consentRaw != AnalyticsConsent.off.rawValue },
-        set: { on in
-          let value: AnalyticsConsent = on ? .basic : .off
-          AnalyticsSetup.setConsent(value, profile: { [:] }, userID: { "" })
-          consentRaw = value.rawValue
-          env.telemetry.event("settings.change", metadata: ["key": .string("analytics"), "on": .bool(on)])
-        }))
+        set: { set($0 ? .basic : .off) }))
         .accessibilityIdentifier("settings-analytics")
+      Toggle("Share my training profile", isOn: Binding(
+        get: { consentRaw == AnalyticsConsent.rich.rawValue },
+        set: { set($0 ? .rich : .basic) }))
+        .accessibilityIdentifier("settings-analytics-rich")
+      Button("Delete my data", role: .destructive) { confirmDelete = true }
+        .accessibilityIdentifier("settings-delete-data")
+      if let deleteResult { Text(deleteResult).font(Typography.caption).foregroundStyle(Palette.textSecondary) }
+      Link("Privacy policy", destination: AnalyticsSetup.privacyURL)
     } header: {
       Text("Privacy & feedback")
     } footer: {
-      Text("Anonymous usage is which screens and features get used, with no name, games or text attached. It helps us find where the app gets in your way. Shake is ignored while you're playing.")
+      Text("Anonymous usage is which screens and features get used, with no name, games or text attached. Your training profile adds your chess.com name, ratings and puzzle results so we can coach you better; it's off unless you turn it on. Shake is ignored while you're playing.")
     }
+    .confirmationDialog("Delete your data?", isPresented: $confirmDelete, titleVisibility: .visible) {
+      Button("Delete", role: .destructive) {
+        Task {
+          let ok = await env.feedback.deleteMyData()
+          consentRaw = AnalyticsSetup.consent.rawValue
+          deleteResult = ok
+            ? "Deleted: your feedback is gone and your usage profile is queued for deletion."
+            : "Couldn't reach the server. Try again when you're online."
+        }
+      }
+    } message: {
+      Text("This removes the feedback and screenshots you've sent and deletes your usage profile. Games and progress on this phone stay.")
+    }
+  }
+
+  private func set(_ value: AnalyticsConsent) {
+    AnalyticsSetup.setConsent(value, profile: { training.analyticsProfile(env) }, userID: { AnalyticsSetup.userID })
+    consentRaw = value.rawValue
+    UserDefaults.standard.set(true, forKey: AnalyticsSetup.richAskedKey)
+    env.telemetry.event("settings.change", metadata: ["key": .string("analytics"), "value": .string(value.rawValue)])
+  }
+}
+
+/// Asked once after onboarding (when analytics is configured): opt in to the training profile.
+struct TrainingProfileConsentSheet: View {
+  let onChoice: (AnalyticsConsent) -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: Spacing.l) {
+      Eyebrow(text: "One question")
+      Text("Help us coach you better?").font(Typography.title).foregroundStyle(Palette.textPrimary)
+      Text("Share your training profile: your chess.com name, ratings, playing style and how each puzzle went, plus screen recordings with every text field hidden. We use it to see where you get stuck and make the coaching sharper.")
+        .font(Typography.body).foregroundStyle(Palette.textSecondary)
+      Text("No ads, no selling, no tracking across other apps. Change your mind any time in Settings.")
+        .font(Typography.callout).foregroundStyle(Palette.textTertiary)
+      Spacer()
+      PrimaryButton(title: "Share my training profile", action: { onChoice(.rich) })
+        .accessibilityIdentifier("consent-rich")
+      SecondaryButton(title: "Not now") { onChoice(.basic) }
+        .accessibilityIdentifier("consent-basic")
+      Link("Read the privacy policy", destination: AnalyticsSetup.privacyURL)
+        .font(Typography.callout).frame(maxWidth: .infinity)
+    }
+    .padding(Spacing.xl)
+    .background(Palette.surfaceBase.ignoresSafeArea())
+    .interactiveDismissDisabled()
   }
 }
 

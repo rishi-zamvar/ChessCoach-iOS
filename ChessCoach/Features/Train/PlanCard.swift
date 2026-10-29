@@ -38,7 +38,8 @@ struct PlanCard: View {
       TrainingRunnerView(
         title: block.title, tasks: block.tasks, next: next.map { ($0.title, $0.minutes) },
         onComplete: { empty in if let item = block.item { training.markDone(item, empty: empty) } },
-        onNext: { queued = next; running = nil })
+        onNext: { queued = next; running = nil },
+        allowCoach: block.item.map { if case .speed = $0.kind { false } else { true } } ?? true)
     }
     .fullScreenCover(item: $coachGame) { game in GameScreen(game: game) { coachGame = nil } }
     .fullScreenCover(item: $reviewGame) { ReviewScreen(game: $0) }

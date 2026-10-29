@@ -19,8 +19,31 @@ class FeedbackStore:
             "CREATE TABLE IF NOT EXISTS feedback (id TEXT PRIMARY KEY, device TEXT, created REAL, category TEXT,"
             " text TEXT, screen TEXT, build TEXT, app_version TEXT, context TEXT, breadcrumbs TEXT,"
             " has_screenshot INTEGER, status TEXT DEFAULT 'received', fixed_in_build TEXT, notified INTEGER DEFAULT 0)")
+        self._db.execute("CREATE TABLE IF NOT EXISTS deletion (distinct_id TEXT PRIMARY KEY, device TEXT, requested REAL, done INTEGER DEFAULT 0)")
         self._db.commit()
         self._lock = threading.Lock()
+
+    def delete_device(self, device: str, distinct_id: str | None) -> int:
+        """Removes a device's reports and screenshots; queues its analytics profile for deletion."""
+        with self._lock:
+            ids = [r[0] for r in self._db.execute("SELECT id FROM feedback WHERE device = ?", (device,)).fetchall()]
+            self._db.execute("DELETE FROM feedback WHERE device = ?", (device,))
+            if distinct_id:
+                self._db.execute("INSERT OR REPLACE INTO deletion VALUES (?, ?, ?, 0)", (distinct_id, device, time.time()))
+            self._db.commit()
+        for report_id in ids:
+            (self.images / f"{report_id}.jpg").unlink(missing_ok=True)
+        return len(ids)
+
+    def pending_deletions(self) -> list[dict]:
+        with self._lock:
+            rows = self._db.execute("SELECT distinct_id, requested FROM deletion WHERE done = 0").fetchall()
+        return [{"distinct_id": d, "requested": t} for d, t in rows]
+
+    def mark_deleted(self, distinct_id: str) -> None:
+        with self._lock:
+            self._db.execute("UPDATE deletion SET done = 1 WHERE distinct_id = ?", (distinct_id,))
+            self._db.commit()
 
     def add(self, device: str, report: dict, screenshot: bytes | None) -> None:
         """Idempotent on the client's id: a retried send stores nothing new."""

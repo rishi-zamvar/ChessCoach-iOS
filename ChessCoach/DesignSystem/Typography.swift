@@ -25,6 +25,7 @@ enum Typography {
   static let callout = Font.callout
   static let meta = Font.subheadline
   static let caption = Font.caption
+  static let footnote = Font.footnote
   static let numeric = Font.title3.monospacedDigit().weight(.semibold)
   static let moveSAN = Font.body.monospaced()
   static let mono = Font.callout.monospaced()

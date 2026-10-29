@@ -275,7 +275,7 @@ final class TrainingService {
     return RatingChange(before: before, after: globalRating)
   }
 
-  func record(review item: ReviewItem, session: PuzzleSession, seconds: Double) {
+  func record(review item: ReviewItem, session: some PuzzleOutcome, seconds: Double) {
     let grade = session.grade(seconds: seconds)
     try? store.review(item, grade: grade, now: Date())
     env.telemetry.event("training.review", metadata: ["id": .string(item.id), "grade": .string(grade.rawValue)])

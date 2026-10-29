@@ -25,6 +25,7 @@ from typing import AsyncIterator
 import chess
 import chess.pgn
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from app import models
@@ -124,6 +125,32 @@ class PublicJobRequest(BaseModel):
 
 class MaiaRequest(BaseModel):
     fen: str = Field(max_length=100)
+
+
+class DeleteRequest(BaseModel):
+    distinct_id: str | None = Field(default=None, max_length=128, pattern=r"^[A-Za-z0-9_-]*$")
+
+
+PRIVACY_HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Knightlight privacy</title>
+<style>body{font:16px/1.6 -apple-system,system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;color:#2B2523;background:#F6F4EF}
+h1,h2{font-family:"New York",Georgia,serif}</style>
+<h1>Knightlight privacy</h1>
+<p>Your games, ratings and progress stay on your phone. Knightlight does not track you across other companies' apps or websites.</p>
+<h2>Anonymous usage (on by default)</h2>
+<p>Which screens and features you use, how long training blocks take, and errors. No name, no games, no text you type.
+It goes to PostHog (EU region) so we can see where the app gets in the way. Turn it off in Settings &rarr; Privacy &amp; feedback.</p>
+<h2>Training profile (only if you opt in)</h2>
+<p>If you choose to share it, your usage is linked to a random ID with your chess.com username, ratings, playing style and
+per-puzzle results, plus session replays with every text field hidden. This helps us coach you better. You can switch it off any time.</p>
+<h2>Feedback you send</h2>
+<p>Your message, an optional screenshot you can mark up, and (if you leave it on) diagnostic details: the screen, its position,
+your recent actions in the app and your device model. It is stored on our server and linked only to this install of the app.</p>
+<h2>Delete my data</h2>
+<p>Settings &rarr; Privacy &amp; feedback &rarr; Delete my data removes your feedback and screenshots from our server and asks PostHog
+to delete your usage profile. Data is otherwise kept for 12 months.</p>
+<p>Questions: use the feedback button in the app.</p>
+</html>"""
 
 
 class FeedbackRequest(BaseModel):
@@ -343,6 +370,16 @@ def create_public_app(
     @app.get("/v1/feedback")
     def list_feedback(request: Request, key_id: bytes = Depends(attested)) -> dict:
         return {"reports": request.app.state.feedback.for_device(key_id.hex())}
+
+    @app.post("/v1/privacy/delete")
+    def delete_my_data(request: Request, body: DeleteRequest, key_id: bytes = Depends(attested)) -> dict:
+        limit(request, "delete:" + key_id.hex(), 5, 3600)
+        n = request.app.state.feedback.delete_device(key_id.hex(), body.distinct_id)
+        return {"ok": True, "deleted_reports": n}
+
+    @app.get("/privacy", response_class=HTMLResponse)
+    def privacy() -> str:
+        return PRIVACY_HTML
 
     return app
 

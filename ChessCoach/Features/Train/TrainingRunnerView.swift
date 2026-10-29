@@ -12,6 +12,8 @@ struct TrainingRunnerView: View {
   var onComplete: (_ empty: Bool) -> Void = { _ in }
   /// The user chose "Next" on the summary.
   var onNext: (() -> Void)? = nil
+  /// Coach-mode puzzles allowed (not for Quick warm-up, which drills speed).
+  var allowCoach = true
 
   @Environment(\.dismiss) private var dismiss
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -104,8 +106,12 @@ struct TrainingRunnerView: View {
   @ViewBuilder
   private func content(_ task: TrainingTask) -> some View {
     switch task {
+    case .puzzle(let puzzle) where coach:
+      CoachPuzzleView(puzzle: puzzle) { advance(clean: $0.solvedCleanly) }
     case .puzzle(let puzzle):
       PuzzleView(puzzle: puzzle) { advance(clean: $0.solvedCleanly) }
+    case .review(let item, let puzzle) where coach && item.kind == .puzzle:
+      CoachPuzzleView(puzzle: puzzle, review: item, hasSetupMove: true) { advance(clean: $0.solvedCleanly) }
     case .review(let item, let puzzle):
       PuzzleView(puzzle: puzzle, review: item, hasSetupMove: item.kind == .puzzle, insight: training.insight(for: item)) {
         advance(clean: $0.solvedCleanly)
@@ -121,6 +127,9 @@ struct TrainingRunnerView: View {
       }
     }
   }
+
+  /// Coach mode is on, allowed for this block, and the engine is there to grade moves.
+  private var coach: Bool { allowCoach && PuzzleMode.current == .coach && env.engineHost != nil }
 
   private func advance(clean: Bool) {
     if clean { cleanSolves += 1 }

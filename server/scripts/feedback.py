@@ -32,6 +32,7 @@ def main() -> None:
     st.add_argument("status", choices=["received", "fixed", "wontfix"])
     st.add_argument("--build")
     sub.add_parser("notify")
+    sub.add_parser("deletions")  # deletes queued PostHog persons; needs POSTHOG_PERSONAL_KEY + POSTHOG_PROJECT_ID
     args = p.parse_args()
     store = FeedbackStore(Path(args.data))
 
@@ -53,6 +54,25 @@ def main() -> None:
         if not r:
             sys.exit("no such report")
         store.set_status(r["id"], args.status, args.build)
+    elif args.cmd == "deletions":
+        import urllib.parse
+        import urllib.request
+
+        key, project = os.environ.get("POSTHOG_PERSONAL_KEY"), os.environ.get("POSTHOG_PROJECT_ID")
+        host = os.environ.get("POSTHOG_HOST", "https://eu.posthog.com")
+        for d in store.pending_deletions():
+            if not (key and project):
+                print("pending:", d["distinct_id"], "(set POSTHOG_PERSONAL_KEY and POSTHOG_PROJECT_ID to delete)")
+                continue
+            q = urllib.parse.urlencode({"distinct_id": d["distinct_id"]})
+            req = urllib.request.Request(f"{host}/api/projects/{project}/persons/?{q}", headers={"Authorization": f"Bearer {key}"})
+            people = json.load(urllib.request.urlopen(req)).get("results", [])
+            for person in people:
+                urllib.request.urlopen(urllib.request.Request(
+                    f"{host}/api/projects/{project}/persons/{person['id']}/?delete_events=true",
+                    method="DELETE", headers={"Authorization": f"Bearer {key}"}))
+            store.mark_deleted(d["distinct_id"])
+            print("deleted", d["distinct_id"], f"({len(people)} person)")
     elif args.cmd == "notify":
         for r in store.unnotified():
             body = f"[{r['category']}] on {r['screen'] or '?'} (build {r['build']}): {r['text'][:300]}"

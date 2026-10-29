@@ -128,6 +128,19 @@ final class FeedbackCenter {
     }
   }
 
+  /// Settings → Delete my data: removes this device's feedback on the server and queues the
+  /// analytics profile for deletion, then forgets the profile on the phone.
+  func deleteMyData() async -> Bool {
+    let body = (try? JSONSerialization.data(withJSONObject: ["distinct_id": AnalyticsSetup.distinctID ?? ""])) ?? Data()
+    guard PublicServer.shared.isAvailable, (try? await PublicServer.shared.send("POST", "/v1/privacy/delete", body: body)) != nil
+    else { return false }
+    for report in outbox.pending() { outbox.remove(report.id) }
+    reports = []
+    AnalyticsSetup.setConsent(.basic, profile: { [:] }, userID: { "" })
+    telemetry()?.event("settings.change", metadata: ["key": .string("delete_my_data")])
+    return true
+  }
+
   // MARK: - Screen capture
 
   static func captureScreen() -> UIImage? {
