@@ -43,7 +43,7 @@ struct OutcomeBadge: View {
 
   var body: some View {
     Text(outcome.rawValue)
-      .font(.system(size: 15, weight: .bold, design: .rounded))
+      .font(.system(.subheadline).weight(.bold))
       .foregroundStyle(Palette.textOnDark)
       .frame(width: 32, height: 32)
       .background(outcome.color, in: RoundedRectangle(cornerRadius: Spacing.cornerSmall, style: .continuous))

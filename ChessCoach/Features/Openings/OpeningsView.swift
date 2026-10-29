@@ -29,7 +29,7 @@ struct OpeningsView: View {
             Eyebrow(text: "Openings · \(training.profile?.style.title ?? "All-rounder")")
             Spacer()
             Button { adding = true } label: {
-              Image(systemName: "plus").font(.system(size: 18, weight: .semibold)).foregroundStyle(Palette.primaryDeep)
+              Image(systemName: "plus").font(Typography.symbol(18, weight: .semibold)).foregroundStyle(Palette.primaryDeep)
                 .frame(width: 40, height: 40).background(Circle().fill(Palette.paper))
             }
             .accessibilityLabel("Add openings")
@@ -99,7 +99,7 @@ private struct AddOpeningsSheet: View {
               }
               HStack(spacing: 2) {
                 ForEach(0..<5, id: \.self) { i in
-                  Image(systemName: i < stars ? "star.fill" : "star").font(.system(size: 11))
+                  Image(systemName: i < stars ? "star.fill" : "star").font(Typography.symbol(11))
                     .foregroundStyle(i < stars ? Palette.accentDeep : Palette.textMuted)
                 }
                 Text("Style fit").font(Typography.caption).foregroundStyle(Palette.textMuted).padding(.leading, 4)
@@ -231,7 +231,7 @@ struct OpeningTrainerView: View {
       Spacer(minLength: 0)
       controls
     }
-    .background(ChessChrome.background.ignoresSafeArea())
+    .background(Palette.surfaceBase.ignoresSafeArea())
     .onAppear {
       // Pick up at the first line you haven't locked in yet.
       if mode == .learn { lineIndex = repertoire.lines.indices.first { !isMastered($0) } ?? 0 }
@@ -252,13 +252,13 @@ struct OpeningTrainerView: View {
   private var header: some View {
     HStack {
       Button { dismiss() } label: {
-        Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44)
+        Image(systemName: "xmark").font(Typography.symbol(16, weight: .semibold)).frame(width: 44, height: 44)
       }
       Spacer()
       VStack(spacing: 2) {
-        Text(repertoire.name).font(.system(size: 15, weight: .bold, design: .rounded)).lineLimit(1)
+        Text(repertoire.name).font(.system(.subheadline).weight(.bold)).lineLimit(1)
         Text(mode == .learn ? "Learn · line \(lineIndex + 1) of \(repertoire.lines.count)\(recall ? " · from memory \(mastery.streak)/\(LineMastery.required)" : "")" : "Drill · \(correct) right · \(misses) missed")
-          .font(.system(size: 12, design: .rounded))
+          .font(.system(.caption))
       }
       Spacer()
       if mode == .learn {
@@ -274,42 +274,42 @@ struct OpeningTrainerView: View {
             }
           }
         } label: {
-          Image(systemName: "list.bullet").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44)
+          Image(systemName: "list.bullet").font(Typography.symbol(16, weight: .semibold)).frame(width: 44, height: 44)
         }
         .accessibilityIdentifier("opening-lines")
       } else {
         Color.clear.frame(width: 44, height: 44)
       }
     }
-    .foregroundStyle(ChessChrome.textSecondary)
-    .background(ChessChrome.bar)
+    .foregroundStyle(Palette.textSecondary)
+    .background(Palette.surfaceRaised)
   }
 
   private var coach: some View {
     HStack(alignment: .top, spacing: Spacing.s) {
-      Text("♞").font(.system(size: 22, design: .serif)).foregroundStyle(ChessChrome.accentGreen)
-        .frame(width: 36, height: 36).background(Circle().fill(ChessChrome.card))
+      Text("♞").font(Typography.symbol(22, design: .serif)).foregroundStyle(Palette.sage)
+        .frame(width: 36, height: 36).background(Circle().fill(Palette.surfaceRaised))
       VStack(alignment: .leading, spacing: 4) {
         if let node = cursor.map(repertoire.node), let trap = node.trap {
           Label("Trap: \(trap)", systemImage: "exclamationmark.triangle.fill")
-            .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(MoveClass.mistake.color)
+            .font(.system(.footnote).weight(.bold)).foregroundStyle(MoveClass.mistake.color)
         }
         if let node = cursor.map(repertoire.node), node.isDeviation {
           Label("A common deviation at your level", systemImage: "arrow.triangle.branch")
-            .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(MoveClass.great.color)
+            .font(.system(.footnote).weight(.bold)).foregroundStyle(MoveClass.great.color)
         }
         Text((wrong.map { "\($0) isn't in your repertoire. " } ?? "") + message)
-          .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+          .font(.system(.subheadline).weight(.medium)).foregroundStyle(Palette.textPrimary)
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("opening-coach")
         if pendingReply != nil {
           Text("Tap the board when you're ready for their reply.")
-            .font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+            .font(.system(.caption)).foregroundStyle(Palette.textSecondary)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(Spacing.m)
-      .background(RoundedRectangle(cornerRadius: 12).fill(ChessChrome.card))
+      .background(RoundedRectangle(cornerRadius: 12).fill(Palette.surfaceRaised))
     }
     .padding(Spacing.m)
     .frame(minHeight: 110, alignment: .top)
@@ -318,16 +318,16 @@ struct OpeningTrainerView: View {
   private var controls: some View {
     HStack(spacing: Spacing.s) {
       if pendingReply != nil {
-        PuzzleButton(title: "Their move", systemImage: "arrow.right", prominent: true, action: showReply)
+        ActionButton(title: "Their move", systemImage: "arrow.right", prominent: true, action: showReply)
           .accessibilityIdentifier("opening-continue")
       } else if finishedLine, mode == .learn {
         let unlocked = isMastered(lineIndex)
-        PuzzleButton(title: "", systemImage: "arrow.triangle.branch") { startLine() }
+        ActionButton(title: "", systemImage: "arrow.triangle.branch") { startLine() }
           .frame(maxWidth: 56)
           .accessibilityIdentifier("opening-arrows-again")
-        PuzzleButton(title: "From memory", systemImage: "brain.head.profile", prominent: !unlocked) { startLine(recall: true) }
+        ActionButton(title: "From memory", systemImage: "brain.head.profile", prominent: !unlocked) { startLine(recall: true) }
           .accessibilityIdentifier("opening-repeat")
-        PuzzleButton(
+        ActionButton(
           title: lineIndex + 1 < repertoire.lines.count ? (unlocked ? "Next line" : "Next \(mastery.streak)/\(LineMastery.required)") : "Start over",
           systemImage: unlocked ? "arrow.right" : "lock.fill", prominent: unlocked
         ) {
@@ -336,18 +336,18 @@ struct OpeningTrainerView: View {
         .disabled(!unlocked)
         .accessibilityIdentifier("opening-next")
       } else if finishedLine {
-        PuzzleButton(title: "Again", systemImage: "arrow.right", prominent: true) { startLine() }
+        ActionButton(title: "Again", systemImage: "arrow.right", prominent: true) { startLine() }
           .accessibilityIdentifier("opening-next")
       } else if isUserTurn {
-        PuzzleButton(title: showAnswer ? "Hide" : "Show move", systemImage: "eye") { showAnswer.toggle() }
+        ActionButton(title: showAnswer ? "Hide" : "Show move", systemImage: "eye") { showAnswer.toggle() }
       }
       if env.aiSettings.hasKey {
-        PuzzleButton(title: "Ask", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
+        ActionButton(title: "Ask", systemImage: "bubble.left.and.text.bubble.right") { askingCoach = true }
           .frame(maxWidth: 110)
       }
     }
     .padding(Spacing.m)
-    .background(ChessChrome.bar)
+    .background(Palette.surfaceRaised)
   }
 
   private var annotations: AnnotationLayer {

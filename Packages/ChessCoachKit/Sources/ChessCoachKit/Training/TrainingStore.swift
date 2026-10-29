@@ -171,7 +171,7 @@ public struct TrainingStore: Sendable {
   /// Records a puzzle attempt: Glicko updates (primary skill full, other matching skills half,
   /// plus the global rating), the attempt row, and a review item when it went wrong.
   @discardableResult
-  public func recordPuzzle(_ session: PuzzleSession, seconds: Double, now: Date) throws -> [String: Glicko2] {
+  public func recordPuzzle(_ session: some PuzzleOutcome, seconds: Double, now: Date) throws -> [String: Glicko2] {
     let puzzle = session.puzzle
     let score = session.ratingScore
     let primary = SkillCatalog.all.first { $0.themes.contains(puzzle.primaryTheme) }?.id
@@ -215,19 +215,13 @@ public struct TrainingStore: Sendable {
   }
 
   /// Consecutive days (ending today or yesterday) with at least one training attempt.
-  public func streak(now: Date, calendar: Calendar = .current) throws -> Int {
+  /// Days in a row you practised (puzzle attempts plus `alsoPracticed`, e.g. finished plan blocks),
+  /// with one missed day a week forgiven (StreakCounter).
+  public func streak(now: Date, alsoPracticed: Set<Date> = [], calendar: Calendar = .current) throws -> Int {
     let days = try database.reader.read { db in
       try Date.fetchAll(db, sql: "SELECT at FROM attempt WHERE at >= ? ORDER BY at DESC", arguments: [now.addingTimeInterval(-400 * 86_400)])
     }
-    let practiced = Set(days.map { calendar.startOfDay(for: $0) })
-    var day = calendar.startOfDay(for: now)
-    if !practiced.contains(day) { day = calendar.date(byAdding: .day, value: -1, to: day)! }
-    var count = 0
-    while practiced.contains(day) {
-      count += 1
-      day = calendar.date(byAdding: .day, value: -1, to: day)!
-    }
-    return count
+    return StreakCounter.count(practiced: Set(days).union(alsoPracticed), now: now, calendar: calendar)
   }
 
   public func attemptsCount(since date: Date) throws -> Int {

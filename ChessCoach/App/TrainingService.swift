@@ -30,6 +30,8 @@ final class TrainingService {
   private(set) var skillRatings: [String: Glicko2] = [:]
   private(set) var lessonProgress: [String: LessonProgress] = [:]
   private(set) var dueReviewCount = 0
+  /// The skill the planner ranks first today (the completion card's bonus set).
+  private(set) var topSkillID: String?
   private(set) var revision = 0
 
   @ObservationIgnored let store: TrainingStore
@@ -91,12 +93,15 @@ final class TrainingService {
     }
     let rating = globalRating
     let style = profile?.style.title ?? "All-rounder"
-    let focus = planner.priorities(state, now: now).prefix(3).compactMap { p in
+    let ranked = planner.priorities(state, now: now)
+    topSkillID = ranked.first { SkillCatalog.skill($0.skillID)?.themes.isEmpty == false }?.skillID
+    let real = realRating.map { "chess.com rapid about \($0)" } ?? "no chess.com games yet"
+    let focus = ranked.prefix(3).compactMap { p in
       SkillCatalog.skill(p.skillID).map { skill in
         "\(skill.name)\(weakness.evidence[skill.id].map { " (missed \($0)× in recent games)" } ?? "")"
       }
     }.joined(separator: ", ")
-    env.learnerBrief = { "Puzzle rating about \(rating), chess.com rapid ~300, style \(style). Working on: \(focus)." }
+    env.learnerBrief = { "Puzzle rating about \(rating), \(real), style \(style). Working on: \(focus)." }
     let ratings = skillRatings.mapValues(\.rating)
     env.puzzleRatings = { ratings }
     let styleID = profile?.style.rawValue ?? "allRounder"
@@ -159,10 +164,40 @@ final class TrainingService {
       let themes = skillIDs.flatMap { SkillCatalog.skill($0)?.themes ?? [] }
       return puzzleTasks(themes: themes, rating: rating, count: count)
     case .reviews(let count):
-      return reviewTasks(kind: nil, limit: count, now: now)
+      return splitReviews(now: now).reviews.prefix(count).compactMap(task(for:))
     case .ownMistakes(let count):
-      return reviewTasks(kind: .mistake, limit: count, now: now)
+      return splitReviews(now: now).own.prefix(count).compactMap(task(for:))
     }
+  }
+
+  /// Due reviews divided between today's two review blocks, so one can't empty the other.
+  private func splitReviews(now: Date) -> (reviews: [ReviewItem], own: [ReviewItem]) {
+    let own = plan.compactMap { if case .ownMistakes(let n) = $0.kind { n } else { nil } }.first ?? 0
+    return ReviewSplit.split((try? store.dueReviews(at: now)) ?? [], ownCount: own)
+  }
+
+  /// A bonus set of five on today's top skill (offered once the plan is done).
+  func bonusTasks() -> (title: String, tasks: [TrainingTask])? {
+    guard let id = topSkillID, let skill = SkillCatalog.skill(id) else { return nil }
+    let rating = Int(skillRatings[id]?.rating ?? Double(globalRating))
+    return ("Bonus: \(skill.name)", puzzleTasks(themes: skill.themes, rating: max(400, rating - 100), count: 5))
+  }
+
+  var isPlanDone: Bool { !plan.isEmpty && plan.allSatisfy { completedToday.contains($0.id) } }
+
+  /// Streak with finished plan blocks counting too (not just puzzles), one missed day a week forgiven.
+  func streak(now: Date = Date()) -> Int {
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd"
+    let blockDays = UserDefaults.standard.dictionaryRepresentation().compactMap { key, value -> Date? in
+      guard key.hasPrefix("plan.completed."), let done = value as? [String], !done.isEmpty else { return nil }
+      return f.date(from: String(key.dropFirst("plan.completed.".count)))
+    }
+    return (try? store.streak(now: now, alsoPracticed: Set(blockDays))) ?? 0
+  }
+
+  func puzzlesToday(now: Date = Date()) -> Int {
+    (try? store.attemptsCount(since: Calendar.current.startOfDay(for: now))) ?? 0
   }
 
   /// Puzzles spread across `themes`, excluding anything seen in the last 90 days.
@@ -239,7 +274,7 @@ final class TrainingService {
 
   /// Records a rated puzzle; returns the global rating change.
   @discardableResult
-  func record(puzzle session: PuzzleSession, seconds: Double) -> RatingChange {
+  func record(puzzle session: some PuzzleOutcome, seconds: Double) -> RatingChange {
     let before = globalRating
     let updated = (try? store.recordPuzzle(session, seconds: seconds, now: Date())) ?? [:]
     if let global = updated[TrainingStore.globalSkill] { skillRatings[TrainingStore.globalSkill] = global }
@@ -251,7 +286,7 @@ final class TrainingService {
     return RatingChange(before: before, after: globalRating)
   }
 
-  func record(review item: ReviewItem, session: PuzzleSession, seconds: Double) {
+  func record(review item: ReviewItem, session: some PuzzleOutcome, seconds: Double) {
     let grade = session.grade(seconds: seconds)
     try? store.review(item, grade: grade, now: Date())
     env.telemetry.event("training.review", metadata: ["id": .string(item.id), "grade": .string(grade.rawValue)])
@@ -277,10 +312,20 @@ final class TrainingService {
       fen: repertoire.fenBefore(node), solution: [node.uci], now: Date())
   }
 
-  func markDone(_ item: PlanItem, now: Date = Date()) {
+  func markDone(_ item: PlanItem, empty: Bool = false, now: Date = Date()) {
+    guard !completedToday.contains(item.id) else { return }
     completedToday.insert(item.id)
     UserDefaults.standard.set(Array(completedToday), forKey: Self.completedKey(for: now))
+    env.telemetry.event(empty ? "plan.block_empty" : "plan.block_done", metadata: ["kind": .string(item.kindName)])
+    if isPlanDone { env.telemetry.event("plan.done", metadata: ["blocks": .int(plan.count)]) }
     revision += 1
+  }
+
+  /// The next block still to do after `item` (or the first one left).
+  func nextBlock(after item: PlanItem?) -> PlanItem? {
+    let left = plan.filter { !completedToday.contains($0.id) && $0.id != item?.id }
+    guard let item, let at = plan.firstIndex(where: { $0.id == item.id }) else { return left.first }
+    return left.first { (plan.firstIndex(of: $0) ?? 0) > at } ?? left.first
   }
 
   private static func completedKey(for date: Date) -> String {

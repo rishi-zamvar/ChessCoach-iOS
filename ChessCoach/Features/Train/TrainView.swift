@@ -9,6 +9,7 @@ struct TrainView: View {
   @State private var coachGame: GameController?
   @State private var showRush = false
   @Environment(AppEnvironment.self) private var env
+  @Environment(\.selectTab) private var selectTab
 
   struct Running: Identifiable {
     let id = UUID()
@@ -18,14 +19,14 @@ struct TrainView: View {
 
   var body: some View {
     ZStack {
-      BackgroundAtmosphere().ignoresSafeArea()
+      BackgroundAtmosphere().ignoresSafeArea().screen("train")
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.l) {
-          Eyebrow(text: "Train")
+          HStack { Eyebrow(text: "Train"); Spacer(); FeedbackButton() }
           Text("Train").font(Typography.display).foregroundStyle(Palette.ink)
 
           ratingCard
-          PlanCard()
+          todayPlanLink
 
           SectionHeader(title: "Skills", subtitle: "Six puzzles at your level. Ratings move with every attempt.")
           LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.m), GridItem(.flexible(), spacing: Spacing.m)], spacing: Spacing.m) {
@@ -40,7 +41,7 @@ struct TrainView: View {
           Button { showRush = true } label: {
             Card {
               HStack(spacing: Spacing.m) {
-                Image(systemName: "bolt.fill").font(.system(size: 22)).foregroundStyle(Palette.accentDeep)
+                Image(systemName: "bolt.fill").font(Typography.symbol(22)).foregroundStyle(Palette.accentDeep)
                 VStack(alignment: .leading, spacing: 2) {
                   Text("Puzzle Rush").font(Typography.titleSmall).foregroundStyle(Palette.ink)
                   Text("3 minutes, 3 strikes. Best: \(UserDefaults.standard.integer(forKey: PuzzleRushView.bestKey))")
@@ -67,7 +68,7 @@ struct TrainView: View {
           Button { showOpenings = true } label: {
             Card {
               HStack(spacing: Spacing.m) {
-                Image(systemName: "book.closed").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
+                Image(systemName: "book.closed").font(Typography.symbol(22, weight: .light)).foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
                   Text("Your repertoire").font(Typography.titleSmall).foregroundStyle(Palette.ink)
                   Text("Learn and drill the openings for your style.").font(Typography.callout).foregroundStyle(Palette.textSecondary)
@@ -86,7 +87,7 @@ struct TrainView: View {
           } label: {
             Card {
               HStack(spacing: Spacing.m) {
-                Image(systemName: "person.wave.2").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.primaryDeep)
+                Image(systemName: "person.wave.2").font(Typography.symbol(22, weight: .light)).foregroundStyle(Palette.primaryDeep)
                 VStack(alignment: .leading, spacing: 2) {
                   Text("Play with the coach").font(Typography.titleSmall).foregroundStyle(Palette.ink)
                   Text("A game that trains \(env.coachFocus.title.lowercased()). The coach says \"Hold up\" before a mistake costs you.")
@@ -114,6 +115,27 @@ struct TrainView: View {
     .fullScreenCover(item: $running, onDismiss: { training.refresh() }) { run in
       TrainingRunnerView(title: run.title, tasks: run.tasks)
     }
+  }
+
+  /// The plan lives on Today; Train links there instead of a second copy with its own state.
+  private var todayPlanLink: some View {
+    Button { selectTab(.today) } label: {
+      Card {
+        HStack(spacing: Spacing.m) {
+          Image(systemName: training.isPlanDone ? "checkmark.circle.fill" : "list.bullet.clipboard")
+            .font(Typography.symbol(22, weight: .light)).foregroundStyle(training.isPlanDone ? Palette.success : Palette.sage)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Today's plan").font(Typography.titleSmall).foregroundStyle(Palette.textPrimary)
+            Text(training.isPlanDone ? "Done for today. Pick anything below." : "\(training.plan.count - training.completedToday.count) blocks left, about \(max(1, Int(training.planMinutesLeft.rounded()))) min")
+              .font(Typography.callout).foregroundStyle(Palette.textSecondary)
+          }
+          Spacer()
+          Image(systemName: "chevron.right").foregroundStyle(Palette.textTertiary)
+        }
+      }
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("train-plan-link")
   }
 
   private var ratingCard: some View {
@@ -160,11 +182,11 @@ private struct SkillTile: View {
     Button(action: { Haptics.light(); action() }) {
       VStack(alignment: .leading, spacing: Spacing.s) {
         HStack {
-          Image(systemName: skill.systemImage).font(.system(size: 18)).foregroundStyle(Palette.primaryDeep)
+          Image(systemName: skill.systemImage).font(Typography.symbol(18)).foregroundStyle(Palette.primaryDeep)
           Spacer()
           if let rating, skill.themes.isEmpty == false {
             Text("\(Int(rating.rating))")
-              .font(.system(size: 13, weight: .semibold, design: .rounded))
+              .font(.system(.footnote).weight(.semibold))
               .foregroundStyle(rating.deviation > 150 ? Palette.textMuted : Palette.ink)
           }
         }
@@ -191,7 +213,7 @@ private struct LessonRow: View {
     Button(action: { Haptics.light(); action() }) {
       HStack(spacing: Spacing.m) {
         Image(systemName: progress?.passed == true ? "checkmark.circle.fill" : "book")
-          .font(.system(size: 18))
+          .font(.system(.title3))
           .foregroundStyle(progress?.passed == true ? Palette.success : Palette.primaryDeep)
           .frame(width: 28)
         VStack(alignment: .leading, spacing: 2) {
@@ -200,7 +222,7 @@ private struct LessonRow: View {
             .font(Typography.caption).foregroundStyle(Palette.textSecondary)
         }
         Spacer()
-        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.textMuted)
+        Image(systemName: "chevron.right").font(Typography.symbol(13, weight: .semibold)).foregroundStyle(Palette.textMuted)
       }
       .padding(Spacing.m)
       .background(Palette.paper)

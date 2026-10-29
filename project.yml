@@ -9,9 +9,15 @@ options:
 packages:
   ChessCoachKit:
     path: Packages/ChessCoachKit
+  PostHog:
+    url: https://github.com/PostHog/posthog-ios
+    exactVersion: 3.92.0
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing
+    exactVersion: 1.19.6
 settings:
   base:
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.9.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
@@ -45,7 +51,10 @@ targets:
           NSAllowsLocalNetworking: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        CFBundleDisplayName: ChessCoach
+        CFBundleDisplayName: Knightlight
+        # PostHog project API key (EU cloud). Empty = analytics off; set before shipping analytics.
+        PostHogAPIKey: ""
+        PostHogHost: "https://eu.i.posthog.com"
         # The public server: Cloudflare Tunnel to the home PC (only the isolated public service).
         PublicServerURL: "https://chess.zamvar.io"
         ITSAppUsesNonExemptEncryption: false
@@ -60,6 +69,8 @@ targets:
     dependencies:
       - package: ChessCoachKit
         product: ChessCoachKit
+      - package: PostHog
+        product: PostHog
   ChessCoachTests:
     type: bundle.unit-test
     platform: iOS
@@ -67,6 +78,8 @@ targets:
       - ChessCoachTests
     dependencies:
       - target: ChessCoach
+      - package: SnapshotTesting
+        product: SnapshotTesting
   ChessCoachUITests:
     type: bundle.ui-testing
     platform: iOS

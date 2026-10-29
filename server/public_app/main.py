@@ -25,6 +25,7 @@ from typing import AsyncIterator
 import chess
 import chess.pgn
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from app import models
@@ -33,6 +34,7 @@ from app.engines.maia import MaiaEngine
 from app.engines.stockfish import StockfishEngine
 from app.jobs import JobStore
 from public_app.attest import AppAttestVerifier, AttestError, AttestedKey
+from public_app.feedback import FeedbackStore
 
 APP_ID = "373D7DZ9NM.com.rishizamvar.chesscoach"
 MAX_PGN_CHARS = 20_000
@@ -42,6 +44,8 @@ MAX_MULTIPV = 3
 MAX_QUEUED_JOBS = 4
 MAX_BODY_BYTES = 64 * 1024
 MAX_STORED_JOBS = 200
+# A feedback report carries one JPEG screenshot (the app sends ≤ ~400 KB, base64 grows it by a third).
+MAX_FEEDBACK_BYTES = 700 * 1024
 
 
 @dataclass(frozen=True)
@@ -123,6 +127,44 @@ class MaiaRequest(BaseModel):
     fen: str = Field(max_length=100)
 
 
+class DeleteRequest(BaseModel):
+    distinct_id: str | None = Field(default=None, max_length=128, pattern=r"^[A-Za-z0-9_-]*$")
+
+
+PRIVACY_HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Knightlight privacy</title>
+<style>body{font:16px/1.6 -apple-system,system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;color:#2B2523;background:#F6F4EF}
+h1,h2{font-family:"New York",Georgia,serif}</style>
+<h1>Knightlight privacy</h1>
+<p>Your games, ratings and progress stay on your phone. Knightlight does not track you across other companies' apps or websites.</p>
+<h2>Anonymous usage (on by default)</h2>
+<p>Which screens and features you use, how long training blocks take, and errors. No name, no games, no text you type.
+It goes to PostHog (EU region) so we can see where the app gets in the way. Turn it off in Settings &rarr; Privacy &amp; feedback.</p>
+<h2>Training profile (only if you opt in)</h2>
+<p>If you choose to share it, your usage is linked to a random ID with your chess.com username, ratings, playing style and
+per-puzzle results, plus session replays with every text field hidden. This helps us coach you better. You can switch it off any time.</p>
+<h2>Feedback you send</h2>
+<p>Your message, an optional screenshot you can mark up, and (if you leave it on) diagnostic details: the screen, its position,
+your recent actions in the app and your device model. It is stored on our server and linked only to this install of the app.</p>
+<h2>Delete my data</h2>
+<p>Settings &rarr; Privacy &amp; feedback &rarr; Delete my data removes your feedback and screenshots from our server and asks PostHog
+to delete your usage profile. Data is otherwise kept for 12 months.</p>
+<p>Questions: use the feedback button in the app.</p>
+</html>"""
+
+
+class FeedbackRequest(BaseModel):
+    id: str = Field(pattern=r"^[0-9A-Fa-f-]{36}$")
+    category: str = Field(pattern=r"^(bug|confusing|idea|praise|none)$")
+    text: str = Field(max_length=4000)
+    screen: str = Field(max_length=64, pattern=r"^[A-Za-z0-9._-]*$")
+    context: dict[str, str | int | float | bool | None] = Field(max_length=60)
+    breadcrumbs: list[str] = Field(max_length=50)
+    build: str = Field(max_length=16, pattern=r"^[0-9.]*$")
+    app_version: str = Field(max_length=16, pattern=r"^[0-9.]*$")
+    screenshot: str | None = Field(default=None, max_length=MAX_FEEDBACK_BYTES)
+
+
 def b64(s: str, max_bytes: int = 16_384) -> bytes:
     if len(s) > max_bytes * 4 // 3 + 4:
         raise HTTPException(status_code=400, detail="too long")
@@ -135,14 +177,15 @@ def b64(s: str, max_bytes: int = 16_384) -> bytes:
 class BodyLimit:
     """Refuses request bodies over `limit` bytes before they're read into memory (pure ASGI)."""
 
-    def __init__(self, app, limit: int) -> None:
-        self.app, self.limit = app, limit
+    def __init__(self, app, limit: int, overrides: dict[str, int] | None = None) -> None:
+        self.app, self.limit, self.overrides = app, limit, overrides or {}
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        cap = self.overrides.get(scope.get("path", ""), self.limit)
         length = dict(scope.get("headers") or []).get(b"content-length")
-        if length is not None and (not length.isdigit() or int(length) > self.limit):
+        if length is not None and (not length.isdigit() or int(length) > cap):
             return await self._refuse(send)
         seen = 0
 
@@ -150,7 +193,7 @@ class BodyLimit:
             nonlocal seen
             message = await receive()
             seen += len(message.get("body", b""))
-            if seen > self.limit:
+            if seen > cap:
                 raise _TooLarge()
             return message
 
@@ -198,7 +241,8 @@ def create_public_app(
     app.state.verifier = verifier or AppAttestVerifier(APP_ID)
     app.state.limits = RateLimiter()
     app.state.challenges: dict[bytes, float] = {}
-    app.add_middleware(BodyLimit, limit=MAX_BODY_BYTES)
+    app.state.feedback = FeedbackStore(Path(settings.data_dir))
+    app.add_middleware(BodyLimit, limit=MAX_BODY_BYTES, overrides={"/v1/feedback": MAX_FEEDBACK_BYTES})
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -311,6 +355,31 @@ def create_public_app(
         if not board.is_valid():
             raise HTTPException(status_code=400, detail="bad position")
         return models.MaiaPredictResponse(policy=request.app.state.maia.predict(board.fen()))
+
+    @app.post("/v1/feedback")
+    def send_feedback(request: Request, body: FeedbackRequest, key_id: bytes = Depends(attested)) -> dict:
+        limit(request, "feedback:" + key_id.hex(), 20, 3600)
+        shot = None
+        if body.screenshot:
+            shot = b64(body.screenshot, max_bytes=MAX_FEEDBACK_BYTES)
+            if not shot.startswith(b"\xff\xd8"):
+                raise HTTPException(status_code=400, detail="screenshot must be a JPEG")
+        request.app.state.feedback.add(key_id.hex(), body.model_dump(exclude={"screenshot"}), shot)
+        return {"ok": True}
+
+    @app.get("/v1/feedback")
+    def list_feedback(request: Request, key_id: bytes = Depends(attested)) -> dict:
+        return {"reports": request.app.state.feedback.for_device(key_id.hex())}
+
+    @app.post("/v1/privacy/delete")
+    def delete_my_data(request: Request, body: DeleteRequest, key_id: bytes = Depends(attested)) -> dict:
+        limit(request, "delete:" + key_id.hex(), 5, 3600)
+        n = request.app.state.feedback.delete_device(key_id.hex(), body.distinct_id)
+        return {"ok": True, "deleted_reports": n}
+
+    @app.get("/privacy", response_class=HTMLResponse)
+    def privacy() -> str:
+        return PRIVACY_HTML
 
     return app
 

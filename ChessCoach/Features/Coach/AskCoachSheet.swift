@@ -63,7 +63,7 @@ struct AskCoachSheet: View {
               .background(Palette.paper, in: RoundedRectangle(cornerRadius: Spacing.cornerMedium))
               .accessibilityIdentifier("coach-question")
             Button { send(question) } label: {
-              Image(systemName: "arrow.up.circle.fill").font(.system(size: 32)).foregroundStyle(Palette.primaryDeep)
+              Image(systemName: "arrow.up.circle.fill").font(Typography.symbol(32)).foregroundStyle(Palette.primaryDeep)
             }
             .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || thinking)
           }

@@ -30,8 +30,8 @@ struct PlayoutView: View {
     VStack(spacing: 0) {
       VStack(spacing: 4) {
         Text("Play it out · \(round + 1) of \(total)")
-          .font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
-        Text(message).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+          .font(.system(.footnote).weight(.semibold)).foregroundStyle(Palette.textSecondary)
+        Text(message).font(.system(.body).weight(.bold)).foregroundStyle(Palette.textPrimary)
           .multilineTextAlignment(.center).padding(.horizontal)
           .accessibilityIdentifier("playout-message")
       }
@@ -60,17 +60,17 @@ struct PlayoutView: View {
       Spacer(minLength: 0)
       HStack(spacing: Spacing.s) {
         if outcome == false {
-          PuzzleButton(title: "Try again", systemImage: "arrow.counterclockwise", prominent: true) { reset() }
+          ActionButton(title: "Try again", systemImage: "arrow.counterclockwise", prominent: true) { reset() }
             .accessibilityIdentifier("playout-retry")
-          PuzzleButton(title: round + 1 < total ? "Skip" : "Finish", systemImage: "arrow.right") { next() }
+          ActionButton(title: round + 1 < total ? "Skip" : "Finish", systemImage: "arrow.right") { next() }
         } else if outcome == true {
-          PuzzleButton(title: "Replay", systemImage: "arrow.counterclockwise") { reset() }
-          PuzzleButton(title: round + 1 < total ? "Next" : "Finish", systemImage: "arrow.right", prominent: true) { next() }
+          ActionButton(title: "Replay", systemImage: "arrow.counterclockwise") { reset() }
+          ActionButton(title: round + 1 < total ? "Next" : "Finish", systemImage: "arrow.right", prominent: true) { next() }
         } else {
-          PuzzleButton(title: "Take back", systemImage: "arrow.uturn.backward") { takeBack() }
+          ActionButton(title: "Take back", systemImage: "arrow.uturn.backward") { takeBack() }
             .disabled(thinking || game.history.isEmpty)
             .accessibilityIdentifier("playout-takeback")
-          PuzzleButton(title: "Restart", systemImage: "arrow.counterclockwise") { reset() }
+          ActionButton(title: "Restart", systemImage: "arrow.counterclockwise") { reset() }
             .disabled(thinking)
         }
       }

@@ -13,11 +13,11 @@ struct PlayHomeView: View {
 
   var body: some View {
     ZStack {
-      BackgroundAtmosphere().ignoresSafeArea()
+      BackgroundAtmosphere().ignoresSafeArea().screen("play")
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.xl) {
           VStack(alignment: .leading, spacing: Spacing.s) {
-            Eyebrow(text: "Play")
+            HStack { Eyebrow(text: "Play"); Spacer(); FeedbackButton() }
             Text("New game")
               .font(Typography.display)
               .foregroundStyle(Palette.ink)
@@ -139,7 +139,7 @@ private struct OpponentCard<Accessory: View>: View {
     Button(action: { Haptics.selection(); action() }) {
       HStack(alignment: .top, spacing: Spacing.l) {
         Image(systemName: systemImage)
-          .font(.system(size: 20, weight: .medium))
+          .font(.system(.title3).weight(.medium))
           .frame(width: 44, height: 44)
           .background(Circle().fill(selected ? Palette.primary : Palette.surfaceAlt))
           .foregroundStyle(selected ? Palette.textOnDark : Palette.primaryDeep)

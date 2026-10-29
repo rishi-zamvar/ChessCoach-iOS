@@ -33,7 +33,7 @@ struct VisionDrillView: View {
 
   private var total: Int {
     switch kind {
-    case .coordinates: 12
+    case .coordinates: 10
     case .checksCaptures: min(5, cctFENs.count)
     case .safeMove: min(8, questions.count)
     }
@@ -54,14 +54,14 @@ struct VisionDrillView: View {
 
   private var prompt: some View {
     VStack(spacing: 4) {
-      Text(title).font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+      Text(title).font(.system(.footnote).weight(.semibold)).foregroundStyle(Palette.textSecondary)
       Text(question)
-        .font(.system(size: kind == .coordinates ? 34 : 17, weight: .bold, design: .rounded))
-        .foregroundStyle(ChessChrome.textPrimary)
+        .font((kind == .coordinates ? Font.largeTitle : Font.body).weight(.bold))
+        .foregroundStyle(Palette.textPrimary)
         .multilineTextAlignment(.center)
         .accessibilityIdentifier("drill-question")
       Text("\(min(round + 1, max(total, 1))) / \(max(total, 1)) · \(correct) correct")
-        .font(.system(size: 12, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+        .font(.system(.caption)).foregroundStyle(Palette.textSecondary)
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, Spacing.m)
@@ -99,10 +99,10 @@ struct VisionDrillView: View {
       VStack(spacing: 4) {
         if answer != nil, round < questions.count {
           Text(questions[round].why)
-            .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+            .font(.system(.subheadline).weight(.medium)).foregroundStyle(Palette.textPrimary)
             .accessibilityIdentifier("drill-why")
           if let caption = lineCaption {
-            Text(caption).font(.system(size: 13, design: .rounded)).foregroundStyle(ChessChrome.textSecondary)
+            Text(caption).font(.system(.footnote)).foregroundStyle(Palette.textSecondary)
               .accessibilityIdentifier("drill-line-caption")
           }
         }
@@ -126,10 +126,16 @@ struct VisionDrillView: View {
         highlights: BoardHighlights(selected: flash.map { $0.0 }),
         annotations: {
           var a = AnnotationLayer()
-          if let (square, ok) = flash { a.circles[square] = ok ? .green : .red }
+          if let (square, ok) = flash {
+            a.circles[square] = ok ? .green : .red
+            // A miss shows where it was (spec W6).
+            if !ok, round < targets.count { a.circles[targets[round]] = .green }
+          }
           return a
         }(),
-        theme: BoardTheme.named(themeID), showCoordinates: false,
+        theme: BoardTheme.named(themeID),
+        // The second half is from Black's side, the way flipped puzzles look.
+        flipped: round >= targets.count / 2, showCoordinates: false,
         onTap: tapCoordinate)
     case .checksCaptures:
       if round < cctFENs.count {
@@ -170,29 +176,29 @@ struct VisionDrillView: View {
         EmptyView()
       case .checksCaptures:
         if revealed {
-          PuzzleButton(title: "Next", systemImage: "arrow.right", prominent: true) { next() }
+          ActionButton(title: "Next", systemImage: "arrow.right", prominent: true) { next() }
         } else {
-          PuzzleButton(title: "Check", systemImage: "checkmark", prominent: true) { checkCCT() }
+          ActionButton(title: "Check", systemImage: "checkmark", prominent: true) { checkCCT() }
             .accessibilityIdentifier("drill-check")
         }
       case .safeMove:
         if answer == nil {
-          PuzzleButton(title: "Safe", systemImage: "checkmark.shield", prominent: true) { answerSafe(true) }
+          ActionButton(title: "Safe", systemImage: "checkmark.shield", prominent: true) { answerSafe(true) }
             .accessibilityIdentifier("drill-safe")
-          PuzzleButton(title: "Blunder", systemImage: "exclamationmark.triangle") { answerSafe(false) }
+          ActionButton(title: "Blunder", systemImage: "exclamationmark.triangle") { answerSafe(false) }
             .accessibilityIdentifier("drill-blunder")
         } else {
           let q = questions[round]
-          PuzzleButton(title: "", systemImage: "chevron.left") { lineStep = max(0, lineStep - 1) }
+          ActionButton(title: "", systemImage: "chevron.left") { lineStep = max(0, lineStep - 1) }
             .frame(maxWidth: 56).disabled(lineStep == 0)
             .accessibilityIdentifier("drill-line-back")
-          PuzzleButton(title: lineStep == 0 ? "Play it out" : "Next move", systemImage: "play.fill") {
+          ActionButton(title: lineStep == 0 ? "Play it out" : "Next move", systemImage: "play.fill") {
             lineStep = min(q.line.count, lineStep + 1)
             if let last = playedOut(q).history.last { env.sounds.play(SoundEvent.forMove(last, gameOver: false)) }
           }
           .disabled(lineStep >= q.line.count)
           .accessibilityIdentifier("drill-line-forward")
-          PuzzleButton(title: "Next", systemImage: "arrow.right", prominent: true) { next() }
+          ActionButton(title: "Next", systemImage: "arrow.right", prominent: true) { next() }
         }
       }
     }
@@ -205,7 +211,7 @@ struct VisionDrillView: View {
     started = Date()
     switch kind {
     case .coordinates:
-      targets = BoardVision.coordinateTargets(count: 12, random: SystemRandom())
+      targets = BoardVision.coordinateTargets(count: 10, random: SystemRandom())
     case .checksCaptures:
       let pool = (try? training.puzzles?.puzzles(theme: "hangingPiece", around: 900, excluding: [], limit: 12)) ?? nil
       cctFENs = (pool ?? []).compactMap { p -> String? in
@@ -231,7 +237,7 @@ struct VisionDrillView: View {
     flash = (square, ok)
     env.sounds.play(ok ? .move : .illegal)
     Task {
-      try? await Task.sleep(for: .milliseconds(ok ? 250 : 600))
+      try? await Task.sleep(for: .milliseconds(ok ? 250 : 1000))
       flash = nil
       next()
     }

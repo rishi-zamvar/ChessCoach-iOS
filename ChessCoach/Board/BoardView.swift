@@ -25,6 +25,7 @@ struct BoardView: View {
   /// Small round badge at a square's top-right corner (move classification).
   var badge: SquareBadge? = nil
 
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var identified: [IdentifiedPiece] = []
   @State private var nextID = 0
   @State private var gesture = GestureState()
@@ -53,14 +54,16 @@ struct BoardView: View {
       .frame(width: side, height: side)
       .contentShape(Rectangle())
       .gesture(interactive ? boardGesture(geo) : nil)
-      .accessibilityElement(children: .ignore)
+      .accessibilityHidden(true)
+      .overlay(alignment: .topLeading) { accessibilitySquares(geo) }
+      .accessibilityElement(children: .contain)
       .accessibilityLabel("Chess board")
       .accessibilityIdentifier("board")
     }
     .aspectRatio(1, contentMode: .fit)
     .onAppear { reconcile() }
     .onChange(of: position.fen) { _, _ in
-      withAnimation(.easeOut(duration: 0.15)) { reconcile() }
+      withAnimation(reduceMotion ? nil : AnimationToken.pieceMove) { reconcile() }
     }
     .onChange(of: interactive) { _, isInteractive in
       if !isInteractive { resetGesture() }
@@ -91,7 +94,7 @@ struct BoardView: View {
           context.fill(Path(rect), with: .color(Color(hex: theme.premove, alpha: 0.6)))
         }
         if highlights.check == square {
-          let gradient = Gradient(colors: [Color(hex: 0xFF0000, alpha: 0.9), Color(hex: 0xE70000, alpha: 0.45), .clear])
+          let gradient = Gradient(colors: [Palette.check.opacity(0.9), Palette.check.opacity(0.45), .clear])
           context.fill(
             Path(ellipseIn: rect),
             with: .radialGradient(gradient, center: CGPoint(x: rect.midX, y: rect.midY), startRadius: 0, endRadius: sq * 0.6))
@@ -272,13 +275,43 @@ struct SquareBadge: Equatable {
   var color: Color
 }
 
+extension BoardView {
+  /// VoiceOver: the 64 squares as buttons ("e4, white knight"); activating one is a tap, so moves
+  /// are entered square by square (spec W9). Invisible and untouchable for everyone else.
+  func accessibilitySquares(_ geo: BoardGeometry) -> some View {
+    ForEach(0..<64, id: \.self) { i in
+      let square = geo.square(column: i % 8, row: i / 8)
+      let origin = geo.origin(of: square)
+      Color.clear
+        .frame(width: geo.squareSize, height: geo.squareSize)
+        .offset(x: origin.x, y: origin.y)
+        .allowsHitTesting(false)
+        .accessibilityElement()
+        .accessibilityLabel(Self.spoken(square, position.piece(at: square)))
+        .accessibilityAddTraits(interactive ? .isButton : [])
+        .accessibilityAddTraits(highlights.selected == square ? .isSelected : [])
+        .accessibilityAction { if interactive { onTap(square) } }
+    }
+  }
+
+  static func spoken(_ square: Square, _ piece: Piece?) -> String {
+    guard let piece else { return "\(square.notation), empty" }
+    return "\(square.notation), \(piece.color == .white ? "white" : "black") \(FactExtractor.name(of: piece.kind))"
+  }
+}
+
+extension BoardTheme {
+  var lightColor: Color { Color(hex: light) }
+  var darkColor: Color { Color(hex: dark) }
+}
+
 extension AnnotationColor {
   var swiftUIColor: Color {
     switch self {
-    case .green: Color(hex: 0x15781B)
-    case .red: Color(hex: 0x882020)
-    case .blue: Color(hex: 0x003088)
-    case .yellow: Color(hex: 0xE68F00)
+    case .green: MoveQuality.best.color.opacity(0.85)
+    case .red: MoveQuality.blunder.color.opacity(0.85)
+    case .blue: Palette.sage.opacity(0.9)
+    case .yellow: Palette.warning.opacity(0.85)
     }
   }
 }

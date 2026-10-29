@@ -19,7 +19,7 @@ struct OnboardingView: View {
   var body: some View {
     ZStack {
       if step == .placement {
-        ChessChrome.background.ignoresSafeArea()
+        Palette.surfaceBase.ignoresSafeArea()
       } else {
         BackgroundAtmosphere().ignoresSafeArea()
       }
@@ -160,8 +160,8 @@ struct OnboardingView: View {
   private var placementStep: some View {
     VStack(spacing: 0) {
       Text("Step 4 · Placement · \(min(placement.done + 1, PlacementState.total)) of \(PlacementState.total)")
-        .font(.system(size: 13, weight: .semibold, design: .rounded))
-        .foregroundStyle(ChessChrome.textSecondary)
+        .font(.system(.footnote).weight(.semibold))
+        .foregroundStyle(Palette.textSecondary)
         .padding(.top, Spacing.s)
       if let puzzle = placement.current {
         PuzzleView(puzzle: puzzle, rated: false) { outcome in
@@ -172,7 +172,7 @@ struct OnboardingView: View {
         .id(puzzle.id)
       } else {
         Spacer()
-        ProgressView().tint(ChessChrome.textSecondary)
+        ProgressView().tint(Palette.textSecondary)
         Spacer()
       }
     }
@@ -330,7 +330,7 @@ private struct StyleCard: View {
     Button(action: { Haptics.selection(); action() }) {
       HStack(spacing: Spacing.l) {
         Text(String(style.model.prefix(1)))
-          .font(.system(size: 24, weight: .medium, design: .serif))
+          .font(.system(.title2, design: .serif).weight(.medium))
           .frame(width: 48, height: 48)
           .background(Circle().fill(selected ? Palette.primary : Palette.surfaceAlt))
           .foregroundStyle(selected ? Palette.textOnDark : Palette.primaryDeep)

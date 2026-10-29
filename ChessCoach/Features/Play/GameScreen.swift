@@ -15,6 +15,7 @@ struct GameScreen: View {
   @State private var drawDeclined = false
   @State private var resultDismissed = false
   @State private var reviewGame: GameRecord?
+  @State private var analyzing: AnalysisRequest?
   @Environment(AppEnvironment.self) private var env
   @Environment(AnalysisService.self) private var analysis
 
@@ -30,8 +31,8 @@ struct GameScreen: View {
         MoveStrip(history: game.session.history, currentPly: game.viewPly) { game.jump(toPly: $0) }
         if let focus = game.focus {
           HStack(spacing: Spacing.xs) {
-            chip(stageTitle, systemImage: stageIcon, tint: ChessChrome.textSecondary).accessibilityIdentifier("coach-stage")
-            chip(focus.title, systemImage: "scope", tint: ChessChrome.accentGreen).accessibilityIdentifier("coach-focus")
+            chip(stageTitle, systemImage: stageIcon, tint: Palette.textSecondary).accessibilityIdentifier("coach-stage")
+            chip(focus.title, systemImage: "scope", tint: Palette.sage).accessibilityIdentifier("coach-focus")
           }
           .lineLimit(1)
           .padding(.horizontal, Spacing.m)
@@ -64,7 +65,9 @@ struct GameScreen: View {
       }
       .onChange(of: context.date) { _, _ in game.tick() }
     }
-    .background(ChessChrome.background.ignoresSafeArea())
+    .background(Palette.surfaceBase.ignoresSafeArea())
+    .fullScreenCover(item: $analyzing) { AnalysisBoardView(request: $0) }
+    .screen("game", context: ["opponent": .string(coachTitle), "fen": .string(game.displayedFEN)], board: true)
     .overlay(alignment: .bottom) {
       if let pause = game.coachPause {
         CoachPauseCard(pause: pause, onTakeBack: game.takeBack, onShow: game.showBetterMove, onContinue: game.continueGame)
@@ -160,7 +163,7 @@ struct GameScreen: View {
     } else if let nudge = game.nudge {
       CoachBanner(text: nudge, systemImage: "exclamationmark.bubble.fill", tint: MoveClass.inaccuracy.color)
     } else if game.phase == .coachChecking {
-      CoachBanner(text: "Coach is looking at your move…", systemImage: "eye", tint: ChessChrome.textSecondary)
+      CoachBanner(text: "Coach is looking at your move…", systemImage: "eye", tint: Palette.textSecondary)
     }
   }
 
@@ -182,7 +185,7 @@ struct GameScreen: View {
 
   private func chip(_ title: String, systemImage: String, tint: Color) -> some View {
     Label(title, systemImage: systemImage)
-      .font(.system(size: 12, weight: .bold, design: .rounded)).foregroundStyle(tint)
+      .font(.system(.caption).weight(.bold)).foregroundStyle(tint)
       .padding(.horizontal, 10).padding(.vertical, 4)
       .background(Capsule().fill(tint.opacity(0.15)))
   }
@@ -193,23 +196,27 @@ struct GameScreen: View {
     HStack {
       Button(action: onClose) {
         Image(systemName: "xmark")
-          .font(.system(size: 16, weight: .semibold))
+          .font(.system(.body).weight(.semibold))
           .frame(width: 44, height: 44)
       }
       .accessibilityIdentifier("game-close")
+      .accessibilityLabel("Close")
       Spacer()
       Text(coachTitle)
-        .font(.system(size: 15, weight: .semibold, design: .rounded))
+        .font(.system(.subheadline).weight(.semibold))
+        .foregroundStyle(Palette.textPrimary)
       Spacer()
+      FeedbackButton()
       Button { game.flip() } label: {
         Image(systemName: "arrow.up.arrow.down")
-          .font(.system(size: 15, weight: .semibold))
+          .font(.system(.subheadline).weight(.semibold))
           .frame(width: 44, height: 44)
       }
+      .accessibilityLabel("Flip board")
     }
-    .foregroundStyle(ChessChrome.textSecondary)
+    .foregroundStyle(Palette.textSecondary)
     .padding(.horizontal, Spacing.s)
-    .background(ChessChrome.bar)
+    .background(Palette.surfaceRaised)
   }
 
   private var board: some View {
@@ -249,6 +256,13 @@ struct GameScreen: View {
       }
       if game.isOver {
         ToolbarButton(title: "New", systemImage: "plus") { onClose() }
+        ToolbarButton(title: "Analyze", systemImage: "magnifyingglass") {
+          env.telemetry.event("analysis.open", metadata: ["from": .string("game")])
+          analyzing = AnalysisRequest(
+            startFEN: game.session.startFEN, moves: game.session.history.prefix(game.viewPly).map(\.uci),
+            flipped: game.config.userColor == .black, title: "Analyze game")
+        }
+        .accessibilityIdentifier("toolbar-analyze")
       } else {
         ToolbarButton(title: "Draw", systemImage: "equal.circle") {
           if !game.offerDraw() { drawDeclined = true }
@@ -267,7 +281,7 @@ struct GameScreen: View {
       ToolbarButton(title: "Forward", systemImage: "chevron.right", enabled: !game.isViewingLatest) { game.stepForward() }
     }
     .padding(.vertical, Spacing.xs)
-    .background(ChessChrome.bar)
+    .background(Palette.surfaceRaised)
   }
 
   // MARK: - Helpers
@@ -310,12 +324,12 @@ private struct ToolbarButton: View {
     Button(action: action) {
       VStack(spacing: 3) {
         Image(systemName: systemImage)
-          .font(.system(size: 18, weight: .semibold))
+          .font(.system(.title3).weight(.semibold))
         Text(title)
-          .font(.system(size: 11, weight: .medium, design: .rounded))
+          .font(.system(.caption2).weight(.medium))
       }
       .frame(maxWidth: .infinity, minHeight: 48)
-      .foregroundStyle(enabled ? ChessChrome.textSecondary : ChessChrome.textSecondary.opacity(0.3))
+      .foregroundStyle(enabled ? Palette.textSecondary : Palette.textSecondary.opacity(0.3))
     }
     .disabled(!enabled)
   }
@@ -335,8 +349,8 @@ struct BoardOptionsSheet: View {
           Picker("Theme", selection: $themeID) {
             ForEach(BoardTheme.all) { theme in
               HStack {
-                RoundedRectangle(cornerRadius: 3).fill(Color(hex: theme.light)).frame(width: 14, height: 14)
-                RoundedRectangle(cornerRadius: 3).fill(Color(hex: theme.dark)).frame(width: 14, height: 14)
+                RoundedRectangle(cornerRadius: 3).fill(theme.lightColor).frame(width: 14, height: 14)
+                RoundedRectangle(cornerRadius: 3).fill(theme.darkColor).frame(width: 14, height: 14)
                 Text(theme.name)
               }
               .tag(theme.id)
@@ -357,6 +371,9 @@ struct BoardOptionsSheet: View {
           Toggle("Move sounds", isOn: $soundOn)
         }
       }
+      .scrollContentBackground(.hidden)
+      .background(Palette.surfaceBase.ignoresSafeArea())
+      .tint(Palette.sage)
       .navigationTitle("Options")
       .navigationBarTitleDisplayMode(.inline)
     }
@@ -372,12 +389,12 @@ private struct CoachBanner: View {
   var body: some View {
     HStack(spacing: Spacing.s) {
       Image(systemName: systemImage).foregroundStyle(tint)
-      Text(text).font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+      Text(text).font(.system(.callout).weight(.semibold)).foregroundStyle(Palette.textPrimary)
       Spacer()
     }
     .padding(.horizontal, Spacing.m)
     .padding(.vertical, Spacing.s)
-    .background(RoundedRectangle(cornerRadius: 10).fill(ChessChrome.card))
+    .background(RoundedRectangle(cornerRadius: 10).fill(Palette.surfaceRaised))
     .padding(.horizontal, Spacing.m)
     .padding(.top, Spacing.xs)
     .accessibilityIdentifier("coach-banner")
@@ -399,45 +416,30 @@ private struct CoachPauseCard: View {
       HStack(spacing: Spacing.s) {
         Group {
           if isGraded {
-            Text(pause.label.glyph).font(.system(size: 12, weight: .heavy, design: .rounded))
+            Text(pause.label.glyph).font(.system(.caption).weight(.heavy))
           } else {
-            Image(systemName: "hand.raised.fill").font(.system(size: 12, weight: .bold))
+            Image(systemName: "hand.raised.fill").font(Typography.symbol(12, weight: .bold))
           }
         }
         .foregroundStyle(.white)
         .frame(width: 26, height: 26).background(Circle().fill(tint))
         Text(pause.title)
-          .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(tint)
+          .font(.system(.body).weight(.bold)).foregroundStyle(tint)
           .accessibilityIdentifier("coach-pause-title")
       }
       Text(pause.explanation)
-        .font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(ChessChrome.textPrimary)
+        .font(.system(.subheadline).weight(.medium)).foregroundStyle(Palette.textPrimary)
         .fixedSize(horizontal: false, vertical: true)
       HStack(spacing: Spacing.s) {
-        PauseButton(title: "Take back", prominent: true, action: onTakeBack).accessibilityIdentifier("coach-takeback")
-        PauseButton(title: "Show me", prominent: false, action: onShow)
-        PauseButton(title: "Continue", prominent: false, action: onContinue).accessibilityIdentifier("coach-continue")
+        ActionButton(title: "Take back", prominent: true, action: onTakeBack).accessibilityIdentifier("coach-takeback")
+        ActionButton(title: "Show me", prominent: false, action: onShow)
+        ActionButton(title: "Continue", prominent: false, action: onContinue).accessibilityIdentifier("coach-continue")
       }
     }
     .padding(Spacing.l)
-    .background(RoundedRectangle(cornerRadius: 16).fill(ChessChrome.bar))
+    .background(RoundedRectangle(cornerRadius: 16).fill(Palette.surfaceRaised))
     .overlay(RoundedRectangle(cornerRadius: 16).stroke(tint.opacity(0.6), lineWidth: 1.5))
     .shadow(color: .black.opacity(0.4), radius: 16, y: 6)
   }
 }
 
-private struct PauseButton: View {
-  let title: String
-  let prominent: Bool
-  let action: () -> Void
-
-  var body: some View {
-    Button(action: action) {
-      Text(title)
-        .font(.system(size: 15, weight: .bold, design: .rounded))
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .foregroundStyle(prominent ? .white : ChessChrome.textPrimary)
-        .background(RoundedRectangle(cornerRadius: 10).fill(prominent ? ChessChrome.accentGreen : ChessChrome.card))
-    }
-  }
-}
