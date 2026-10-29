@@ -18,6 +18,20 @@ struct PuzzleRushView: View {
   @State private var over = false
   @State private var best = UserDefaults.standard.integer(forKey: PuzzleRushView.bestKey)
   @State private var isNewBest = false
+  /// Every miss this run: reviewed on the summary (spec W2).
+  @State private var misses: [Miss] = []
+  @State private var analyzing: AnalysisRequest?
+
+  struct Miss: Identifiable {
+    let id = UUID()
+    let puzzle: Puzzle
+    /// The position you faced (after the opponent's setup move) and what you played.
+    let fen: String
+    let played: String
+    var playedSAN: String { FactExtractor.sanLine(fen: fen, ucis: [played]).first ?? played }
+    var answerSAN: String { FactExtractor.sanLine(fen: fen, ucis: Array(puzzle.moves.dropFirst().prefix(1))).first ?? "" }
+    var why: String?
+  }
 
   /// Starts easy and climbs ~40 points per solve.
   private var targetRating: Int { 450 + score * 40 }
@@ -56,6 +70,9 @@ struct PuzzleRushView: View {
           PuzzleView(puzzle: current, rated: false, rush: true) { outcome in
             guard !over else { return }  // a solve landing after time ran out doesn't count
             if outcome.solvedCleanly { score += 1 } else { strikes += 1 }
+            if let played = outcome.missed, let setup = current.moves.first, let fen = PuzzleEngine.after(current.fen, setup) {
+              misses.append(Miss(puzzle: current, fen: fen, played: played))
+            }
             if strikes >= 3 { finish() } else { next() }
           }
           .id(current.id)
@@ -75,17 +92,62 @@ struct PuzzleRushView: View {
 
   private var summary: some View {
     VStack(spacing: Spacing.l) {
-      Spacer()
-      Image(systemName: "bolt.fill").font(Typography.symbol(50)).foregroundStyle(Palette.sage)
-      Text("\(score)").font(Typography.symbol(64, weight: .heavy)).foregroundStyle(Palette.textPrimary)
-      Text(isNewBest ? "New best!" : "Best: \(best)")
-        .font(.system(.body).weight(.semibold)).foregroundStyle(Palette.textSecondary)
-      Spacer()
+      ScrollView {
+        VStack(spacing: Spacing.l) {
+          Image(systemName: "bolt.fill").font(Typography.symbol(50)).foregroundStyle(Palette.sage)
+            .accessibilityHidden(true)
+          Text("\(score)").font(Typography.heroNumber).foregroundStyle(Palette.textPrimary)
+          Text(isNewBest ? "New best!" : "Best: \(best)")
+            .font(Typography.bodyEmph).foregroundStyle(Palette.textSecondary)
+          if !misses.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+              Eyebrow(text: "Your misses")
+              ForEach(misses) { miss in missRow(miss) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("rush-misses")
+          }
+        }
+        .padding(Spacing.l)
+      }
       HStack(spacing: Spacing.s) {
         ActionButton(title: "Again", systemImage: "arrow.clockwise", prominent: true) { restart() }
         ActionButton(title: "Done", systemImage: "checkmark") { dismiss() }
       }
       .padding(Spacing.m)
+    }
+    .task { await explainMisses() }
+    .fullScreenCover(item: $analyzing) { AnalysisBoardView(request: $0) }
+  }
+
+  private func missRow(_ miss: Miss) -> some View {
+    Card(padding: Spacing.m) {
+      HStack(alignment: .top, spacing: Spacing.m) {
+        VStack(alignment: .leading, spacing: 4) {
+          HStack(spacing: Spacing.s) {
+            QualityBadge(quality: .mistake)
+            Text("You played \(miss.playedSAN) · the answer was \(miss.answerSAN)")
+              .font(Typography.callout.weight(.semibold)).foregroundStyle(Palette.textPrimary)
+          }
+          Text(miss.why ?? "Working out why…").font(Typography.caption).foregroundStyle(Palette.textSecondary)
+        }
+        Spacer(minLength: 0)
+        Button {
+          env.telemetry.event("analysis.open", metadata: ["from": .string("rush")])
+          analyzing = AnalysisRequest(startFEN: miss.fen, moves: [miss.played], flipped: miss.fen.contains(" b "), title: "Analyze miss")
+        } label: {
+          Image(systemName: "magnifyingglass").font(Typography.body.weight(.semibold)).foregroundStyle(Palette.sage).frame(width: 44, height: 44)
+        }
+        .accessibilityLabel("Analyze this position")
+      }
+    }
+  }
+
+  private func explainMisses() async {
+    guard let engine = PuzzleEngine(env) else { return }
+    for i in misses.indices where misses[i].why == nil {
+      misses[i].why = await engine.refutation(fen: misses[i].fen, wrong: misses[i].played)?.caption
+        ?? "That let the chance slip. Analyze it to see the line."
     }
   }
 
@@ -104,12 +166,13 @@ struct PuzzleRushView: View {
       best = score
       UserDefaults.standard.set(score, forKey: Self.bestKey)
     }
-    env.telemetry.event("training.rush", metadata: ["score": .int(score), "strikes": .int(strikes)])
+    env.telemetry.event("rush.done", metadata: ["score": .int(score), "strikes": .int(strikes), "misses": .int(misses.count)])
   }
 
   private func restart() {
     score = 0
     strikes = 0
+    misses = []
     over = false
     isNewBest = false
     startedAt = Date()

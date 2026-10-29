@@ -3,9 +3,11 @@ import ChessKit
 import SwiftUI
 
 /// Outcome of one puzzle, reported to the runner.
-struct PuzzleOutcome: Equatable {
+struct PuzzleResult: Equatable {
   var solvedCleanly: Bool
   var ratingChange: TrainingService.RatingChange?
+  /// Puzzle Rush: the move you played instead (reviewed at the end).
+  var missed: String? = nil
 }
 
 /// One puzzle in chess.com's puzzle style: prompt bar, board, feedback, hint/next.
@@ -20,7 +22,7 @@ struct PuzzleView: View {
   var rated = true
   /// Puzzle Rush: no hints; a solve or a wrong move ends the puzzle immediately.
   var rush = false
-  let onFinished: (PuzzleOutcome) -> Void
+  let onFinished: (PuzzleResult) -> Void
 
   @Environment(TrainingService.self) private var training
   @Environment(AppEnvironment.self) private var env
@@ -39,7 +41,7 @@ struct PuzzleView: View {
   @State private var ready = false
   /// Replaying a finished puzzle for practice: never re-rated, outcome stays the first attempt's.
   @State private var isRetry = false
-  @State private var firstOutcome: PuzzleOutcome?
+  @State private var firstOutcome: PuzzleResult?
   /// The ply shown on the board; below the latest while stepping back or pausing before a reply.
   @State private var viewPly = 0
   /// The full solution line once revealed, stepped through with ▶.
@@ -47,9 +49,27 @@ struct PuzzleView: View {
   /// Waiting for a tap (or the pace delay) before showing the opponent's reply.
   @State private var awaitingReply = false
   @State private var finishing = false
+  /// Your wrong move and the engine's punishing reply, shown before the board rewinds (spec W2).
+  @State private var refutationGame: GameSession?
+  /// Asking the engine about a wrong move (the board waits).
+  @State private var checking = false
+  @State private var analyzing: AnalysisRequest?
+  @AppStorage(BoardSettings.coordinatesKey) private var showCoordinates = true
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   enum Feedback: Equatable {
     case prompt, correct, wrong(String), solved, revealed
+    /// Why the wrong move fails (engine reply + facts).
+    case refuted(String)
+    /// A different move that also wins (spec W5).
+    case alsoWins(String)
+  }
+
+  private var isDone: Bool {
+    switch feedback {
+    case .solved, .revealed, .alsoWins: true
+    default: false
+    }
   }
 
   var body: some View {
@@ -60,12 +80,13 @@ struct PuzzleView: View {
           BoardView(
             position: Position(fen: shownGame.fen(atPly: viewPly)) ?? session.game.position,
             highlights: highlights(session),
-            // Hint and solution arrows belong to the live position only.
-            annotations: atLatest ? annotations : AnnotationLayer(),
+            // Hint and solution arrows belong to the live position (or the refutation being shown).
+            annotations: atLatest || refutationGame != nil ? annotations : AnnotationLayer(),
             theme: BoardTheme.named(themeID),
             pieceSet: PieceSetID(rawValue: pieceSetRaw) ?? .default,
             flipped: session.userColor == .black,
-            interactive: ready && atLatest && solutionGame == nil && feedback != .solved && feedback != .revealed,
+            showCoordinates: showCoordinates,
+            interactive: ready && atLatest && solutionGame == nil && refutationGame == nil && !checking && !isDone,
             onTap: tap,
             onDragBegan: { square in
               guard let s = self.session else { return false }
@@ -99,6 +120,7 @@ struct PuzzleView: View {
       if !rush { controls }
     }
     .task(id: puzzle.id) { await start() }
+    .fullScreenCover(item: $analyzing) { AnalysisBoardView(request: $0) }
   }
 
   // MARK: - Pieces
@@ -119,6 +141,15 @@ struct PuzzleView: View {
           .foregroundStyle(Palette.textSecondary)
       }
       Spacer()
+      if color == .black {
+        // The board is flipped: say so (spec W6).
+        Text("You play Black")
+          .font(Typography.caption.weight(.semibold))
+          .foregroundStyle(Palette.actionLabel)
+          .padding(.horizontal, 8).padding(.vertical, 4)
+          .background(Capsule().fill(Palette.action))
+          .accessibilityIdentifier("you-play-black")
+      }
       if review == nil {
         Text("\(puzzle.rating)")
           .font(.system(.callout).weight(.semibold))
@@ -147,7 +178,9 @@ struct PuzzleView: View {
       case .correct:
         let tap = awaitingReply && paceRaw == ReplyPace.step.rawValue
         return ("checkmark.circle.fill", tap ? "Best move! Tap the board for the reply." : "Best move! Keep going…", Palette.success)
-      case .wrong(let san): return ("xmark.circle.fill", "\(san) isn't it. Try again.", Palette.danger)
+      case .wrong(let san): return ("xmark.circle.fill", checking ? "\(san) isn't it. Here's why…" : "\(san) isn't it. Try again.", Palette.danger)
+      case .refuted(let why): return ("xmark.circle.fill", refutationGame == nil ? "\(why) Try again." : why, Palette.danger)
+      case .alsoWins(let note): return ("checkmark.seal.fill", note, Palette.success)
       case .solved:
         let delta = isRetry ? "" : change.map { $0.delta >= 0 ? " +\($0.delta)" : " \($0.delta)" } ?? ""
         return ("checkmark.seal.fill", "Solved!\(delta)", Palette.success)
@@ -158,13 +191,14 @@ struct PuzzleView: View {
     }()
     HStack(spacing: Spacing.s) {
       if !icon.isEmpty { Image(systemName: icon).font(Typography.symbol(20)) }
-      Text(text).font(.system(.body).weight(.bold))
+      Text(text).font(Typography.bodyEmph)
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityIdentifier("puzzle-feedback")
       Spacer()
     }
     .foregroundStyle(color)
     .padding(.horizontal, Spacing.l)
-    .frame(height: 48)
+    .frame(minHeight: 48)
     .animation(.easeOut(duration: 0.2), value: feedback)
   }
 
@@ -194,9 +228,11 @@ struct PuzzleView: View {
   @ViewBuilder
   private var controls: some View {
     HStack(spacing: Spacing.s) {
-      if feedback == .solved || feedback == .revealed {
+      if isDone {
         ActionButton(title: "Retry", systemImage: "arrow.counterclockwise") { Task { await start(retry: true) } }
           .accessibilityIdentifier("puzzle-retry")
+        ActionButton(title: "Analyze", systemImage: "magnifyingglass") { openAnalysis() }
+          .accessibilityIdentifier("puzzle-analyze")
         ActionButton(title: "Next", systemImage: "arrow.right", prominent: true) { finish() }
           .disabled(finishing)
           .accessibilityIdentifier("puzzle-next")
@@ -215,14 +251,16 @@ struct PuzzleView: View {
   }
 
   private var showSolutionButton: Bool {
-    if case .wrong = feedback { return true }
-    return (session?.hintsUsed ?? 0) >= 3
+    switch feedback {
+    case .wrong, .refuted: return true
+    default: return (session?.hintsUsed ?? 0) >= 3
+    }
   }
 
   // MARK: - Move cursor
 
   /// The line on the board: the solution once revealed, otherwise the live puzzle.
-  private var shownGame: GameSession { solutionGame ?? session?.game ?? GameSession() }
+  private var shownGame: GameSession { refutationGame ?? solutionGame ?? session?.game ?? GameSession() }
   private var atLatest: Bool { viewPly == (session?.game.history.count ?? 0) }
   /// Never step back past the opponent's setup move — that's where the puzzle starts.
   private var firstPly: Int { hasSetupMove ? min(1, shownGame.history.count) : 0 }
@@ -267,6 +305,8 @@ struct PuzzleView: View {
     annotations = AnnotationLayer()
     interaction.reset()
     solutionGame = nil
+    refutationGame = nil
+    checking = false
     awaitingReply = false
     finishing = false
     viewPly = 0
@@ -305,14 +345,19 @@ struct PuzzleView: View {
     case .wrong where rush:
       env.sounds.play(.illegal)
       session = s
-      onFinished(PuzzleOutcome(solvedCleanly: false, ratingChange: nil))
+      onFinished(PuzzleResult(solvedCleanly: false, ratingChange: nil, missed: s.wrongMoves.last))
     case .wrong:
       var trial = before
-      if case .applied(let played) = trial.apply(from: from, to: to, promotion: trial.isPromotion(from: from, to: to) ? .queen : nil) {
-        feedback = .wrong(played.san)
-      }
-      env.sounds.play(.illegal)
+      guard case .applied(let played) = trial.apply(from: from, to: to, promotion: trial.isPromotion(from: from, to: to) ? .queen : nil)
+      else { return }
+      feedback = .wrong(played.san)
+      Haptics.warning()
       session = s
+      annotations = AnnotationLayer()
+      let fen = before.position.fen
+      let expected = s.expectedMove
+      checking = true
+      Task { await explainWrong(fen: fen, played: played, after: trial, expected: expected) }
     case .correct:
       session = s
       feedback = .correct
@@ -331,10 +376,59 @@ struct PuzzleView: View {
       if rush {
         Task {
           try? await Task.sleep(for: .milliseconds(350))
-          onFinished(PuzzleOutcome(solvedCleanly: true, ratingChange: nil))
+          onFinished(PuzzleResult(solvedCleanly: true, ratingChange: nil))
         }
       }
     }
+  }
+
+  /// A wrong move: first ask whether it still wins (then it counts), otherwise play the engine's
+  /// punishing reply on the board with a red arrow and one plain sentence, then rewind (spec W2, W5).
+  private func explainWrong(fen: String, played: PlayedMove, after: GameSession, expected: String?) async {
+    defer { checking = false }
+    guard let engine = PuzzleEngine(env) else { return }
+    if let expected, await engine.alsoWins(fen: fen, uci: played.uci, solution: expected), var s = session, s.acceptAlternative(uci: played.uci) {
+      session = s
+      viewPly = s.game.history.count
+      let intended = FactExtractor.sanLine(fen: fen, ucis: [expected]).first ?? expected
+      feedback = .alsoWins("Good move, that wins too. The puzzle's move was \(intended).")
+      env.telemetry.event("puzzle.wrong_move", metadata: ["reason_kind": .string("also_wins")])
+      Haptics.success()
+      playSound(played)
+      record(s)
+      return
+    }
+    guard let refutation = await engine.refutation(fen: fen, wrong: played.uci), session?.isSolved == false else { return }
+    var line = after
+    guard case .applied(let reply) = line.apply(uci: refutation.reply) else { return }
+    env.telemetry.event("puzzle.wrong_move", metadata: ["reason_kind": .string(refutation.caption.contains("#") ? "mate" : "material")])
+    refutationGame = line
+    viewPly = line.history.count - 1
+    playSound(played)
+    try? await Task.sleep(for: .milliseconds(reduceMotion ? 150 : 600))
+    viewPly = line.history.count
+    playSound(reply)
+    annotations = AnnotationLayer()
+    annotations.arrows = [Arrow(from: reply.move.start, to: reply.move.end, color: .red)]
+    feedback = .refuted(refutation.caption)
+    try? await Task.sleep(for: .seconds(2.4))
+    rewindRefutation()
+  }
+
+  /// Back to the puzzle position after showing why a move fails.
+  private func rewindRefutation() {
+    guard refutationGame != nil else { return }
+    refutationGame = nil
+    annotations = AnnotationLayer()
+    viewPly = session?.game.history.count ?? 0
+  }
+
+  private func openAnalysis() {
+    let game = shownGame
+    let start = game.fen(atPly: firstPly)
+    let moves = game.history.dropFirst(firstPly).map(\.uci)
+    env.telemetry.event("analysis.open", metadata: ["from": .string(rush ? "rush" : "puzzle")])
+    analyzing = AnalysisRequest(startFEN: start, moves: Array(moves), flipped: session?.userColor == .black, title: "Analyze puzzle")
   }
 
   /// Shows your move, then the opponent's reply after the chosen pace (or your tap).
@@ -370,6 +464,7 @@ struct PuzzleView: View {
   }
 
   private func reveal() {
+    rewindRefutation()
     guard let s = session, let expected = s.expectedMove.flatMap(UCIMove.init) else { return }
     var line = s.game
     for uci in s.puzzle.moves.dropFirst(s.index) { line.apply(uci: uci) }
@@ -385,7 +480,7 @@ struct PuzzleView: View {
   private func record(_ s: PuzzleSession) {
     guard !recorded else { return }
     recorded = true
-    firstOutcome = PuzzleOutcome(solvedCleanly: s.isSolved && !s.failedFirstTry && s.hintsUsed == 0, ratingChange: nil)
+    firstOutcome = PuzzleResult(solvedCleanly: s.isSolved && !s.failedFirstTry && s.hintsUsed == 0, ratingChange: nil)
     guard rated else { return }
     let seconds = Date().timeIntervalSince(started)
     if let review {
@@ -399,7 +494,7 @@ struct PuzzleView: View {
     guard !finishing else { return }
     finishing = true
     let clean = firstOutcome?.solvedCleanly ?? session.map { $0.isSolved && !$0.failedFirstTry && $0.hintsUsed == 0 } ?? false
-    onFinished(PuzzleOutcome(solvedCleanly: clean, ratingChange: change))
+    onFinished(PuzzleResult(solvedCleanly: clean, ratingChange: change))
   }
 
   private func playSound(_ played: PlayedMove) {

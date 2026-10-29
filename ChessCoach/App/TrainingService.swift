@@ -263,7 +263,7 @@ final class TrainingService {
 
   /// Records a rated puzzle; returns the global rating change.
   @discardableResult
-  func record(puzzle session: PuzzleSession, seconds: Double) -> RatingChange {
+  func record(puzzle session: some PuzzleOutcome, seconds: Double) -> RatingChange {
     let before = globalRating
     let updated = (try? store.recordPuzzle(session, seconds: seconds, now: Date())) ?? [:]
     if let global = updated[TrainingStore.globalSkill] { skillRatings[TrainingStore.globalSkill] = global }

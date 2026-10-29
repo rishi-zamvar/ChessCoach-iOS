@@ -15,6 +15,7 @@ struct GameScreen: View {
   @State private var drawDeclined = false
   @State private var resultDismissed = false
   @State private var reviewGame: GameRecord?
+  @State private var analyzing: AnalysisRequest?
   @Environment(AppEnvironment.self) private var env
   @Environment(AnalysisService.self) private var analysis
 
@@ -65,6 +66,7 @@ struct GameScreen: View {
       .onChange(of: context.date) { _, _ in game.tick() }
     }
     .background(Palette.surfaceBase.ignoresSafeArea())
+    .fullScreenCover(item: $analyzing) { AnalysisBoardView(request: $0) }
     .screen("game", context: ["opponent": .string(coachTitle), "fen": .string(game.displayedFEN)], board: true)
     .overlay(alignment: .bottom) {
       if let pause = game.coachPause {
@@ -254,6 +256,13 @@ struct GameScreen: View {
       }
       if game.isOver {
         ToolbarButton(title: "New", systemImage: "plus") { onClose() }
+        ToolbarButton(title: "Analyze", systemImage: "magnifyingglass") {
+          env.telemetry.event("analysis.open", metadata: ["from": .string("game")])
+          analyzing = AnalysisRequest(
+            startFEN: game.session.startFEN, moves: game.session.history.prefix(game.viewPly).map(\.uci),
+            flipped: game.config.userColor == .black, title: "Analyze game")
+        }
+        .accessibilityIdentifier("toolbar-analyze")
       } else {
         ToolbarButton(title: "Draw", systemImage: "equal.circle") {
           if !game.offerDraw() { drawDeclined = true }

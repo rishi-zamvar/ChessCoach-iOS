@@ -29,6 +29,8 @@ struct AnalyzeView: View {
   @State private var editingUsername = false
   @State private var usernameDraft = ""
   @State private var didAutoImport = false
+  @State private var pasting = false
+  @State private var analysisRequest: AnalysisRequest?
 
   var body: some View {
     ZStack(alignment: .top) {
@@ -43,6 +45,7 @@ struct AnalyzeView: View {
 
           importCard
 
+          analysisBoardCard
           if !patterns.isEmpty { mistakesCard }
 
           HStack(spacing: Spacing.s) {
@@ -149,6 +152,34 @@ struct AnalyzeView: View {
         EmptyView()
       }
     }
+  }
+
+  /// Open any position: the start, or a pasted FEN / PGN (spec W4).
+  private var analysisBoardCard: some View {
+    Button { pasting = true } label: {
+      Card {
+        HStack(spacing: Spacing.m) {
+          Image(systemName: "magnifyingglass").font(Typography.symbol(22, weight: .light)).foregroundStyle(Palette.sage)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Analysis board").font(Typography.titleSmall).foregroundStyle(Palette.textPrimary)
+            Text("Try any moves against the engine, or paste a FEN or PGN.").font(Typography.callout).foregroundStyle(Palette.textSecondary)
+          }
+          Spacer()
+          Image(systemName: "chevron.right").foregroundStyle(Palette.textTertiary)
+        }
+      }
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("open-analysis-board")
+    .sheet(isPresented: $pasting) {
+      PastePositionSheet { request in
+        pasting = false
+        env.telemetry.event("analysis.open", metadata: ["from": .string("analyze_tab")])
+        analysisRequest = request
+      }
+      .presentationDetents([.medium])
+    }
+    .fullScreenCover(item: $analysisRequest) { AnalysisBoardView(request: $0) }
   }
 
   private var mistakesCard: some View {

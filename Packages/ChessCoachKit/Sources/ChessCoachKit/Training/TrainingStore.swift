@@ -171,7 +171,7 @@ public struct TrainingStore: Sendable {
   /// Records a puzzle attempt: Glicko updates (primary skill full, other matching skills half,
   /// plus the global rating), the attempt row, and a review item when it went wrong.
   @discardableResult
-  public func recordPuzzle(_ session: PuzzleSession, seconds: Double, now: Date) throws -> [String: Glicko2] {
+  public func recordPuzzle(_ session: some PuzzleOutcome, seconds: Double, now: Date) throws -> [String: Glicko2] {
     let puzzle = session.puzzle
     let score = session.ratingScore
     let primary = SkillCatalog.all.first { $0.themes.contains(puzzle.primaryTheme) }?.id

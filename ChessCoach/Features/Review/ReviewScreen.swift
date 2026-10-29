@@ -12,6 +12,7 @@ struct ReviewScreen: View {
   @State private var controller: ReviewController?
   @State private var failure: String?
   @State private var flipped = false
+  @State private var analyzing: AnalysisRequest?
   @AppStorage(BoardSettings.themeKey) private var themeID = BoardTheme.default.id
   @AppStorage(BoardSettings.piecesKey) private var pieceSetRaw = PieceSetID.default.rawValue
 
@@ -48,6 +49,7 @@ struct ReviewScreen: View {
       }
     }
     .background(Palette.surfaceBase.ignoresSafeArea())
+    .fullScreenCover(item: $analyzing) { AnalysisBoardView(request: $0) }
     .screen("review", context: ["game": .string(game.id)], board: true)
     .task { await load() }
     .onAppear { analysisService.beginForegroundEngineUse() }
@@ -65,6 +67,18 @@ struct ReviewScreen: View {
       Text("Game Review").font(Typography.bodyEmph).foregroundStyle(Palette.textPrimary)
       Spacer()
       FeedbackButton()
+      if let controller {
+        Button {
+          env.telemetry.event("analysis.open", metadata: ["from": .string("review")])
+          analyzing = AnalysisRequest(
+            startFEN: controller.session.startFEN, moves: controller.session.history.prefix(controller.ply).map(\.uci),
+            flipped: flipped, title: "Analyze from here")
+        } label: {
+          Image(systemName: "magnifyingglass").font(Typography.symbol(15, weight: .semibold)).frame(width: 44, height: 44)
+        }
+        .accessibilityLabel("Analyze this position")
+        .accessibilityIdentifier("review-analyze")
+      }
       Button { flipped.toggle() } label: {
         Image(systemName: "arrow.up.arrow.down").font(Typography.symbol(15, weight: .semibold)).frame(width: 44, height: 44)
       }

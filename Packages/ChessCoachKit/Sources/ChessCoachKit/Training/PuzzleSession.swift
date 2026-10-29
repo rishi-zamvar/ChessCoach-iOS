@@ -28,6 +28,8 @@ public struct PuzzleSession: Sendable {
   public private(set) var hintsUsed = 0
   public private(set) var wrongMoves: [String] = []
   public private(set) var isSolved = false
+  /// A different move that also wins (spec W5); the intended line is shown as "also good".
+  public private(set) var solvedByAlternative: String?
 
   public init(puzzle: Puzzle, hasSetupMove: Bool = true) {
     self.puzzle = puzzle
@@ -83,6 +85,19 @@ public struct PuzzleSession: Sendable {
       return .solved
     }
     return .correct(reply: reply)
+  }
+
+  /// The engine says `uci` (just rejected by `submit`) still wins: count it as solved.
+  @discardableResult
+  public mutating func acceptAlternative(uci: String) -> Bool {
+    guard !isSolved, ready else { return false }
+    var trial = game
+    guard case .applied(let played) = trial.apply(uci: uci) else { return false }
+    if let i = wrongMoves.lastIndex(of: played.uci) { wrongMoves.remove(at: i) }
+    game = trial
+    isSolved = true
+    solvedByAlternative = played.uci
+    return true
   }
 
   public mutating func submit(uci: String) -> Result {
