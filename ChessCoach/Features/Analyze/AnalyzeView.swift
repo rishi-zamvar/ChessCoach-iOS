@@ -38,6 +38,7 @@ struct AnalyzeView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: Spacing.l) {
           HStack { Eyebrow(text: "Analyze"); Spacer(); FeedbackButton() }
+          ConnectionBanner(isOnline: env.connectivity.isOnline, message: "Offline. New chess.com games import when you're back.")
           Text("Your games")
             .font(Typography.display)
             .foregroundStyle(Palette.ink)

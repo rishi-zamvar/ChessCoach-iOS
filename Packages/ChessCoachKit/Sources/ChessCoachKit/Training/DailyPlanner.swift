@@ -151,11 +151,11 @@ public struct DailyPlanner: Sendable {
     // 1. Warm-up (~10%).
     items.append(
       PlanItem(
-        id: "warmup", title: "Warm-up: board vision", kind: .drill(.coordinates, count: 10),
+        id: "warmup", title: "Board vision", kind: .drill(.coordinates, count: 10),
         reason: "Quick board-vision reps get your eyes ready.", minutes: budget * 0.07))
     items.append(
       PlanItem(
-        id: "speed", title: "Speed set", kind: .speed(count: 6, rating: max(400, state.globalRating - 500)),
+        id: "speed", title: "Quick warm-up", kind: .speed(count: 6, rating: max(400, state.globalRating - 500)),
         reason: "Easy puzzles at pace build pattern recognition.", minutes: budget * 0.06))
 
     // 2. Reviews (≤35%): what's due minus the mistakes "Your mistakes" keeps for itself (see ReviewSplit).
@@ -164,7 +164,7 @@ public struct DailyPlanner: Sendable {
       let count = min(forReviews, max(1, Int(budget * 0.35 / 0.75)))
       items.append(
         PlanItem(
-          id: "reviews", title: "Reviews", kind: .reviews(count: count),
+          id: "reviews", title: "Spaced review", kind: .reviews(count: count),
           reason: "\(forReviews) position\(forReviews == 1 ? "" : "s") due — reviewing at the right time makes them stick.",
           minutes: Double(count) * 0.75))
     }
@@ -205,7 +205,7 @@ public struct DailyPlanner: Sendable {
     if !mixSkills.isEmpty {
       items.append(
         PlanItem(
-          id: "mixed", title: "Mixed puzzles", kind: .mixed(skillIDs: mixSkills, count: 6, rating: max(400, state.globalRating - 150)),
+          id: "mixed", title: "Mixed practice", kind: .mixed(skillIDs: mixSkills, count: 6, rating: max(400, state.globalRating - 150)),
           reason: "Mixing themes trains you to spot them in real games.", minutes: 6 * Self.minutesPerPuzzle))
     }
 

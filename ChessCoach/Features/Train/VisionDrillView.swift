@@ -33,7 +33,7 @@ struct VisionDrillView: View {
 
   private var total: Int {
     switch kind {
-    case .coordinates: 12
+    case .coordinates: 10
     case .checksCaptures: min(5, cctFENs.count)
     case .safeMove: min(8, questions.count)
     }
@@ -126,10 +126,16 @@ struct VisionDrillView: View {
         highlights: BoardHighlights(selected: flash.map { $0.0 }),
         annotations: {
           var a = AnnotationLayer()
-          if let (square, ok) = flash { a.circles[square] = ok ? .green : .red }
+          if let (square, ok) = flash {
+            a.circles[square] = ok ? .green : .red
+            // A miss shows where it was (spec W6).
+            if !ok, round < targets.count { a.circles[targets[round]] = .green }
+          }
           return a
         }(),
-        theme: BoardTheme.named(themeID), showCoordinates: false,
+        theme: BoardTheme.named(themeID),
+        // The second half is from Black's side, the way flipped puzzles look.
+        flipped: round >= targets.count / 2, showCoordinates: false,
         onTap: tapCoordinate)
     case .checksCaptures:
       if round < cctFENs.count {
@@ -205,7 +211,7 @@ struct VisionDrillView: View {
     started = Date()
     switch kind {
     case .coordinates:
-      targets = BoardVision.coordinateTargets(count: 12, random: SystemRandom())
+      targets = BoardVision.coordinateTargets(count: 10, random: SystemRandom())
     case .checksCaptures:
       let pool = (try? training.puzzles?.puzzles(theme: "hangingPiece", around: 900, excluding: [], limit: 12)) ?? nil
       cctFENs = (pool ?? []).compactMap { p -> String? in
@@ -231,7 +237,7 @@ struct VisionDrillView: View {
     flash = (square, ok)
     env.sounds.play(ok ? .move : .illegal)
     Task {
-      try? await Task.sleep(for: .milliseconds(ok ? 250 : 600))
+      try? await Task.sleep(for: .milliseconds(ok ? 250 : 1000))
       flash = nil
       next()
     }

@@ -112,6 +112,9 @@ struct PuzzleView: View {
         }
       }
       feedbackBar
+      if !rush, refutationGame == nil, case .refuted = feedback {
+        ThumbsRow(surface: "puzzle_explanation", context: ["puzzle": .string(puzzle.id)])
+      }
       if !rush { moveCaption }
       if let insight, feedback == .solved || feedback == .revealed {
         InsightCard(insight: insight)

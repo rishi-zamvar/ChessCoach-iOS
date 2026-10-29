@@ -185,6 +185,17 @@ final class TrainingService {
 
   var isPlanDone: Bool { !plan.isEmpty && plan.allSatisfy { completedToday.contains($0.id) } }
 
+  /// Streak with finished plan blocks counting too (not just puzzles), one missed day a week forgiven.
+  func streak(now: Date = Date()) -> Int {
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd"
+    let blockDays = UserDefaults.standard.dictionaryRepresentation().compactMap { key, value -> Date? in
+      guard key.hasPrefix("plan.completed."), let done = value as? [String], !done.isEmpty else { return nil }
+      return f.date(from: String(key.dropFirst("plan.completed.".count)))
+    }
+    return (try? store.streak(now: now, alsoPracticed: Set(blockDays))) ?? 0
+  }
+
   func puzzlesToday(now: Date = Date()) -> Int {
     (try? store.attemptsCount(since: Calendar.current.startOfDay(for: now))) ?? 0
   }

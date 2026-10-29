@@ -22,6 +22,7 @@ final class AppEnvironment {
   let databaseSink: DatabaseSink
   /// In-app feedback: breadcrumbs, outbox, status (spec W8).
   let feedback: FeedbackCenter
+  let connectivity = Connectivity()
   let engineHost: EngineHost?
   let sounds: SoundPlayer
   /// The on-disk store failed to open and we're running in memory (nothing persists).
@@ -61,6 +62,7 @@ final class AppEnvironment {
     }
     telemetry = Telemetry(sinks: sinks)
     telemetryRef = telemetry
+    connectivity.onReconnect = { [feedback] in Task { await feedback.flush() } }
     let engineTelemetry = Telemetry(sinks: [OSLogSink(), databaseSink])
     engineHost = EngineAssets.bundled().map { EngineHost(assets: $0, telemetry: engineTelemetry) }
     sounds = SoundPlayer()

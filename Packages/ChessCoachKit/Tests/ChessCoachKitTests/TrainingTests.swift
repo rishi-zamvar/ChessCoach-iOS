@@ -303,8 +303,9 @@ final class TrainingStoreTests: XCTestCase {
       _ = s.submit(uci: "d1d8")
       try store.recordPuzzle(s, seconds: 5, now: now.addingTimeInterval(-daysAgo * 86_400))
     }
-    XCTAssertEqual(try store.streak(now: now), 3)
-    XCTAssertEqual(try store.streak(now: now.addingTimeInterval(86_400)), 3, "yesterday still counts")
+    // Day 3 was missed: one missed day a week is forgiven (StreakCounter), so 0, 1, 2 and 4 make 4.
+    XCTAssertEqual(try store.streak(now: now), 4)
+    XCTAssertEqual(try store.streak(now: now.addingTimeInterval(86_400)), 4, "yesterday still counts")
     XCTAssertEqual(try store.streak(now: now.addingTimeInterval(3 * 86_400)), 0)
   }
 

@@ -199,7 +199,7 @@ struct WeekCard: View {
       let weekAgo = Date().addingTimeInterval(-7 * 86_400)
       games = ((try? env.gameStore.recent(limit: 200)) ?? []).filter { $0.endedAt >= weekAgo }.count
       puzzles = (try? training.store.attemptsCount(since: weekAgo)) ?? 0
-      streak = (try? training.store.streak(now: Date())) ?? 0
+      streak = training.streak()
     }
   }
 

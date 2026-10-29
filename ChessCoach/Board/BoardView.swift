@@ -25,6 +25,7 @@ struct BoardView: View {
   /// Small round badge at a square's top-right corner (move classification).
   var badge: SquareBadge? = nil
 
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var identified: [IdentifiedPiece] = []
   @State private var nextID = 0
   @State private var gesture = GestureState()
@@ -53,14 +54,16 @@ struct BoardView: View {
       .frame(width: side, height: side)
       .contentShape(Rectangle())
       .gesture(interactive ? boardGesture(geo) : nil)
-      .accessibilityElement(children: .ignore)
+      .accessibilityHidden(true)
+      .overlay(alignment: .topLeading) { accessibilitySquares(geo) }
+      .accessibilityElement(children: .contain)
       .accessibilityLabel("Chess board")
       .accessibilityIdentifier("board")
     }
     .aspectRatio(1, contentMode: .fit)
     .onAppear { reconcile() }
     .onChange(of: position.fen) { _, _ in
-      withAnimation(.easeOut(duration: 0.15)) { reconcile() }
+      withAnimation(reduceMotion ? nil : AnimationToken.pieceMove) { reconcile() }
     }
     .onChange(of: interactive) { _, isInteractive in
       if !isInteractive { resetGesture() }
@@ -270,6 +273,31 @@ struct SquareBadge: Equatable {
   var square: Square
   var text: String
   var color: Color
+}
+
+extension BoardView {
+  /// VoiceOver: the 64 squares as buttons ("e4, white knight"); activating one is a tap, so moves
+  /// are entered square by square (spec W9). Invisible and untouchable for everyone else.
+  func accessibilitySquares(_ geo: BoardGeometry) -> some View {
+    ForEach(0..<64, id: \.self) { i in
+      let square = geo.square(column: i % 8, row: i / 8)
+      let origin = geo.origin(of: square)
+      Color.clear
+        .frame(width: geo.squareSize, height: geo.squareSize)
+        .offset(x: origin.x, y: origin.y)
+        .allowsHitTesting(false)
+        .accessibilityElement()
+        .accessibilityLabel(Self.spoken(square, position.piece(at: square)))
+        .accessibilityAddTraits(interactive ? .isButton : [])
+        .accessibilityAddTraits(highlights.selected == square ? .isSelected : [])
+        .accessibilityAction { if interactive { onTap(square) } }
+    }
+  }
+
+  static func spoken(_ square: Square, _ piece: Piece?) -> String {
+    guard let piece else { return "\(square.notation), empty" }
+    return "\(square.notation), \(piece.color == .white ? "white" : "black") \(FactExtractor.name(of: piece.kind))"
+  }
 }
 
 extension BoardTheme {

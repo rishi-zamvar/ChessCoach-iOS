@@ -18,6 +18,11 @@ final class FeedbackCenter {
   private(set) var reports: [SentReport] = []
   /// A one-line prompt shown at the top of the app (screenshot offer, "fixed in this build").
   var prompt: Prompt?
+  /// How often small prompts (thumbs) may appear, and when to ask for an App Store rating (spec W8).
+  var promptBudget: PromptBudget { didSet { save(promptBudget, Self.budgetKey) } }
+  var reviewPolicy: ReviewPromptPolicy { didSet { save(reviewPolicy, Self.reviewKey) } }
+  static let budgetKey = "feedback.promptBudget"
+  static let reviewKey = "feedback.reviewPolicy"
   @ObservationIgnored let breadcrumbs = BreadcrumbSink(capacity: 50)
   @ObservationIgnored let outbox: FeedbackOutbox
   @ObservationIgnored private let telemetry: () -> Telemetry?
@@ -42,6 +47,10 @@ final class FeedbackCenter {
 
   init(telemetry: @escaping () -> Telemetry?) {
     self.telemetry = telemetry
+    var budget = Self.load(PromptBudget.self, Self.budgetKey) ?? PromptBudget()
+    budget.newSession()  // one prompt per launch
+    promptBudget = budget
+    reviewPolicy = Self.load(ReviewPromptPolicy.self, Self.reviewKey) ?? ReviewPromptPolicy(installedAt: Date())
     let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("feedback-outbox")
     outbox = FeedbackOutbox(directory: dir)
     NotificationCenter.default.addObserver(forName: UIApplication.userDidTakeScreenshotNotification, object: nil, queue: .main) { [weak self] _ in
@@ -63,7 +72,11 @@ final class FeedbackCenter {
   // MARK: - Opening the sheet
 
   /// Captures the screen first (so the sheet isn't in the shot), then shows the feedback sheet on top of everything.
+  /// Times the sheet was opened this launch (tests).
+  private(set) var opens = 0
+
   func open(source: String) {
+    opens += 1
     let shot = Self.captureScreen()
     telemetry()?.event("feedback.open", metadata: ["source": .string(source), "screen": .string(screen)])
     let draft = FeedbackDraft(screen: screen, context: context, screenshot: shot)
@@ -92,6 +105,7 @@ final class FeedbackCenter {
       breadcrumbs: breadcrumbs.lines, build: Self.build, appVersion: Self.version,
       screenshotJPEG: draft.includeScreenshot ? draft.screenshot.flatMap(Self.jpeg) : nil, diagnostics: draft.includeDiagnostics)
     try? outbox.enqueue(report)
+    if draft.category == .bug || draft.category == .confusing { reviewPolicy.negativeSignal(now: Date()) }
     telemetry()?.event("feedback.submit", metadata: [
       "category": .string(draft.category.rawValue), "screen": .string(draft.screen), "feedback_id": .string(report.id.uuidString),
       "diagnostics": .bool(draft.includeDiagnostics), "screenshot": .bool(draft.includeScreenshot),
@@ -139,6 +153,30 @@ final class FeedbackCenter {
     AnalyticsSetup.setConsent(.basic, profile: { [:] }, userID: { "" })
     telemetry()?.event("settings.change", metadata: ["key": .string("delete_my_data")])
     return true
+  }
+
+  // MARK: - Small prompts
+
+  /// A thumbs answer on an explanation; thumbs-down with words becomes a feedback report.
+  func thumb(surface: String, up: Bool, note: String?, context: [String: JSONValue]) async {
+    promptBudget.answered()
+    telemetry()?.event("feedback.thumb", metadata: ["surface": .string(surface), "value": .string(up ? "up" : "down")])
+    guard !up else { return }
+    reviewPolicy.negativeSignal(now: Date())
+    if let note, !note.trimmingCharacters(in: .whitespaces).isEmpty {
+      var draft = FeedbackDraft(screen: screen, context: context.merging(["surface": .string(surface)]) { a, _ in a }, screenshot: nil)
+      draft.category = .confusing
+      draft.text = note
+      await submit(draft)
+    }
+  }
+
+  private func save<T: Encodable>(_ value: T, _ key: String) {
+    UserDefaults.standard.set(try? JSONEncoder().encode(value), forKey: key)
+  }
+
+  private static func load<T: Decodable>(_ type: T.Type, _ key: String) -> T? {
+    UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(T.self, from: $0) }
   }
 
   // MARK: - Screen capture

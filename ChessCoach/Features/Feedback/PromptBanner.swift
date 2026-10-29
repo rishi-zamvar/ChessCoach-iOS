@@ -1,3 +1,4 @@
+import ChessCoachKit
 import SwiftUI
 import UIKit
 
@@ -32,6 +33,67 @@ enum PromptBanner {
   static func hide() {
     window?.isHidden = true
     window?.rootViewController = nil
+  }
+}
+
+/// "Was this helpful?" under an explanation (spec W8): thumbs up/down, an optional line on what was
+/// off, and the prompt budget (one per session, a 30-day pause after two dismissals).
+struct ThumbsRow: View {
+  let surface: String
+  var context: [String: JSONValue] = [:]
+  @Environment(AppEnvironment.self) private var env
+  @State private var visible = false
+  @State private var answered: Bool?
+  @State private var note = ""
+  @State private var sent = false
+
+  var body: some View {
+    Group {
+      if sent || answered == true {
+        Text("Thanks.").font(Typography.caption).foregroundStyle(Palette.textTertiary)
+      } else if answered == false {
+        HStack(spacing: Spacing.s) {
+          TextField("What was off? (optional)", text: $note)
+            .font(Typography.callout)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("thumbs-note")
+          Button("Send") {
+            Task { await env.feedback.thumb(surface: surface, up: false, note: note, context: context); sent = true }
+          }
+          .font(Typography.callout.weight(.semibold))
+        }
+      } else if visible {
+        HStack(spacing: Spacing.m) {
+          Text("Was this helpful?").font(Typography.caption).foregroundStyle(Palette.textSecondary)
+          Button { answer(true) } label: { Image(systemName: "hand.thumbsup") }
+            .accessibilityLabel("Helpful")
+            .accessibilityIdentifier("thumbs-up")
+          Button { answered = false } label: { Image(systemName: "hand.thumbsdown") }
+            .accessibilityLabel("Not helpful")
+            .accessibilityIdentifier("thumbs-down")
+          Spacer()
+          Button {
+            env.feedback.promptBudget.dismissed(now: Date())
+            visible = false
+          } label: { Image(systemName: "xmark").font(Typography.caption) }
+            .accessibilityLabel("Dismiss")
+        }
+        .font(Typography.body)
+        .foregroundStyle(Palette.sage)
+      }
+    }
+    .padding(.horizontal, Spacing.l)
+    .frame(minHeight: visible || answered != nil ? 36 : 0)
+    .onAppear {
+      guard env.feedback.promptBudget.mayShow(now: Date(), timedPlay: false) else { return }
+      env.feedback.promptBudget.shown(now: Date())
+      visible = true
+    }
+  }
+
+  private func answer(_ up: Bool) {
+    answered = up
+    Task { await env.feedback.thumb(surface: surface, up: up, note: nil, context: context) }
   }
 }
 

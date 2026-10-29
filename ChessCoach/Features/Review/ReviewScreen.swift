@@ -179,6 +179,9 @@ private struct ReviewContent: View {
         CoachBubble(text: bubbleText, move: controller.retryState == nil ? controller.currentMove : nil)
           .padding(.horizontal, Spacing.m)
           .padding(.vertical, Spacing.s)
+        if controller.currentMove?.label.isError == true {
+          ThumbsRow(surface: "review_explanation", context: ["ply": .int(controller.ply)])
+        }
       }
       .scrollBounceBehavior(.basedOnSize)
       .frame(height: 132)

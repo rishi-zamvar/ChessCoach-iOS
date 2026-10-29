@@ -57,6 +57,7 @@ struct CoachLineBubble: View {
   var headline: String?
   let text: String
   var speaking = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var onReplay: (() -> Void)?
 
   var body: some View {
@@ -67,7 +68,7 @@ struct CoachLineBubble: View {
         .frame(width: 38, height: 38)
         .background(Circle().fill(Palette.sage))
         .shadow(color: Palette.sage.opacity(speaking ? 0.7 : 0), radius: speaking ? 8 : 0)
-        .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: speaking)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: speaking)
       VStack(alignment: .leading, spacing: 2) {
         Text("COACH")
           .font(.system(.caption2).weight(.heavy)).tracking(1)

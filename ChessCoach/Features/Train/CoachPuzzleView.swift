@@ -50,6 +50,7 @@ struct CoachPuzzleView: View {
       promptBar
       board
       messageBar
+      if run?.phase == .done { ThumbsRow(surface: "coach_puzzle", context: ["puzzle": .string(puzzle.id)]) }
       if let run, run.phase != .playing { movesStrip(run) }
       Spacer(minLength: 0)
       controls

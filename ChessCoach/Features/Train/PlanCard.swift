@@ -1,4 +1,5 @@
 import ChessCoachKit
+import StoreKit
 import SwiftUI
 
 /// Today's plan: each block with its reason, minutes and a start button. When every block is done
@@ -6,6 +7,7 @@ import SwiftUI
 struct PlanCard: View {
   @Environment(TrainingService.self) private var training
   @Environment(AppEnvironment.self) private var env
+  @Environment(\.requestReview) private var requestReview
   @State private var running: RunningBlock?
   /// A block chosen from the runner's "Next" button, started once the runner has closed.
   @State private var queued: PlanItem?
@@ -121,11 +123,19 @@ struct PlanCard: View {
         .font(Typography.caption).foregroundStyle(Palette.textTertiary)
         .padding(.top, Spacing.m)
     }
+    .onAppear {
+      // A finished plan is a success moment: maybe ask for an App Store rating (once per version).
+      let version = FeedbackCenter.version
+      guard env.feedback.reviewPolicy.shouldAsk(version: version, now: Date()), !env.isInMemory else { return }
+      env.feedback.reviewPolicy.asked(version: version)
+      env.telemetry.event("app.review_prompt")
+      requestReview()
+    }
   }
 
   private var summary: String {
     let puzzles = training.puzzlesToday()
-    let streak = (try? training.store.streak(now: Date())) ?? 0
+    let streak = training.streak()
     var parts = ["\(training.plan.count) blocks", "\(puzzles) puzzle\(puzzles == 1 ? "" : "s")"]
     if streak > 0 { parts.append("\(streak)-day streak") }
     return parts.joined(separator: " · ")
