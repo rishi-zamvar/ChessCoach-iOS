@@ -17,6 +17,7 @@ cat > "$OUT/ExportOptions.plist" <<PLIST
   <key>manageAppVersionAndBuildNumber</key><false/>
 </dict></plist>
 PLIST
+scripts/lint-design.sh
 xcodegen generate -q
 xcodebuild -project ChessCoach.xcodeproj -scheme ChessCoach -configuration Release -destination 'generic/platform=iOS' \
   -archivePath "$OUT/ChessCoach.xcarchive" -allowProvisioningUpdates CURRENT_PROJECT_VERSION="$BUILD" -quiet archive
