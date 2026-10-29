@@ -28,7 +28,7 @@ The tester is 18 builds behind (43 vs 61). Build 57+ already removed the PC stat
 - **One analysis board** (`AnalysisBoard`) reused everywhere; no per-screen variants.
 - **Analytics = PostHog Cloud (EU region), free tier**, fed by a new `TelemetrySink`. Not self-hosted:
   PostHog self-host needs a 4-core/16 GB Docker stack the PC shouldn't carry, and a home-built dashboard is
-  weeks of work. Free tier: 1M events + 5k session replays a month, iOS SDK with replay, funnels,
+  weeks of work. Free tier: 1M events + 2.5k mobile session replays a month, iOS SDK with replay, funnels,
   retention, person profiles, feature flags. Upgrade path: pay-as-you-go, same SDK.
 - **Two consent tiers**: Basic usage (anonymous, on by default, opt-out) and Rich profile (identified,
   opt-in at onboarding). Details in W7.
@@ -166,30 +166,133 @@ Primary metric D7 retention, guardrail plan completion rate.
 ### W8 In-app feedback, one tap from every screen
 TestFlight's shake-to-feedback only exists in TestFlight builds, carries no app context, and can't be
 answered. We own it instead.
-1. **Entry points:** a feedback icon (speech bubble) in every tab's top bar next to the Settings gear;
-   "Send feedback" in the ⋯ menu of every full-screen board (puzzle runner, game, review, lesson, analysis);
-   shake gesture anywhere. No floating button over the board.
-2. **Sheet:** category (Bug · Confusing · Idea · Praise), free text, screenshot of the screen it was opened
-   from (auto-captured, can be removed or marked up with a pen), "Include diagnostic details" toggle (on,
-   with a "what's included" disclosure).
-3. **Context attached automatically:** screen name + view state (puzzle id/FEN/mode, plan block, game id,
-   review ply), last 50 telemetry events as breadcrumbs, build/version, device, OS, locale, network state,
-   AI provider (never the key), consent tier, PostHog distinct/session id.
-4. **Transport:** `POST /v1/feedback` on the public server (chess.zamvar.io, App Attest, 64 KB body cap
+Build, don't buy: Sentry/PostHog Surveys/Shake/Instabug can't show "Fixed in build N" back to the user,
+Shake's free tier is 30 reports/month, Instabug has no free plan, PostHog Surveys has no screenshot or
+markup and no iOS feedback-button support. Our sheet is ≈300 lines + one endpoint.
+1. **Entry points:** a feedback icon (speech bubble) in every tab's top bar next to the Settings gear
+   (visible beats hidden: NN/g measured 20–50% lower discoverability for hidden menus); "Send feedback" in
+   the ⋯ menu of every full-screen board (puzzle runner, game, review, lesson, analysis). No floating button.
+2. **Screenshot trigger:** on `userDidTakeScreenshotNotification` show a small toast "Report a problem with
+   this screen?" (once per session).
+3. **Shake is opt-in:** on by default in TestFlight builds only, Settings toggle otherwise; ignored while a
+   board/clock is active or a text field is focused (Apple HIG reserves shake for undo).
+4. **Sheet:** screenshot captured *before* the sheet appears, shown as a thumbnail with an include toggle and
+   PencilKit highlight/blackout; optional category chips (Bug · Confusing · Idea · Praise) that never block
+   Send; one text field focused on open; draft autosaved; "Include diagnostic details" toggle (on) with a
+   "What's included?" expander.
+5. **Context attached automatically:** screen name + view state (puzzle id/FEN/mode, plan block, game id,
+   review ply), last 50 telemetry events as breadcrumbs (scrubbed: no email, no free-text inputs),
+   build/version, device, OS, locale, network state, AI provider (never the key), consent tier, PostHog
+   distinct/session id. Sensitive views (API key fields) carry `.postHogMask()`.
+6. **Transport:** client UUID as idempotency key; payload + image written to disk first, retried on launch and
+   on `NWPathMonitor` reconnect. `POST /v1/feedback` on the public server (chess.zamvar.io, App Attest, 64 KB body cap
    for JSON + separate image upload ≤ 1 MB JPEG) → SQLite row + image on the PC. Queued on device and
    retried when offline. Also emits PostHog `feedback.submit{category, screen, feedback_id}` so each report
    links to the session replay (rich tier) and shows on the dashboard.
-5. **Triage:** a new report sends a ZeeChat ping with category + first line; a `scripts/feedback.sh`
+7. **Triage:** a new report sends a ZeeChat ping with category + first line; a `scripts/feedback.sh`
    lists/exports reports (and pulls TestFlight feedback through the ASC API into the same table).
-6. **Reply loop:** reports stay visible under Settings → Your feedback with status (Received · Fixed in build N).
-   KPI: feedback per 100 WAU, by screen and category.
+8. **Reply loop:** confirmation "Sent. Track it in Settings → Your feedback." Server status Received · Fixed in
+   build N · Won't fix; the app shows a badge on first launch of a build ≥ N. Push only if notifications are
+   already allowed. KPI: feedback per 100 WAU, by screen and category.
+9. **Micro-prompts:** inline 👍/👎 under coach explanations, puzzle explanations and game reviews (👎 opens an
+   optional "What was off?" line) → `feedback.thumb{surface,value}`. Budget: one prompt per session, none
+   during timed play, 30-day pause after two dismissals. No NPS until there's volume.
+10. **App Store review prompt:** `requestReview` only after a success moment (puzzle streak, won game, 👍),
+    once per version, 7+ days after install, never after 👎 or a bug report.
+
+### W9 One design system on every screen
+**Audit (HEAD).** Two complete visual languages. *Apothecary* (`Palette`/`Typography`/`Spacing`/`Card`/
+`BackgroundAtmosphere`; cream paper, serif italic display, sage + rose) covers the 4 tab hubs and onboarding.
+*ChessChrome* (13 colour tokens copied from chess.com: charcoal `#302E2B`, green `#81B64C`, hard-coded
+`.system(.rounded)` fonts, ~115 literals, 0 Typography use) covers every board screen: GameScreen, PuzzleView,
+TrainingRunner, PuzzleRush, Lesson, VisionDrill, Openings session, Review. `ReviewScreen` forces
+`.preferredColorScheme(.dark)` (line 51) so it flips theme when opened from light Analyze. The same green
+radius-10 button exists 4 times (`PuzzleButton`, Review, GameScreen, ResultCard). Onboarding switches to
+ChessChrome for placement. Settings/board-options are untinted stock Forms. No Dynamic Type (every font is
+`system(size:)`), no Reduce Motion handling, 6 accessibility labels vs 108 identifiers, the board is one
+"Chess board" element. Leftovers from WorkoutCoach: felt colours, `StepperButton`, `TimeMinSecField`,
+unattached toasts, unused animations, an opaque tab-bar appearance iOS 26 ignores.
+
+**Decision: evolve Apothecary into "Knightlight Paper", delete ChessChrome.** Apothecary is the only layer with
+type/spacing/components and already matches the research recommendation for a coach app: follow the system
+appearance, but design light as the hero (positive polarity reads better for text-heavy coach chat, lessons
+and reviews), warm charcoal in dark, serif display, and clearly not chess.com green-on-charcoal.
+
+**Rules (from HIG + WWDC25 "Get to know the new design system").**
+- Liquid Glass only on the navigation layer: tab bar, nav/toolbars, the board control cluster
+  (prev/next/flip/hint/analyze, in one `GlassEffectContainer`), the coach chat input. Never on cards,
+  the board, move list or bubbles. One tinted (prominent) action per screen. Must still read with Reduce
+  Transparency and the 26.1 Tinted look.
+- Follow the system appearance; no app appearance setting; no forced schemes.
+- Every font is a text style (Dynamic Type + Bold Text). Serif (New York) for display, titles and the coach's voice.
+- Never colour alone: move quality always shows its glyph.
+
+**Tokens** (asset-catalog colours with Any/Dark/High Contrast; views only use semantic names).
+| Token | Light | Dark | Notes |
+|---|---|---|---|
+| `surface.base` | `#F6F4EF` | `#181715` | every screen, boards included |
+| `surface.raised` | `#FDFBF6` | `#23211E` | cards, sheets |
+| `surface.sunken` | `#EFEBE3` | `#100F0E` | inputs, wells, move list |
+| `separator` | ink 12% | paper 12% | hairlines |
+| `text.primary` | `#2B2523` | `#F2EDE6` | |
+| `text.secondary` | `#6B625D` | `#B5ADA5` | |
+| `text.tertiary` | `#8F867E` | `#857D76` | ≥ 4.5:1 checked on both surfaces |
+| `action.primary` | `#2B2523` | `#F2EDE6` | ink capsule CTA, label = surface.base |
+| `accent.sage` | `#4F7560` | `#8DB59C` | coach ring, progress, links (was primaryDeep) |
+| `accent.rose` | `#B06F6F` | `#E6A8A8` | streak, warmth only |
+| `status.success` / `danger` / `warning` | `#2F7D4F` / `#B23A1E` / `#A87F00` | `#5CC98A` / `#FF7A52` / `#F0D24A` | |
+
+Move quality (Okabe-Ito based, glyph + colour, light/dark): Brilliant `!!` `#00897B`/`#3CC9B8` · Great `!`
+`#0072B2`/`#56B4E9` · Best `★` `#2F7D4F`/`#5CC98A` · Good `✓` `#6B7F70`/`#93A898` · Book `#8C6E4E`/`#C2A07C`
+· Inaccuracy `?!` `#A87F00`/`#F0D24A` · Mistake `?` `#D9730D`/`#F5A04A` · Blunder `??` `#C0392B`/`#FF6B5B`
+· Miss `✕` `#CC79A7`/`#E7A3CC`. Replaces the hex literals in `ReviewScreen.swift:695-705`.
+
+Board: themes unchanged and user-selectable via `@Environment(\.boardTheme)`; default becomes **Sage**
+(`#E9EDDF`/`#7D9672`, sits with the brand) instead of chess.com green; board dimmed 6% in dark; radius 8.
+Overlays: last move `#E9C46A` 45%, selected ink 25%, legal dots ink 20%, coach arrow sage 85%, best line
+best-green 80%, threat blunder 80%. Eval bar `#F4F1EA`/`#2A2724` with hairline midline (was fixed `#403D39`).
+Clock tokens move from ChessChrome into the palette.
+
+Type (`KLFont`, all text styles): display = largeTitle serif semibold · title = title2 serif semibold ·
+section = headline · body = body · coachSpeech = body serif · meta = subheadline · caption = caption ·
+numeric = title3 monospacedDigit semibold · moveSAN = body monospaced. Left-aligned. Spacing keeps the 4pt
+scale (4/8/12/16/24/32/48, gutter 16, card gap 12); radii chip = capsule, inner 12, card 20, board 8,
+nested = `ConcentricRectangle`. Elevation: opaque raised surface + hairline; light-mode shadow y1 blur3 6%;
+no shadows in dark. Background: one `AppBackground` (base + 5% grain; sage/rose mesh on hubs only, 50% of
+today's strength).
+
+**Components** (one each, everything else deleted): `KLCard`, `SectionHeader`, `PrimaryButton` (ink capsule
+50 pt), `SecondaryButton`, `GlassIconButton`, `BoardControlCluster`, `StatTile`, `CoachBubble`, `UserBubble`,
+`EvalBar`, `MoveListRow`, `QualityBadge`, `ArrowOverlay`, `PuzzleResultBanner`, `EmptyState`, `Toast`
+(attached at root), `FeedbackButton` (W8).
+
+**Motion and feedback** through one `Feedback` helper honouring Settings toggles and the silent switch:
+move light impact · capture medium · check rigid · puzzle right `.success` · wrong `.warning` · scrubbing
+`.selection` · nothing on opponent moves. Piece slide 180 ms ease-out, illegal snap-back 120 ms, eval 300 ms.
+Reduce Motion: instant placement + 100 ms fade, no pulses or slides (`CoachLineBubble` pulse included).
+
+**Accessibility.** Labels on every icon button; board exposes 64 squares ("e4, white knight") with VoiceOver
+move entry by square; Dynamic Type up to AX5 with board-first layouts that scroll; contrast ≥ 4.5:1.
+
+**Enforcement.** SwiftLint `custom_rules` outside `DesignSystem/`: ban `Color(red:`, `Color(hex:`,
+`.font(.system(size:`, `Font.custom` without `relativeTo`, numeric `cornerRadius:`/`.padding(<n>)`.
+Snapshot tests (swift-snapshot-testing) for every screen × light, dark, AX5 text, dark + Increase Contrast.
+
+**Per-screen checklist:** base background, no literals, serif headers left-aligned, ≤1 prominent action,
+glass only on nav/controls, board via environment theme, quality via `QualityBadge`, feedback via helper,
+snapshots pass. Screens: Today, Train, Analyze, Play home, Onboarding (no chrome switch), GameScreen,
+TrainingRunner + Puzzle/Lesson/Vision, Rush, Openings session, Review (drop forced dark), Analysis board (W4),
+Settings + board options (tinted, grouped), AskCoach, Feedback sheet.
 
 ## Milestones
-- **M1 — Unstuck + measure (≈2 days):** W1, W7 Basic tier + taxonomy for existing flows, W8 feedback
-  sheet + server endpoint, privacy manifest, W6 display name. Ship to TestFlight, ask testers to update.
-- **M2 — Explain + explore (≈3 days):** W2, W4, W5.
-- **M3 — Coach mode (≈3 days):** W3 behind `coach_mode_default`, W7 Rich tier + consent screen + delete my data.
-- **M4 — Polish (≈1 day):** rest of W6, streak freeze, KPI dashboard + ASC report pull.
+- **M1 — Foundation + unstuck + measure (≈3 days):** W9 tokens, `KLFont`, components, lint rules and
+  snapshot harness; W1; W7 Basic tier + taxonomy; W8 feedback sheet + endpoint; privacy manifest; display
+  name. Ship to TestFlight, ask testers to update.
+- **M2 — Board screens + explain + explore (≈4 days):** re-skin every board screen onto W9 and delete
+  ChessChrome; W2, W4, W5.
+- **M3 — Coach mode (≈3 days):** W3 behind `coach_mode_default`, W7 Rich tier + consent + delete my data.
+- **M4 — Polish + accessibility (≈2 days):** rest of W6, VoiceOver board, Reduce Motion, streak freeze, KPI
+  dashboard + ASC report pull, remove WorkoutCoach leftovers.
 
 ## Tests (written before code, BDD names)
 - `test_givenReviewsBlockConsumedMistakes_whenMistakesBlockStarts_thenItsReservedTasksStillRun`
@@ -206,6 +309,12 @@ answered. We own it instead.
 - `test_givenFeedbackFromPuzzle_whenSubmitted_thenPayloadHasScreenFenBreadcrumbsAndNoAPIKey`
 - `test_givenOffline_whenFeedbackSubmitted_thenQueuedAndSentOnReconnect`
 - `test_givenDiagnosticsOff_whenFeedbackSubmitted_thenOnlyTextCategoryAndScreenshotSent`
+- `test_givenBoardActive_whenShake_thenFeedbackSheetNotShown`
+- `test_givenPromptShownThisSession_whenNextPromptDue_thenSuppressed`
+- `test_givenEveryScreen_whenSnapshotInLightDarkAX5HighContrast_thenMatchesReference`
+- `test_givenMoveClass_whenBadgeRendered_thenGlyphAndTokenColourBothPresent`
+- `test_givenReduceMotion_whenPieceMoves_thenNoSlideAnimation`
+- `test_givenBoard_whenVoiceOverReadsSquare_thenLabelNamesSquareAndPiece`
 
 ## Out of scope
 Paywalls/subscriptions, social features, online multiplayer, Android, rewriting the planner algorithm.
